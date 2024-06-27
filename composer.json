@@ -1,0 +1,26 @@
+{
+  "name": "cclilshy/p-ripple-event",
+  "autoload": {
+    "psr-4": {
+      "Cclilshy\\PRippleEvent\\": "src/"
+    },
+    "files": [
+      "src/helper.php"
+    ]
+  },
+  "authors": [
+    {
+      "name": "cclilshy",
+      "email": "jingnigg@gmail.com"
+    }
+  ],
+  "require": {
+    "php": ">=8.3",
+    "revolt/event-loop": "^1.0",
+    "ext-posix": "*",
+    "ext-sockets": "*",
+    "ext-pcntl": "*",
+    "ext-event": "*",
+    "guzzlehttp/guzzle": "^7.8"
+  }
+}

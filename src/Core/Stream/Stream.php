@@ -1,0 +1,226 @@
+<?php declare(strict_types=1);
+/*
+ * Copyright (c) 2023 cclilshy
+ * Contact Information:
+ * Email: jingnigg@gmail.com
+ * Website: https://cc.cloudtay.com/
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *
+ * 版权所有 (c) 2023 cclilshy
+ *
+ * 特此免费授予任何获得本软件及相关文档文件（“软件”）副本的人，不受限制地处理
+ * 本软件，包括但不限于使用、复制、修改、合并、出版、发行、再许可和/或销售
+ * 软件副本的权利，并允许向其提供本软件的人做出上述行为，但须符合以下条件：
+ *
+ * 上述版权声明和本许可声明应包含在本软件的所有副本或主要部分中。
+ *
+ * 本软件按“原样”提供，不提供任何形式的保证，无论是明示或暗示的，
+ * 包括但不限于适销性、特定目的的适用性和非侵权性的保证。在任何情况下，
+ * 无论是合同诉讼、侵权行为还是其他方面，作者或版权持有人均不对
+ * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
+ */
+
+namespace Cclilshy\PRippleEvent\Core\Stream;
+
+use Cclilshy\PRippleEvent\Core\Standard\StreamInterface;
+use Closure;
+use function call_user_func;
+use function fclose;
+use function feof;
+use function fflush;
+use function fgetcsv;
+use function fgets;
+use function fread;
+use function fseek;
+use function ftell;
+use function ftruncate;
+use function fwrite;
+use function get_resource_id;
+use function rewind;
+use function stream_get_meta_data;
+use function stream_set_blocking;
+
+class Stream implements StreamInterface
+{
+    /**
+     * @var resource
+     */
+    public mixed $stream;
+
+    /**
+     * @var int $id
+     */
+    public int $id;
+
+    /**
+     * @var array $meta
+     */
+    public array $meta;
+
+    /**
+     * @var array
+     */
+    private array $onCloseCallbacks = [];
+
+    /**
+     * Stream constructor.
+     * @param resource $resource
+     */
+    public function __construct(mixed $resource)
+    {
+        $this->stream = $resource;
+        $this->meta   = stream_get_meta_data($resource);
+        $this->id     = get_resource_id($resource);
+    }
+
+    /**
+     * @return void
+     */
+    public function close(): void
+    {
+        fclose($this->stream);
+        foreach ($this->onCloseCallbacks as $callback) {
+            call_user_func($callback);
+        }
+    }
+
+    /**
+     * @param int|null $length
+     * @return string|false
+     */
+    public function read(int|null $length): string|false
+    {
+        return fread($this->stream, $length);
+    }
+
+    /**
+     * @param string $string
+     * @return int|false
+     */
+    public function write(string $string): int|false
+    {
+        return fwrite($this->stream, $string);
+    }
+
+    /**
+     * @return bool
+     */
+    public function eof(): bool
+    {
+        return feof($this->stream);
+    }
+
+    /**
+     * 移动指定位置指针
+     * @param int $offset
+     * @param int $whence
+     * @return int
+     */
+    public function seek(int $offset, int $whence): int
+    {
+        return fseek($this->stream, $offset, $whence);
+    }
+
+    /**
+     * @param bool $bool
+     * @return bool
+     */
+    public function setBlocking(bool $bool): bool
+    {
+        return stream_set_blocking($this->stream, $bool);
+    }
+
+    /**
+     * @param Closure $closure
+     * @return void
+     */
+    public function onClose(Closure $closure): void
+    {
+        $this->onCloseCallbacks[] = $closure;
+    }
+
+    /**
+     * @return int|false
+     */
+    public function ftell(): int|false
+    {
+        return ftell($this->stream);
+    }
+
+    /**
+     * @return string|false
+     */
+    public function fgets(): string|false
+    {
+        return fgets($this->stream);
+    }
+
+    /**
+     * @return array|false
+     */
+    public function fgetcsv(): array|false
+    {
+        return fgetcsv($this->stream);
+    }
+
+    /**
+     * @param int $size
+     * @return bool
+     */
+    public function ftruncate(int $size): bool
+    {
+        return ftruncate($this->stream, $size);
+    }
+
+    /**
+     * @return int|false
+     */
+    public function fflush(): int|false
+    {
+        return fflush($this->stream);
+    }
+
+    /**
+     * @param string $data
+     * @return int|false
+     */
+    public function fwrite(string $data): int|false
+    {
+        return fwrite($this->stream, $data);
+    }
+
+
+    /**
+     * @param int $length
+     * @return string|false
+     */
+    public function fread(int $length): string|false
+    {
+        return fread($this->stream, $length);
+    }
+
+    /**
+     * @return bool
+     */
+    public function rewind(): bool
+    {
+        return rewind($this->stream);
+    }
+}
