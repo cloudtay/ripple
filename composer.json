@@ -1,5 +1,7 @@
 {
-  "name": "cclilshy/p-ripple-event",
+  "name": "cclilshy/p-ripple-core",
+  "version": "0.0.1",
+  "license": "MIT",
   "autoload": {
     "psr-4": {
       "Cclilshy\\PRippleEvent\\": "src/"
