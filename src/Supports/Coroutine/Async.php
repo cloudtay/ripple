@@ -32,45 +32,56 @@
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-use GuzzleHttp\Psr7\Response;
+namespace Psc\Supports\Coroutine;
 
-include_once __DIR__ . '/vendor/autoload.php';
+use Closure;
+use Fiber;
+use Psc\Core\Coroutine\Exception;
+use Psc\Core\Coroutine\Promise;
+use Psc\Core\ModuleAbstract;
+use Throwable;
 
-P\IO::File();
-P\IO::File()->getContents(__FILE__);                             //返回Promise对象
-P\IO::Socket()->streamSocketClient('tcp://www.baidu.com:80');    // 异步完成连接
-P\IO::Socket()->streamSocketClientSSL('tcp://www.baidu.com:443');//异步完成SSL握手
+class Async extends ModuleAbstract
+{
+    /**
+     * @var ModuleAbstract
+     */
+    protected static ModuleAbstract $instance;
 
-P\Net::Http();
-P\Net::Http()->Guzzle();
-P\Net::Http()->Guzzle()->getAsync('https://www.baidu.com/404'); //返回Promise对象
+    /**
+     * @param Promise $promise
+     * @return mixed
+     * @throws Throwable
+     */
+    public function await(Promise $promise): mixed
+    {
+        $fiber = Fiber::getCurrent();
+        if (!$fiber) {
+            throw new Exception('The await function must be called in a coroutine.');
+        }
 
-P\async(function () {
-    $fileContent = P\await(
-        P\IO::File()->getContents(__FILE__)
-    );
+        if ($promise->getStatus() !== Promise::PENDING) {
+            return $promise->result;
+        }
 
-    $hash = hash('sha256', $fileContent);
-    echo "[await] File content hash: {$hash}" . PHP_EOL;
-});
+        $promise->finally(function (mixed $result) use ($fiber) {
+            if ($result instanceof Throwable) {
+                return $fiber->throw($result);
+            } else {
+                return $fiber->resume($result);
+            }
+        });
 
-P\async(function () {
-    try {
-        $response = P\await(P\Net::Http()->Guzzle()->getAsync('https://www.baidu.com/'));
-        echo "[await] Response status code: {$response->getStatusCode()}" . PHP_EOL;
-    } catch (Throwable $exception) {
-        echo "[await] Exception: {$exception->getMessage()}" . PHP_EOL;
+        return $fiber->suspend();
     }
-});
 
-P\async(function () {
-    P\Net::Http()->Guzzle()->getAsync('https://www.baidu.com/')->then(function (Response $response) {
-        echo "[async] Response status code: {$response->getStatusCode()}" . PHP_EOL;
-    })->except(function (Exception $e) {
-        echo "[async] Exception: {$e->getMessage()}" . PHP_EOL;
-    });
-});
-
-\P\sleep(3);
-
-echo 'done' . PHP_EOL;
+    /**
+     * @param Closure $closure
+     * @return Promise
+     */
+    public function async(Closure $closure): Promise
+    {
+        $fiber = new Fiber($closure);
+        return new Promise(fn($r, $d) => $fiber->start($r, $d));
+    }
+}

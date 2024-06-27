@@ -1,9 +1,6 @@
 <?php declare(strict_types=1);
 /*
- * Copyright (c) 2023 cclilshy
- * Contact Information:
- * Email: jingnigg@gmail.com
- * Website: https://cc.cloudtay.com/
+ * Copyright (c) 2023-2024.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -23,8 +20,6 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  *
- * 版权所有 (c) 2023 cclilshy
- *
  * 特此免费授予任何获得本软件及相关文档文件（“软件”）副本的人，不受限制地处理
  * 本软件，包括但不限于使用、复制、修改、合并、出版、发行、再许可和/或销售
  * 软件副本的权利，并允许向其提供本软件的人做出上述行为，但须符合以下条件：
@@ -37,34 +32,38 @@
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-namespace Cclilshy\PRippleEvent\Core\Coroutine;
+namespace Psc\Core\Coroutine;
 
-use Cclilshy\PRippleEvent\Core\Coroutine\Exception\Exception;
-use Cclilshy\PRippleEvent\Core\Output;
 use Closure;
+use Psc\Core\Output;
 use Throwable;
 use function call_user_func;
 use function call_user_func_array;
 
 class Promise
 {
-    private const string  PENDING   = 'pending';
-    private const string  FULFILLED = 'fulfilled';
-    private const string  REJECTED  = 'rejected';
+    public const string   PENDING   = 'pending';   // 悬空
+    public const string   FULFILLED = 'fulfilled'; // 已完成
+    public const string   REJECTED  = 'rejected';  // 已拒绝
+
+
+    /**
+     * @var string
+     */
     private string $status = Promise::PENDING;
 
     /**
-     * @var mixed $result
+     * @var mixed
      */
-    private mixed $result;
+    public mixed $result;
 
     /**
-     * @var Closure[] $onFulfilled
+     * @var Closure[]
      */
     private array $onFulfilled = [];
 
     /**
-     * @var Closure[] $onRejected
+     * @var Closure[]
      */
     private array $onRejected = [];
 
@@ -88,9 +87,10 @@ class Promise
                 fn(mixed $result = null) => $this->reject($this->result = $result)
             ]);
         } catch (Throwable $exception) {
+            Output::error($exception->getMessage());
             try {
                 $this->reject($exception);
-            } catch (Exception $e) {
+            } catch (Throwable $e) {
                 Output::exception($e);
             }
         }
@@ -99,7 +99,7 @@ class Promise
     /**
      * @param mixed $result
      * @return $this
-     * @throws Exception
+     * @throws Throwable
      */
     private function resolve(mixed $result): Promise
     {
@@ -108,6 +108,8 @@ class Promise
         }
 
         $this->status = Promise::FULFILLED;
+        $this->result = $result;
+
         foreach ($this->onFulfilled as $onFulfilled) {
             try {
                 call_user_func($onFulfilled, $result);
@@ -121,7 +123,7 @@ class Promise
     /**
      * @param Throwable $exception
      * @return $this
-     * @throws Exception
+     * @throws Throwable
      */
     private function reject(Throwable $exception): Promise
     {
@@ -198,5 +200,23 @@ class Promise
             $this->onRejected[]  = $onFinally;
         }
         return $this;
+    }
+
+    /**
+     * @param Closure $onRejected
+     * @return $this
+     * @deprecated 你应该使用except方法,因为该方法是一个保留关键字
+     */
+    public function catch(Closure $onRejected): Promise
+    {
+        return $this->except($onRejected);
+    }
+
+    /**
+     * @return string
+     */
+    public function getStatus(): string
+    {
+        return $this->status;
     }
 }

@@ -1,35 +1,46 @@
+### Install
+
+```bash
+composer require cloudtay/p-ripple-core
+```
+
 ### Example
 
 ```php
-<?php declare(strict_types=1);
+P\IO::File();
+P\IO::File()->getContents(__FILE__);                              //返回Promise对象
+P\IO::Socket()->streamSocketClient('tcp://www.baidu.com:80');     // 异步完成连接
+P\IO::Socket()->streamSocketClientSSL('tcp://www.baidu.com:443'); //异步完成SSL握手
 
-use Cclilshy\PRippleEvent\Facades\Guzzle;
-use GuzzleHttp\Psr7\Response;
+P\Net::Http();
+P\Net::Http()->Guzzle();
+P\Net::Http()->Guzzle()->getAsync('https://www.baidu.com/404'); //返回Promise对象
 
-include_once __DIR__ . '/vendor/autoload.php';
+P\async(function () {
+    $fileContent = P\await(
+        P\IO::File()->getContents(__FILE__)
+    );
 
-A\async(function () {
-    $fileContent = A\await(A\fileGetContents(__FILE__));
-    $hash        = hash('sha256', $fileContent);
+    $hash = hash('sha256', $fileContent);
     echo "[await] File content hash: {$hash}" . PHP_EOL;
 });
 
-A\async(function () {
+P\async(function () {
     try {
-        $response = A\await(Guzzle::requestAsync('get', 'https://www.baidu.com/404'));
+        $response = P\await(P\Net::Http()->Guzzle()->getAsync('https://www.baidu.com/'));
         echo "[await] Response status code: {$response->getStatusCode()}" . PHP_EOL;
     } catch (Throwable $exception) {
         echo "[await] Exception: {$exception->getMessage()}" . PHP_EOL;
     }
 });
 
-A\async(function () {
-    Guzzle::getAsync('https://www.baidu.com/404')->then(function (Response $response) {
+P\async(function () {
+    P\Net::Http()->Guzzle()->getAsync('https://www.baidu.com/')->then(function (Response $response) {
         echo "[async] Response status code: {$response->getStatusCode()}" . PHP_EOL;
     })->except(function (Exception $e) {
         echo "[async] Exception: {$e->getMessage()}" . PHP_EOL;
     });
 });
 
-A\loop(1000000);
+P\run();
 ```

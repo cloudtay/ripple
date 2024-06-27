@@ -1,9 +1,6 @@
 <?php declare(strict_types=1);
 /*
- * Copyright (c) 2023 cclilshy
- * Contact Information:
- * Email: jingnigg@gmail.com
- * Website: https://cc.cloudtay.com/
+ * Copyright (c) 2023-2024.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -23,8 +20,6 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  *
- * 版权所有 (c) 2023 cclilshy
- *
  * 特此免费授予任何获得本软件及相关文档文件（“软件”）副本的人，不受限制地处理
  * 本软件，包括但不限于使用、复制、修改、合并、出版、发行、再许可和/或销售
  * 软件副本的权利，并允许向其提供本软件的人做出上述行为，但须符合以下条件：
@@ -37,27 +32,11 @@
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-namespace Cclilshy\PRippleEvent\Core\Standard;
+namespace Psc\Core\Standard;
 
 /**
- * @interface StreamInterface Stream流标准
+ * @interface StreamInterface
  */
-interface StreamInterface
+interface StreamInterface extends \Psr\Http\Message\StreamInterface
 {
-    /**
-     * @param int|null $length
-     * @return string|false
-     */
-    public function read(int|null $length): string|false;
-
-    /**
-     * @param string $string
-     * @return int|false
-     */
-    public function write(string $string): int|false;
-
-    /**
-     * @return void
-     */
-    public function close(): void;
 }

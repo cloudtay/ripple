@@ -1,9 +1,6 @@
 <?php declare(strict_types=1);
 /*
- * Copyright (c) 2023 cclilshy
- * Contact Information:
- * Email: jingnigg@gmail.com
- * Website: https://cc.cloudtay.com/
+ * Copyright (c) 2023-2024.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -23,8 +20,6 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  *
- * 版权所有 (c) 2023 cclilshy
- *
  * 特此免费授予任何获得本软件及相关文档文件（“软件”）副本的人，不受限制地处理
  * 本软件，包括但不限于使用、复制、修改、合并、出版、发行、再许可和/或销售
  * 软件副本的权利，并允许向其提供本软件的人做出上述行为，但须符合以下条件：
@@ -37,26 +32,39 @@
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-namespace Cclilshy\PRippleEvent\Facades;
+namespace Psc\Plugins;
 
-use Cclilshy\PRippleEvent\Core\Coroutine\Promise;
 use GuzzleHttp\Client;
 use GuzzleHttp\Handler\CurlMultiHandler;
 use GuzzleHttp\HandlerStack;
-use function A\promise;
-use function A\repeat;
+use Psc\Core\Coroutine\Promise;
+use Psc\Core\ModuleAbstract;
 use function array_merge;
+use function P\promise;
+use function P\repeat;
 
-class Guzzle
+class Guzzle extends ModuleAbstract
 {
-    private static Guzzle    $instance;
-    private CurlMultiHandler $curlMultiHandler;
-    private HandlerStack     $handlerStack;
+    /**
+     * @var ModuleAbstract
+     */
+    protected static ModuleAbstract $instance;
 
-    private function __construct()
+    /**
+     * @var CurlMultiHandler
+     */
+    private CurlMultiHandler $curlMultiHandler;
+
+    /**
+     * @var HandlerStack
+     */
+    private HandlerStack $handlerStack;
+
+    public function __construct()
     {
         $this->curlMultiHandler = new CurlMultiHandler;
         $this->handlerStack     = HandlerStack::create($this->curlMultiHandler);
+
         repeat(0.1, function () {
             $this->curlMultiHandler->tick();
         });
@@ -68,10 +76,83 @@ class Guzzle
      * @param array  $options
      * @return Promise
      */
-    public static function requestAsync(string $method, string $uri, array $options = []): Promise
+    public function requestAsync(string $method, string $uri, array $options = []): Promise
     {
         return promise(function ($r, $d) use ($method, $uri, $options) {
-            Guzzle::client()->requestAsync($method, $uri, $options)->then($r, $d);
+            $this->client()->requestAsync($method, $uri, $options)->then($r, $d);
+        });
+    }
+
+
+    /**
+     * @param string $uri
+     * @param array  $options
+     * @return Promise
+     */
+    public function getAsync(string $uri, array $options = []): Promise
+    {
+        return promise(function ($r, $d) use ($uri, $options) {
+            $this->client()->getAsync($uri, $options)->then($r, $d);
+        });
+    }
+
+    /**
+     * @param string $uri
+     * @param array  $options
+     * @return Promise
+     */
+    public function postAsync(string $uri, array $options = []): Promise
+    {
+        return promise(function ($r, $d) use ($uri, $options) {
+            $this->client()->postAsync($uri, $options)->then($r, $d);
+        });
+    }
+
+    /**
+     * @param string $uri
+     * @param array  $options
+     * @return Promise
+     */
+    public function putAsync(string $uri, array $options = []): Promise
+    {
+        return promise(function ($r, $d) use ($uri, $options) {
+            $this->client()->putAsync($uri, $options)->then($r, $d);
+        });
+    }
+
+    /**
+     * @param string $uri
+     * @param array  $options
+     * @return Promise
+     */
+    public function deleteAsync(string $uri, array $options = []): Promise
+    {
+        return promise(function ($r, $d) use ($uri, $options) {
+            $this->client()->deleteAsync($uri, $options)->then($r, $d);
+        });
+    }
+
+    /**
+     * @param string $uri
+     * @param array  $options
+     * @return Promise
+     */
+    public function headAsync(string $uri, array $options = []): Promise
+    {
+        return promise(function ($r, $d) use ($uri, $options) {
+            $this->client()->headAsync($uri, $options)->then($r, $d);
+        });
+    }
+
+    /**
+     * @param string $uri
+     * @param array  $options
+     * @return Promise
+     */
+    public function patchAsync(string $uri, array $options = []): Promise
+    {
+        return promise(function ($r, $d) use ($uri, $options) {
+            $this->client()->patchAsync($uri, $options)->then($r, $d);
         });
     }
 
@@ -79,89 +160,9 @@ class Guzzle
      * @param array|null $config
      * @return Client
      */
-    public static function client(array|null $config = []): Client
+    public function client(array|null $config = []): Client
     {
         $config = array_merge(['handler' => Guzzle::getInstance()->handlerStack], $config);
         return new Client($config);
-    }
-
-    public static function getInstance(): Guzzle
-    {
-        if (!isset(Guzzle::$instance)) {
-            Guzzle::$instance = new Guzzle();
-        }
-        return Guzzle::$instance;
-    }
-
-    /**
-     * @param string $uri
-     * @param array  $options
-     * @return Promise
-     */
-    public static function getAsync(string $uri, array $options = []): Promise
-    {
-        return promise(function ($r, $d) use ($uri, $options) {
-            Guzzle::client()->getAsync($uri, $options)->then($r, $d);
-        });
-    }
-
-    /**
-     * @param string $uri
-     * @param array  $options
-     * @return Promise
-     */
-    public static function postAsync(string $uri, array $options = []): Promise
-    {
-        return promise(function ($r, $d) use ($uri, $options) {
-            Guzzle::client()->postAsync($uri, $options)->then($r, $d);
-        });
-    }
-
-    /**
-     * @param string $uri
-     * @param array  $options
-     * @return Promise
-     */
-    public static function putAsync(string $uri, array $options = []): Promise
-    {
-        return promise(function ($r, $d) use ($uri, $options) {
-            Guzzle::client()->putAsync($uri, $options)->then($r, $d);
-        });
-    }
-
-    /**
-     * @param string $uri
-     * @param array  $options
-     * @return Promise
-     */
-    public static function deleteAsync(string $uri, array $options = []): Promise
-    {
-        return promise(function ($r, $d) use ($uri, $options) {
-            Guzzle::client()->deleteAsync($uri, $options)->then($r, $d);
-        });
-    }
-
-    /**
-     * @param string $uri
-     * @param array  $options
-     * @return Promise
-     */
-    public static function headAsync(string $uri, array $options = []): Promise
-    {
-        return promise(function ($r, $d) use ($uri, $options) {
-            Guzzle::client()->headAsync($uri, $options)->then($r, $d);
-        });
-    }
-
-    /**
-     * @param string $uri
-     * @param array  $options
-     * @return Promise
-     */
-    public static function patchAsync(string $uri, array $options = []): Promise
-    {
-        return promise(function ($r, $d) use ($uri, $options) {
-            Guzzle::client()->patchAsync($uri, $options)->then($r, $d);
-        });
     }
 }

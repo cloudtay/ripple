@@ -32,45 +32,62 @@
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-use GuzzleHttp\Psr7\Response;
+namespace Psc\Supports\IO;
 
-include_once __DIR__ . '/vendor/autoload.php';
+use Closure;
+use Psc\Core\Coroutine\Promise;
+use Psc\Core\ModuleAbstract;
+use Psc\Core\Stream\Stream;
+use Psc\Std\Stream\Exception;
+use Throwable;
+use function P\promise;
 
-P\IO::File();
-P\IO::File()->getContents(__FILE__);                             //返回Promise对象
-P\IO::Socket()->streamSocketClient('tcp://www.baidu.com:80');    // 异步完成连接
-P\IO::Socket()->streamSocketClientSSL('tcp://www.baidu.com:443');//异步完成SSL握手
+class File extends ModuleAbstract
+{
+    /**
+     * @var ModuleAbstract
+     */
+    protected static ModuleAbstract $instance;
 
-P\Net::Http();
-P\Net::Http()->Guzzle();
-P\Net::Http()->Guzzle()->getAsync('https://www.baidu.com/404'); //返回Promise对象
+    /**
+     * @param string $path
+     * @return Promise
+     */
+    public function getContents(string $path): Promise
+    {
+        return promise(function (Closure $resolve, Closure $reject) use ($path) {
+            if (!$resource = fopen($path, 'r')) {
+                $reject(new Exception('Failed to open file: ' . $path));
+                return;
+            }
 
-P\async(function () {
-    $fileContent = P\await(
-        P\IO::File()->getContents(__FILE__)
-    );
+            $stream = new Stream($resource);
+            $stream->setBlocking(false);
+            $content = '';
 
-    $hash = hash('sha256', $fileContent);
-    echo "[await] File content hash: {$hash}" . PHP_EOL;
-});
+            $stream->onReadable(function (Stream $stream, Closure $cancel) use ($resolve, $reject, &$content) {
+                try {
+                    $fragment = $stream->read(8192);
+                    if ($fragment === '') {
+                        $cancel();
+                        $stream->close();
+                        $resolve($content);
+                        return;
+                    }
+                    $content .= $fragment;
+                } catch (Throwable $e) {
+                    $cancel();
+                    $stream->close();
+                    $reject($e);
+                    return;
+                }
 
-P\async(function () {
-    try {
-        $response = P\await(P\Net::Http()->Guzzle()->getAsync('https://www.baidu.com/'));
-        echo "[await] Response status code: {$response->getStatusCode()}" . PHP_EOL;
-    } catch (Throwable $exception) {
-        echo "[await] Exception: {$exception->getMessage()}" . PHP_EOL;
+                if ($stream->eof()) {
+                    $cancel();
+                    $stream->close();
+                    $resolve($content);
+                }
+            });
+        });
     }
-});
-
-P\async(function () {
-    P\Net::Http()->Guzzle()->getAsync('https://www.baidu.com/')->then(function (Response $response) {
-        echo "[async] Response status code: {$response->getStatusCode()}" . PHP_EOL;
-    })->except(function (Exception $e) {
-        echo "[async] Exception: {$e->getMessage()}" . PHP_EOL;
-    });
-});
-
-\P\sleep(3);
-
-echo 'done' . PHP_EOL;
+}

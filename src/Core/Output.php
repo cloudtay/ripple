@@ -1,9 +1,6 @@
 <?php declare(strict_types=1);
 /*
- * Copyright (c) 2023 cclilshy
- * Contact Information:
- * Email: jingnigg@gmail.com
- * Website: https://cc.cloudtay.com/
+ * Copyright (c) 2023-2024.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -23,8 +20,6 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  *
- * 版权所有 (c) 2023 cclilshy
- *
  * 特此免费授予任何获得本软件及相关文档文件（“软件”）副本的人，不受限制地处理
  * 本软件，包括但不限于使用、复制、修改、合并、出版、发行、再许可和/或销售
  * 软件副本的权利，并允许向其提供本软件的人做出上述行为，但须符合以下条件：
@@ -38,7 +33,7 @@
  */
 
 
-namespace Cclilshy\PRippleEvent\Core;
+namespace Psc\Core;
 
 use Throwable;
 use function explode;

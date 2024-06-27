@@ -37,19 +37,14 @@
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-namespace A;
+namespace P;
 
-use Cclilshy\PRippleEvent\Core\Coroutine\Coroutine;
-use Cclilshy\PRippleEvent\Core\Coroutine\Exception\Exception;
-use Cclilshy\PRippleEvent\Core\Coroutine\Promise;
-use Cclilshy\PRippleEvent\Core\Output;
-use Cclilshy\PRippleEvent\Core\Stream\Stream;
 use Closure;
 use Fiber;
+use Psc\Core\Coroutine\Promise;
+use Psc\Core\Output;
 use Revolt\EventLoop;
 use Throwable;
-use function call_user_func;
-
 
 /**
  * @param Promise $promise
@@ -58,18 +53,7 @@ use function call_user_func;
  */
 function await(Promise $promise): mixed
 {
-    $fiber = Fiber::getCurrent();
-    if (!$fiber) {
-        throw new Exception('The await function must be called in a coroutine.');
-    }
-    $promise->finally(function (mixed $result) use ($fiber) {
-        if ($result instanceof Throwable) {
-            $fiber->throw($result);
-        } else {
-            $fiber->resume($result);
-        }
-    });
-    return $fiber->suspend();
+    return Coroutine::Async()->await($promise);
 }
 
 /**
@@ -78,7 +62,7 @@ function await(Promise $promise): mixed
  */
 function async(Closure $closure): Promise
 {
-    return new Coroutine($closure);
+    return Coroutine::Async()->async($closure);
 }
 
 /**
@@ -99,7 +83,7 @@ function sleep(int|float $second): void
     if (Fiber::getCurrent()) {
         try {
             await(async(function ($r) use ($second) {
-                defer($second, function () use ($r) {
+                delay($second, function () use ($r) {
                     call_user_func($r);
                 });
             }));
@@ -107,49 +91,24 @@ function sleep(int|float $second): void
             Output::exception($e);
         }
     } else {
-        defer($second, function () {
-        });
+        $suspension = EventLoop::getSuspension();
+        $callbackId = delay($second, fn() => $suspension->resume());
+        try {
+            $suspension->suspend();
+        } finally {
+            cancel($callbackId);
+        }
     }
-}
-
-/**
- * @param string $filename
- * @return Promise
- */
-function fileGetContents(string $filename): Promise
-{
-    return promise(function (Closure $resolve, Closure $reject) use ($filename) {
-        $stream = new Stream(fopen($filename, 'r'));
-        $stream->setBlocking(false);
-
-        $content = '';
-        onReadable($stream, function (Stream $stream) use ($resolve, $reject, &$content) {
-            try {
-                $fragment = $stream->read(8192);
-                $content  .= $fragment;
-            } catch (Throwable $e) {
-                $stream->close();
-                call_user_func($reject, $e);
-                return;
-            }
-
-            if ($stream->eof()) {
-                $stream->close();
-                call_user_func($resolve, $content);
-            }
-        });
-    });
 }
 
 /**
  * @param int|float $second
  * @param Closure   $closure
- * @return void
+ * @return string
  */
-function defer(int|float $second, Closure $closure): void
+function delay(int|float $second, Closure $closure): string
 {
-    EventLoop::delay($second, $closure);
-    Fiber::getCurrent() || EventLoop::run();
+    return EventLoop::delay($second, $closure);
 }
 
 /**
@@ -162,60 +121,65 @@ function cancel(string $id): void
 }
 
 /**
- * @param int|float $second
- * @param Closure   $closure
+ * @param int|float             $second
+ * @param Closure(Closure):void $closure
  * @return string
  */
 function repeat(int|float $second, Closure $closure): string
 {
-    return EventLoop::repeat($second, $closure);
+    return EventLoop::repeat($second, function ($cancelId) use ($closure) {
+        call_user_func($closure, fn() => EventLoop::cancel($cancelId));
+    });
 }
 
+/**
+ * @param int     $signal
+ * @param Closure $closure
+ * @return string
+ * @throws EventLoop\UnsupportedFeatureException
+ */
+function onSignal(int $signal, Closure $closure): string
+{
+    return EventLoop::onSignal($signal, function (string $cancelId) use ($closure) {
+        try {
+            call_user_func($closure);
+        } catch (Throwable $e) {
+            Output::exception($e);
+        }
+    });
+}
+
+/**
+ * @param Closure $closure
+ * @return int
+ */
+function fork(Closure $closure): int
+{
+    $processId = pcntl_fork();
+    if ($processId === 0) {
+        EventLoop::setDriver((new EventLoop\DriverFactory())->create());
+        $closure();
+        exit(0);
+    }
+    return $processId;
+}
 
 /**
  * @param int $microseconds
  * @return void
  */
-function loop(int $microseconds = 100000): void
+function run(int $microseconds = 100000): void
 {
     while (true) {
-        EventLoop::run();
+        tick();
         usleep($microseconds);
     }
 }
 
 /**
- * @param Stream  $stream
- * @param Closure $closure
  * @return void
  */
-function onReadable(Stream $stream, Closure $closure): void
+function tick(): void
 {
-    $id = EventLoop::onReadable($stream->stream, function () use ($closure, $stream) {
-        try {
-            call_user_func($closure, $stream);
-        } catch (Throwable $e) {
-            $stream->close();
-            Output::exception($e);
-        }
-    });
-    $stream->onClose(fn() => EventLoop::cancel($id));
-}
-
-/**
- * @param Stream  $stream
- * @param Closure $closure
- * @return void
- */
-function onWritable(Stream $stream, Closure $closure): void
-{
-    $id = EventLoop::onWritable($stream->stream, function () use ($closure, $stream) {
-        try {
-            call_user_func($closure, $stream);
-        } catch (Throwable $e) {
-            $stream->close();
-            Output::exception($e);
-        }
-    });
-    $stream->onClose(fn() => EventLoop::cancel($id));
+    EventLoop::run();
 }

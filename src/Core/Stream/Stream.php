@@ -1,9 +1,6 @@
 <?php declare(strict_types=1);
 /*
- * Copyright (c) 2023 cclilshy
- * Contact Information:
- * Email: jingnigg@gmail.com
- * Website: https://cc.cloudtay.com/
+ * Copyright (c) 2024.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -23,8 +20,6 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  *
- * 版权所有 (c) 2023 cclilshy
- *
  * 特此免费授予任何获得本软件及相关文档文件（“软件”）副本的人，不受限制地处理
  * 本软件，包括但不限于使用、复制、修改、合并、出版、发行、再许可和/或销售
  * 软件副本的权利，并允许向其提供本软件的人做出上述行为，但须符合以下条件：
@@ -37,42 +32,25 @@
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-namespace Cclilshy\PRippleEvent\Core\Stream;
+namespace Psc\Core\Stream;
 
-use Cclilshy\PRippleEvent\Core\Standard\StreamInterface;
 use Closure;
-use function call_user_func;
-use function fclose;
-use function feof;
-use function fflush;
-use function fgetcsv;
-use function fgets;
-use function fread;
-use function fseek;
-use function ftell;
-use function ftruncate;
-use function fwrite;
-use function get_resource_id;
-use function rewind;
-use function stream_get_meta_data;
-use function stream_set_blocking;
+use Psc\Core\Output;
+use Revolt\EventLoop;
+use Throwable;
+use function P\cancel;
 
-class Stream implements StreamInterface
+class Stream extends \Psc\Std\Stream\Stream
 {
     /**
-     * @var resource
+     * @var string[]
      */
-    public mixed $stream;
+    private array $onReadable = [];
 
     /**
-     * @var int $id
+     * @var string[]
      */
-    public int $id;
-
-    /**
-     * @var array $meta
-     */
-    public array $meta;
+    private array $onWritable = [];
 
     /**
      * @var array
@@ -80,71 +58,69 @@ class Stream implements StreamInterface
     private array $onCloseCallbacks = [];
 
     /**
-     * Stream constructor.
-     * @param resource $resource
+     * @param mixed $resource
      */
     public function __construct(mixed $resource)
     {
-        $this->stream = $resource;
-        $this->meta   = stream_get_meta_data($resource);
-        $this->id     = get_resource_id($resource);
+        parent::__construct($resource);
+        $this->onClose(function () {
+            foreach ($this->onReadable as $id) {
+                cancel($id);
+            }
+            foreach ($this->onWritable as $id) {
+                cancel($id);
+            }
+        });
     }
 
     /**
-     * @return void
+     * @param Closure $closure
+     * @return string
      */
-    public function close(): void
+    public function onReadable(Closure $closure): string
     {
-        fclose($this->stream);
-        foreach ($this->onCloseCallbacks as $callback) {
-            call_user_func($callback);
-        }
+        $this->onReadable[] = $eventId = EventLoop::onReadable($this->stream, function (string $cancelId) use ($closure) {
+            try {
+                call_user_func_array($closure, [
+                    $this,
+                    function () use ($cancelId) {
+                        cancel($cancelId);
+                        $index = array_search($cancelId, $this->onReadable);
+                        if ($index !== false) {
+                            unset($this->onReadable[$index]);
+                        }
+                    }
+                ]);
+            } catch (Throwable $e) {
+                Output::exception($e);
+            }
+        });
+        return $eventId;
     }
 
     /**
-     * @param int|null $length
-     * @return string|false
+     * @param Closure $closure
+     * @return string
      */
-    public function read(int|null $length): string|false
+    public function onWritable(Closure $closure): string
     {
-        return fread($this->stream, $length);
-    }
-
-    /**
-     * @param string $string
-     * @return int|false
-     */
-    public function write(string $string): int|false
-    {
-        return fwrite($this->stream, $string);
-    }
-
-    /**
-     * @return bool
-     */
-    public function eof(): bool
-    {
-        return feof($this->stream);
-    }
-
-    /**
-     * 移动指定位置指针
-     * @param int $offset
-     * @param int $whence
-     * @return int
-     */
-    public function seek(int $offset, int $whence): int
-    {
-        return fseek($this->stream, $offset, $whence);
-    }
-
-    /**
-     * @param bool $bool
-     * @return bool
-     */
-    public function setBlocking(bool $bool): bool
-    {
-        return stream_set_blocking($this->stream, $bool);
+        $this->onWritable[] = $eventId = EventLoop::onWritable($this->stream, function (string $cancelId) use ($closure) {
+            try {
+                call_user_func_array($closure, [
+                    $this,
+                    function () use ($cancelId) {
+                        cancel($cancelId);
+                        $index = array_search($cancelId, $this->onWritable);
+                        if ($index !== false) {
+                            unset($this->onWritable[$index]);
+                        }
+                    }
+                ]);
+            } catch (Throwable $e) {
+                Output::exception($e);
+            }
+        });
+        return $eventId;
     }
 
     /**
@@ -157,70 +133,27 @@ class Stream implements StreamInterface
     }
 
     /**
-     * @return int|false
+     * @return void
      */
-    public function ftell(): int|false
+    public function close(): void
     {
-        return ftell($this->stream);
+        if (is_resource($this->stream) === false) {
+            return;
+        }
+
+        parent::close();
+
+        foreach ($this->onCloseCallbacks as $callback) {
+            call_user_func($callback);
+        }
     }
 
     /**
-     * @return string|false
-     */
-    public function fgets(): string|false
-    {
-        return fgets($this->stream);
-    }
-
-    /**
-     * @return array|false
-     */
-    public function fgetcsv(): array|false
-    {
-        return fgetcsv($this->stream);
-    }
-
-    /**
-     * @param int $size
+     * @param bool $bool
      * @return bool
      */
-    public function ftruncate(int $size): bool
+    public function setBlocking(bool $bool): bool
     {
-        return ftruncate($this->stream, $size);
-    }
-
-    /**
-     * @return int|false
-     */
-    public function fflush(): int|false
-    {
-        return fflush($this->stream);
-    }
-
-    /**
-     * @param string $data
-     * @return int|false
-     */
-    public function fwrite(string $data): int|false
-    {
-        return fwrite($this->stream, $data);
-    }
-
-
-    /**
-     * @param int $length
-     * @return string|false
-     */
-    public function fread(int $length): string|false
-    {
-        return fread($this->stream, $length);
-    }
-
-    /**
-     * @return bool
-     */
-    public function rewind(): bool
-    {
-        return rewind($this->stream);
+        return stream_set_blocking($this->stream, $bool);
     }
 }
