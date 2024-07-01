@@ -39,7 +39,6 @@
 
 namespace A;
 
-use Cclilshy\PRippleEvent\Core\Coroutine\Coroutine;
 use Cclilshy\PRippleEvent\Core\Coroutine\Exception\Exception;
 use Cclilshy\PRippleEvent\Core\Coroutine\Promise;
 use Cclilshy\PRippleEvent\Core\Output;
@@ -49,7 +48,6 @@ use Fiber;
 use Revolt\EventLoop;
 use Throwable;
 use function call_user_func;
-
 
 /**
  * @param Promise $promise
@@ -62,13 +60,19 @@ function await(Promise $promise): mixed
     if (!$fiber) {
         throw new Exception('The await function must be called in a coroutine.');
     }
+
+    if ($promise->status !== Promise::PENDING) {
+        return $promise->result;
+    }
+
     $promise->finally(function (mixed $result) use ($fiber) {
         if ($result instanceof Throwable) {
-            $fiber->throw($result);
+            return $fiber->throw($result);
         } else {
-            $fiber->resume($result);
+            return $fiber->resume($result);
         }
     });
+
     return $fiber->suspend();
 }
 
@@ -78,7 +82,8 @@ function await(Promise $promise): mixed
  */
 function async(Closure $closure): Promise
 {
-    return new Coroutine($closure);
+    $fiber = new Fiber($closure);
+    return new Promise(fn($r, $d) => $fiber->start($r, $d));
 }
 
 /**
@@ -99,7 +104,7 @@ function sleep(int|float $second): void
     if (Fiber::getCurrent()) {
         try {
             await(async(function ($r) use ($second) {
-                defer($second, function () use ($r) {
+                delay($second, function () use ($r) {
                     call_user_func($r);
                 });
             }));
@@ -107,7 +112,7 @@ function sleep(int|float $second): void
             Output::exception($e);
         }
     } else {
-        defer($second, function () {
+        delay($second, function () {
         });
     }
 }
@@ -118,7 +123,7 @@ function sleep(int|float $second): void
  */
 function fileGetContents(string $filename): Promise
 {
-    return promise(function (Closure $resolve, Closure $reject) use ($filename) {
+    return \A\promise(function (Closure $resolve, Closure $reject) use ($filename) {
         $stream = new Stream(fopen($filename, 'r'));
         $stream->setBlocking(false);
 
@@ -146,7 +151,7 @@ function fileGetContents(string $filename): Promise
  * @param Closure   $closure
  * @return void
  */
-function defer(int|float $second, Closure $closure): void
+function delay(int|float $second, Closure $closure): void
 {
     EventLoop::delay($second, $closure);
     Fiber::getCurrent() || EventLoop::run();
@@ -162,15 +167,65 @@ function cancel(string $id): void
 }
 
 /**
- * @param int|float $second
- * @param Closure   $closure
+ * @param int|float             $second
+ * @param Closure(Closure):void $closure
  * @return string
  */
 function repeat(int|float $second, Closure $closure): string
 {
-    return EventLoop::repeat($second, $closure);
+    return EventLoop::repeat($second, function ($cancelId) use ($closure) {
+        call_user_func($closure, fn() => EventLoop::cancel($cancelId));
+    });
 }
 
+/**
+ * @param Stream                        $stream
+ * @param Closure(Stream, Closure):void $closure
+ * @return string
+ */
+function onReadable(Stream $stream, Closure $closure): string
+{
+    return EventLoop::onReadable($stream->stream, function (string $cancelId) use ($closure, $stream) {
+        try {
+            call_user_func_array($closure, [$stream, fn() => cancel($cancelId)]);
+        } catch (Throwable $e) {
+            Output::exception($e);
+        }
+    });
+}
+
+/**
+ * @param Stream                        $stream
+ * @param Closure(Stream, Closure):void $closure
+ * @return string
+ */
+function onWritable(Stream $stream, Closure $closure): string
+{
+    return EventLoop::onWritable($stream->stream, function (string $cancelId) use ($closure, $stream) {
+        try {
+            call_user_func_array($closure, [$stream, fn() => cancel($cancelId)]);
+        } catch (Throwable $e) {
+            Output::exception($e);
+        }
+    });
+}
+
+/**
+ * @param int     $signal
+ * @param Closure $closure
+ * @return string
+ * @throws EventLoop\UnsupportedFeatureException
+ */
+function onSignal(int $signal, Closure $closure): string
+{
+    return EventLoop::onSignal($signal, function (string $cancelId) use ($closure) {
+        try {
+            call_user_func($closure);
+        } catch (Throwable $e) {
+            Output::exception($e);
+        }
+    });
+}
 
 /**
  * @param int $microseconds
@@ -185,37 +240,115 @@ function loop(int $microseconds = 100000): void
 }
 
 /**
- * @param Stream  $stream
- * @param Closure $closure
- * @return void
+ * @param string     $address
+ * @param int        $timeout
+ * @param mixed|null $context
+ * @return Promise
  */
-function onReadable(Stream $stream, Closure $closure): void
+function streamSocketClient(string $address, int $timeout = 0, mixed $context = null): Promise
 {
-    $id = EventLoop::onReadable($stream->stream, function () use ($closure, $stream) {
-        try {
-            call_user_func($closure, $stream);
-        } catch (Throwable $e) {
-            $stream->close();
-            Output::exception($e);
+    return \A\promise(function (Closure $resolve, Closure $reject) use ($address, $timeout, $context) {
+        $connection = stream_socket_client(
+            $address,
+            $_,
+            $_,
+            $timeout,
+            STREAM_CLIENT_ASYNC_CONNECT | STREAM_CLIENT_CONNECT,
+            $context
+        );
+
+        if (!$connection) {
+            $reject(new Exception('Failed to connect to the server.'));
+            return;
         }
+
+        $stream = new Stream($connection);
+        $stream->setBlocking(false);
+        onWritable($stream, function (Stream $stream, Closure $cancel) use ($resolve) {
+            $cancel();
+            $resolve($stream);
+        });
     });
-    $stream->onClose(fn() => EventLoop::cancel($id));
 }
 
 /**
- * @param Stream  $stream
  * @param Closure $closure
- * @return void
+ * @return int
  */
-function onWritable(Stream $stream, Closure $closure): void
+function fork(Closure $closure): int
 {
-    $id = EventLoop::onWritable($stream->stream, function () use ($closure, $stream) {
-        try {
-            call_user_func($closure, $stream);
-        } catch (Throwable $e) {
+    $processId = pcntl_fork();
+    if ($processId === 0) {
+        EventLoop::setDriver((new EventLoop\DriverFactory())->create());
+        $closure();
+        exit(0);
+    }
+    return $processId;
+}
+
+/**
+ * @param string     $address
+ * @param int        $timeout
+ * @param mixed|null $context
+ * @return Promise
+ */
+function streamSocketClientSSL(string $address, int $timeout = 0, mixed $context = null): Promise
+{
+    return async(function (Closure $r, Closure $d) use ($address, $timeout, $context) {
+        $address                   = str_replace('ssl://', 'tcp://', $address);
+        $streamSocketClientPromise = streamSocketClient($address, $timeout, $context);
+
+        /**
+         * @var Stream $streamSocket
+         */
+        $streamSocket = await($streamSocketClientPromise);
+        streamEnableCrypto($streamSocket)->then($r)->except($d);
+    });
+}
+
+/**
+ * @param Stream $stream
+ * @return Promise
+ */
+function streamEnableCrypto(Stream $stream): Promise
+{
+    return new Promise(function ($r, $d) use ($stream) {
+        $handshakeResult = stream_socket_enable_crypto($stream->stream, true, STREAM_CRYPTO_METHOD_SSLv23_CLIENT);
+
+        if ($handshakeResult === false) {
             $stream->close();
-            Output::exception($e);
+            $d(new Exception('Failed to enable crypto.'));
+            return;
+        }
+
+        if ($handshakeResult === true) {
+            $r($stream);
+            return;
+        }
+
+        if ($handshakeResult === 0) {
+            onReadable($stream, function (Stream $stream, Closure $cancel) use ($r, $d) {
+                try {
+                    $handshakeResult = stream_socket_enable_crypto($stream->stream, true, STREAM_CRYPTO_METHOD_SSLv23_CLIENT);
+                } catch (Throwable $exception) {
+                    $cancel();
+                    $stream->close();
+                    $d($exception);
+                    return;
+                }
+
+                if ($handshakeResult === false) {
+                    $cancel();
+                    $stream->close();
+                    $d(new Exception('Failed to enable crypto.'));
+                    return;
+                }
+
+                if ($handshakeResult === true) {
+                    $cancel();
+                    $r($stream);
+                }
+            });
         }
     });
-    $stream->onClose(fn() => EventLoop::cancel($id));
 }

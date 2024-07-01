@@ -1,9 +1,6 @@
 <?php declare(strict_types=1);
 /*
- * Copyright (c) 2023 cclilshy
- * Contact Information:
- * Email: jingnigg@gmail.com
- * Website: https://cc.cloudtay.com/
+ * Copyright (c) 2023-2024.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -22,8 +19,6 @@
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
- *
- * 版权所有 (c) 2023 cclilshy
  *
  * 特此免费授予任何获得本软件及相关文档文件（“软件”）副本的人，不受限制地处理
  * 本软件，包括但不限于使用、复制、修改、合并、出版、发行、再许可和/或销售
@@ -48,15 +43,15 @@ use function call_user_func_array;
 
 class Promise
 {
-    private const string  PENDING   = 'pending';
+    public const string   PENDING = 'pending';
     private const string  FULFILLED = 'fulfilled';
     private const string  REJECTED  = 'rejected';
-    private string $status = Promise::PENDING;
+    public string $status = Promise::PENDING;
 
     /**
      * @var mixed $result
      */
-    private mixed $result;
+    public mixed $result;
 
     /**
      * @var Closure[] $onFulfilled

@@ -1,6 +1,6 @@
 {
   "name": "cclilshy/p-ripple-core",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "license": "MIT",
   "autoload": {
     "psr-4": {
@@ -23,6 +23,7 @@
     "ext-sockets": "*",
     "ext-pcntl": "*",
     "ext-event": "*",
-    "guzzlehttp/guzzle": "^7.8"
+    "guzzlehttp/guzzle": "^7.8",
+    "ext-openssl": "*"
   }
 }
