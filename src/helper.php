@@ -149,12 +149,15 @@ function fileGetContents(string $filename): Promise
 /**
  * @param int|float $second
  * @param Closure   $closure
- * @return void
+ * @return string
  */
-function delay(int|float $second, Closure $closure): void
+function delay(int|float $second, Closure $closure): string
 {
-    EventLoop::delay($second, $closure);
-    Fiber::getCurrent() || EventLoop::run();
+    $id = EventLoop::delay($second, $closure);
+    if (!Fiber::getCurrent()) {
+        EventLoop::run();
+    }
+    return $id;
 }
 
 /**

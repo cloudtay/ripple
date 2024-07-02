@@ -204,7 +204,6 @@ class Stream implements StreamInterface
         return fwrite($this->stream, $data);
     }
 
-
     /**
      * @param int $length
      * @return string|false

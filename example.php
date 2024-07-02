@@ -35,9 +35,6 @@
 
 use Cclilshy\PRippleEvent\Facades\Guzzle;
 use GuzzleHttp\Psr7\Response;
-use function A\await;
-use function A\onReadable;
-use function A\streamSocketClientSSL;
 
 include_once __DIR__ . '/vendor/autoload.php';
 
