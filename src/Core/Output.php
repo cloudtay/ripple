@@ -33,7 +33,7 @@
  */
 
 
-namespace Cclilshy\PRippleEvent\Core;
+namespace Psc\Core;
 
 use Throwable;
 use function explode;

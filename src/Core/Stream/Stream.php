@@ -32,10 +32,10 @@
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-namespace Cclilshy\PRippleEvent\Core\Stream;
+namespace Psc\Core\Stream;
 
-use Cclilshy\PRippleEvent\Core\Standard\StreamInterface;
 use Closure;
+use Psc\Core\Standard\StreamInterface;
 use function call_user_func;
 use function fclose;
 use function feof;
@@ -49,6 +49,7 @@ use function ftruncate;
 use function fwrite;
 use function get_resource_id;
 use function rewind;
+use function stream_get_contents;
 use function stream_get_meta_data;
 use function stream_set_blocking;
 
@@ -101,18 +102,18 @@ class Stream implements StreamInterface
 
     /**
      * @param int|null $length
-     * @return string|false
+     * @return string
      */
-    public function read(int|null $length): string|false
+    public function read(int|null $length): string
     {
         return fread($this->stream, $length);
     }
 
     /**
      * @param string $string
-     * @return int|false
+     * @return int
      */
-    public function write(string $string): int|false
+    public function write(string $string): int
     {
         return fwrite($this->stream, $string);
     }
@@ -129,11 +130,11 @@ class Stream implements StreamInterface
      * 移动指定位置指针
      * @param int $offset
      * @param int $whence
-     * @return int
+     * @return void
      */
-    public function seek(int $offset, int $whence): int
+    public function seek(int $offset, int $whence = SEEK_SET): void
     {
-        return fseek($this->stream, $offset, $whence);
+        fseek($this->stream, $offset, $whence);
     }
 
     /**
@@ -214,10 +215,90 @@ class Stream implements StreamInterface
     }
 
     /**
+     * @return void
+     */
+    public function rewind(): void
+    {
+        rewind($this->stream);
+    }
+
+
+    /**
+     * @return mixed
+     */
+    public function detach(): mixed
+    {
+        if (!isset($this->stream)) {
+            return null;
+        }
+
+        $result = $this->stream;
+        unset($this->stream);
+        return $result;
+    }
+
+    /**
+     * @return int|null
+     */
+    public function getSize(): int|null
+    {
+        return $this->meta['size'] ?? null;
+    }
+
+    /**
+     * @return int
+     */
+    public function tell(): int
+    {
+        return $this->ftell();
+    }
+
+    /**
      * @return bool
      */
-    public function rewind(): bool
+    public function isSeekable(): bool
     {
-        return rewind($this->stream);
+        return $this->meta['seekable'] ?? false;
+    }
+
+    /**
+     * @return bool
+     */
+    public function isWritable(): bool
+    {
+        return $this->meta['mode'][0] === 'w' || $this->meta['mode'][0] === 'a' || $this->meta['mode'][0] === 'x' || $this->meta['mode'][0] === 'c';
+    }
+
+    /**
+     * @return bool
+     */
+    public function isReadable(): bool
+    {
+        return $this->meta['mode'][0] === 'r' || $this->meta['mode'][0] === 'r+';
+    }
+
+    /**
+     * @return string
+     */
+    public function getContents(): string
+    {
+        return stream_get_contents($this->stream);
+    }
+
+    /**
+     * @param string|null $key
+     * @return mixed
+     */
+    public function getMetadata(?string $key = null): mixed
+    {
+        return $key ? $this->meta[$key] : $this->meta;
+    }
+
+    /**
+     * @return string
+     */
+    public function __toString(): string
+    {
+        return $this->getContents();
     }
 }

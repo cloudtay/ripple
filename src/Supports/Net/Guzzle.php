@@ -32,26 +32,29 @@
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-namespace Cclilshy\PRippleEvent\Facades;
+namespace Psc\Supports\Net;
 
-use Cclilshy\PRippleEvent\Core\Coroutine\Promise;
 use GuzzleHttp\Client;
 use GuzzleHttp\Handler\CurlMultiHandler;
 use GuzzleHttp\HandlerStack;
-use function A\promise;
-use function A\repeat;
+use Psc\Core\Coroutine\Promise;
+use Psc\Supports\ModuleAbstract;
 use function array_merge;
+use function P\promise;
+use function P\repeat;
 
-class Guzzle
+class Guzzle extends ModuleAbstract
 {
-    private static Guzzle    $instance;
+    protected static ModuleAbstract $instance;
+
     private CurlMultiHandler $curlMultiHandler;
     private HandlerStack     $handlerStack;
 
-    private function __construct()
+    public function __construct()
     {
         $this->curlMultiHandler = new CurlMultiHandler;
         $this->handlerStack     = HandlerStack::create($this->curlMultiHandler);
+
         repeat(0.1, function () {
             $this->curlMultiHandler->tick();
         });
@@ -63,10 +66,83 @@ class Guzzle
      * @param array  $options
      * @return Promise
      */
-    public static function requestAsync(string $method, string $uri, array $options = []): Promise
+    public function requestAsync(string $method, string $uri, array $options = []): Promise
     {
         return promise(function ($r, $d) use ($method, $uri, $options) {
-            Guzzle::client()->requestAsync($method, $uri, $options)->then($r, $d);
+            $this->client()->requestAsync($method, $uri, $options)->then($r, $d);
+        });
+    }
+
+
+    /**
+     * @param string $uri
+     * @param array  $options
+     * @return Promise
+     */
+    public function getAsync(string $uri, array $options = []): Promise
+    {
+        return promise(function ($r, $d) use ($uri, $options) {
+            $this->client()->getAsync($uri, $options)->then($r, $d);
+        });
+    }
+
+    /**
+     * @param string $uri
+     * @param array  $options
+     * @return Promise
+     */
+    public function postAsync(string $uri, array $options = []): Promise
+    {
+        return promise(function ($r, $d) use ($uri, $options) {
+            $this->client()->postAsync($uri, $options)->then($r, $d);
+        });
+    }
+
+    /**
+     * @param string $uri
+     * @param array  $options
+     * @return Promise
+     */
+    public function putAsync(string $uri, array $options = []): Promise
+    {
+        return promise(function ($r, $d) use ($uri, $options) {
+            $this->client()->putAsync($uri, $options)->then($r, $d);
+        });
+    }
+
+    /**
+     * @param string $uri
+     * @param array  $options
+     * @return Promise
+     */
+    public function deleteAsync(string $uri, array $options = []): Promise
+    {
+        return promise(function ($r, $d) use ($uri, $options) {
+            $this->client()->deleteAsync($uri, $options)->then($r, $d);
+        });
+    }
+
+    /**
+     * @param string $uri
+     * @param array  $options
+     * @return Promise
+     */
+    public function headAsync(string $uri, array $options = []): Promise
+    {
+        return promise(function ($r, $d) use ($uri, $options) {
+            $this->client()->headAsync($uri, $options)->then($r, $d);
+        });
+    }
+
+    /**
+     * @param string $uri
+     * @param array  $options
+     * @return Promise
+     */
+    public function patchAsync(string $uri, array $options = []): Promise
+    {
+        return promise(function ($r, $d) use ($uri, $options) {
+            $this->client()->patchAsync($uri, $options)->then($r, $d);
         });
     }
 
@@ -74,89 +150,9 @@ class Guzzle
      * @param array|null $config
      * @return Client
      */
-    public static function client(array|null $config = []): Client
+    public function client(array|null $config = []): Client
     {
         $config = array_merge(['handler' => Guzzle::getInstance()->handlerStack], $config);
         return new Client($config);
-    }
-
-    public static function getInstance(): Guzzle
-    {
-        if (!isset(Guzzle::$instance)) {
-            Guzzle::$instance = new Guzzle();
-        }
-        return Guzzle::$instance;
-    }
-
-    /**
-     * @param string $uri
-     * @param array  $options
-     * @return Promise
-     */
-    public static function getAsync(string $uri, array $options = []): Promise
-    {
-        return promise(function ($r, $d) use ($uri, $options) {
-            Guzzle::client()->getAsync($uri, $options)->then($r, $d);
-        });
-    }
-
-    /**
-     * @param string $uri
-     * @param array  $options
-     * @return Promise
-     */
-    public static function postAsync(string $uri, array $options = []): Promise
-    {
-        return promise(function ($r, $d) use ($uri, $options) {
-            Guzzle::client()->postAsync($uri, $options)->then($r, $d);
-        });
-    }
-
-    /**
-     * @param string $uri
-     * @param array  $options
-     * @return Promise
-     */
-    public static function putAsync(string $uri, array $options = []): Promise
-    {
-        return promise(function ($r, $d) use ($uri, $options) {
-            Guzzle::client()->putAsync($uri, $options)->then($r, $d);
-        });
-    }
-
-    /**
-     * @param string $uri
-     * @param array  $options
-     * @return Promise
-     */
-    public static function deleteAsync(string $uri, array $options = []): Promise
-    {
-        return promise(function ($r, $d) use ($uri, $options) {
-            Guzzle::client()->deleteAsync($uri, $options)->then($r, $d);
-        });
-    }
-
-    /**
-     * @param string $uri
-     * @param array  $options
-     * @return Promise
-     */
-    public static function headAsync(string $uri, array $options = []): Promise
-    {
-        return promise(function ($r, $d) use ($uri, $options) {
-            Guzzle::client()->headAsync($uri, $options)->then($r, $d);
-        });
-    }
-
-    /**
-     * @param string $uri
-     * @param array  $options
-     * @return Promise
-     */
-    public static function patchAsync(string $uri, array $options = []): Promise
-    {
-        return promise(function ($r, $d) use ($uri, $options) {
-            Guzzle::client()->patchAsync($uri, $options)->then($r, $d);
-        });
     }
 }

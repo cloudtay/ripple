@@ -1,6 +1,6 @@
-<?php declare(strict_types=1);
+<?php
 /*
- * Copyright (c) 2023-2024.
+ * Copyright (c) 2024.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -32,11 +32,17 @@
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-namespace Psc\Core\Standard;
+namespace Psc\Supports;
 
-/**
- * @interface StreamInterface
- */
-interface StreamInterface extends \Psr\Http\Message\StreamInterface
+abstract class ModuleAbstract
 {
+    protected static ModuleAbstract $instance;
+
+    public static function getInstance(): static
+    {
+        if (!isset(static::$instance)) {
+            static::$instance = new static();
+        }
+        return static::$instance;
+    }
 }

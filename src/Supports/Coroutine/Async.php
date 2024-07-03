@@ -1,6 +1,6 @@
 <?php declare(strict_types=1);
 /*
- * Copyright (c) 2023-2024.
+ * Copyright (c) 2024.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -32,11 +32,53 @@
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-namespace Psc\Core\Standard;
+namespace Psc\Supports\Coroutine;
 
-/**
- * @interface StreamInterface
- */
-interface StreamInterface extends \Psr\Http\Message\StreamInterface
+use Closure;
+use Fiber;
+use Psc\Core\Coroutine\Exception\Exception;
+use Psc\Core\Coroutine\Promise;
+use Psc\Supports\ModuleAbstract;
+use Throwable;
+
+class Async extends ModuleAbstract
 {
+    protected static ModuleAbstract $instance;
+
+    /**
+     * @param Promise $promise
+     * @return mixed
+     * @throws Throwable
+     */
+    public function await(Promise $promise): mixed
+    {
+        $fiber = Fiber::getCurrent();
+        if (!$fiber) {
+            throw new Exception('The await function must be called in a coroutine.');
+        }
+
+        if ($promise->status !== Promise::PENDING) {
+            return $promise->result;
+        }
+
+        $promise->finally(function (mixed $result) use ($fiber) {
+            if ($result instanceof Throwable) {
+                return $fiber->throw($result);
+            } else {
+                return $fiber->resume($result);
+            }
+        });
+
+        return $fiber->suspend();
+    }
+
+    /**
+     * @param Closure $closure
+     * @return Promise
+     */
+    public function async(Closure $closure): Promise
+    {
+        $fiber = new Fiber($closure);
+        return new Promise(fn($r, $d) => $fiber->start($r, $d));
+    }
 }

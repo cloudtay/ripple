@@ -32,11 +32,11 @@
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-namespace Cclilshy\PRippleEvent\Core\Coroutine;
+namespace Psc\Core\Coroutine;
 
-use Cclilshy\PRippleEvent\Core\Coroutine\Exception\Exception;
-use Cclilshy\PRippleEvent\Core\Output;
 use Closure;
+use Psc\Core\Coroutine\Exception\Exception;
+use Psc\Core\Output;
 use Throwable;
 use function call_user_func;
 use function call_user_func_array;
@@ -83,6 +83,9 @@ class Promise
                 fn(mixed $result = null) => $this->reject($this->result = $result)
             ]);
         } catch (Throwable $exception) {
+
+            Output::error($exception->getMessage());
+
             try {
                 $this->reject($exception);
             } catch (Exception $e) {

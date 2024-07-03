@@ -1,6 +1,6 @@
 <?php declare(strict_types=1);
 /*
- * Copyright (c) 2023-2024.
+ * Copyright (c) 2024.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -32,11 +32,61 @@
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-namespace Psc\Core\Standard;
+namespace Psc\Supports\IO;
 
-/**
- * @interface StreamInterface
- */
-interface StreamInterface extends \Psr\Http\Message\StreamInterface
+use Closure;
+use Psc\Core\Coroutine\Promise;
+use Psc\Core\Stream\Exception;
+use Psc\Core\Stream\Stream;
+use Psc\Supports\ModuleAbstract;
+use Throwable;
+use function P\onReadable;
+use function P\promise;
+
+class File extends ModuleAbstract
 {
+    protected static ModuleAbstract $instance;
+
+    /**
+     * @param string $path
+     * @return Promise
+     */
+    public function getContents(string $path): Promise
+    {
+        return promise(function (Closure $resolve, Closure $reject) use ($path) {
+            if (!$resource = fopen($path, 'r')) {
+                $reject(new Exception('Failed to open file: ' . $path));
+                return;
+            }
+
+            $stream = new Stream($resource);
+            $stream->setBlocking(false);
+            $content = '';
+
+            onReadable($stream, function (Stream $stream, Closure $cancel) use ($resolve, $reject, &$content) {
+                try {
+                    $fragment = $stream->read(8192);
+                    if ($fragment === '') {
+                        $cancel();
+                        $stream->close();
+                        $resolve($content);
+                        return;
+                    }
+
+                    $content .= $fragment;
+                } catch (Throwable $e) {
+                    $cancel();
+                    $stream->close();
+                    $reject($e);
+                    return;
+                }
+
+                if ($stream->eof()) {
+                    $cancel();
+                    $stream->close();
+                    $resolve($content);
+                }
+            });
+        });
+    }
 }

@@ -1,10 +1,10 @@
 {
-  "name": "cclilshy/p-ripple-core",
-  "version": "0.0.3",
+  "name": "cloudtay/p-ripple-core",
+  "version": "0.1.2",
   "license": "MIT",
   "autoload": {
     "psr-4": {
-      "Cclilshy\\PRippleEvent\\": "src/"
+      "Psc\\": "src/"
     },
     "files": [
       "src/helper.php"
@@ -18,12 +18,13 @@
   ],
   "require": {
     "php": ">=8.3",
-    "revolt/event-loop": "^1.0",
     "ext-posix": "*",
     "ext-sockets": "*",
     "ext-pcntl": "*",
     "ext-event": "*",
+    "ext-openssl": "*",
+    "revolt/event-loop": "^1.0",
     "guzzlehttp/guzzle": "^7.8",
-    "ext-openssl": "*"
+    "psr/http-message": "^2.0"
   }
 }

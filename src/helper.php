@@ -37,17 +37,19 @@
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-namespace A;
+namespace P;
 
-use Cclilshy\PRippleEvent\Core\Coroutine\Exception\Exception;
-use Cclilshy\PRippleEvent\Core\Coroutine\Promise;
-use Cclilshy\PRippleEvent\Core\Output;
-use Cclilshy\PRippleEvent\Core\Stream\Stream;
 use Closure;
 use Fiber;
+use Psc\Core\Coroutine\Promise;
+use Psc\Core\Output;
+use Psc\Core\Stream\Stream;
+use Psc\Supports\Coroutine\Coroutine;
+use Psc\Supports\IO\IO;
+use Psc\Supports\Net\Net;
 use Revolt\EventLoop;
 use Throwable;
-use function call_user_func;
+
 
 /**
  * @param Promise $promise
@@ -56,24 +58,7 @@ use function call_user_func;
  */
 function await(Promise $promise): mixed
 {
-    $fiber = Fiber::getCurrent();
-    if (!$fiber) {
-        throw new Exception('The await function must be called in a coroutine.');
-    }
-
-    if ($promise->status !== Promise::PENDING) {
-        return $promise->result;
-    }
-
-    $promise->finally(function (mixed $result) use ($fiber) {
-        if ($result instanceof Throwable) {
-            return $fiber->throw($result);
-        } else {
-            return $fiber->resume($result);
-        }
-    });
-
-    return $fiber->suspend();
+    return Coroutine()->Async()->await($promise);
 }
 
 /**
@@ -82,8 +67,7 @@ function await(Promise $promise): mixed
  */
 function async(Closure $closure): Promise
 {
-    $fiber = new Fiber($closure);
-    return new Promise(fn($r, $d) => $fiber->start($r, $d));
+    return Coroutine()->Async()->async($closure);
 }
 
 /**
@@ -115,35 +99,6 @@ function sleep(int|float $second): void
         delay($second, function () {
         });
     }
-}
-
-/**
- * @param string $filename
- * @return Promise
- */
-function fileGetContents(string $filename): Promise
-{
-    return \A\promise(function (Closure $resolve, Closure $reject) use ($filename) {
-        $stream = new Stream(fopen($filename, 'r'));
-        $stream->setBlocking(false);
-
-        $content = '';
-        onReadable($stream, function (Stream $stream) use ($resolve, $reject, &$content) {
-            try {
-                $fragment = $stream->read(8192);
-                $content  .= $fragment;
-            } catch (Throwable $e) {
-                $stream->close();
-                call_user_func($reject, $e);
-                return;
-            }
-
-            if ($stream->eof()) {
-                $stream->close();
-                call_user_func($resolve, $content);
-            }
-        });
-    });
 }
 
 /**
@@ -231,50 +186,6 @@ function onSignal(int $signal, Closure $closure): string
 }
 
 /**
- * @param int $microseconds
- * @return void
- */
-function loop(int $microseconds = 100000): void
-{
-    while (true) {
-        EventLoop::run();
-        usleep($microseconds);
-    }
-}
-
-/**
- * @param string     $address
- * @param int        $timeout
- * @param mixed|null $context
- * @return Promise
- */
-function streamSocketClient(string $address, int $timeout = 0, mixed $context = null): Promise
-{
-    return \A\promise(function (Closure $resolve, Closure $reject) use ($address, $timeout, $context) {
-        $connection = stream_socket_client(
-            $address,
-            $_,
-            $_,
-            $timeout,
-            STREAM_CLIENT_ASYNC_CONNECT | STREAM_CLIENT_CONNECT,
-            $context
-        );
-
-        if (!$connection) {
-            $reject(new Exception('Failed to connect to the server.'));
-            return;
-        }
-
-        $stream = new Stream($connection);
-        $stream->setBlocking(false);
-        onWritable($stream, function (Stream $stream, Closure $cancel) use ($resolve) {
-            $cancel();
-            $resolve($stream);
-        });
-    });
-}
-
-/**
  * @param Closure $closure
  * @return int
  */
@@ -290,68 +201,44 @@ function fork(Closure $closure): int
 }
 
 /**
- * @param string     $address
- * @param int        $timeout
- * @param mixed|null $context
- * @return Promise
+ * @param int $microseconds
+ * @return void
  */
-function streamSocketClientSSL(string $address, int $timeout = 0, mixed $context = null): Promise
+function run(int $microseconds = 100000): void
 {
-    return async(function (Closure $r, Closure $d) use ($address, $timeout, $context) {
-        $address                   = str_replace('ssl://', 'tcp://', $address);
-        $streamSocketClientPromise = streamSocketClient($address, $timeout, $context);
+    while (true) {
+        EventLoop::run();
+        usleep($microseconds);
+    }
+}
 
-        /**
-         * @var Stream $streamSocket
-         */
-        $streamSocket = await($streamSocketClientPromise);
-        streamEnableCrypto($streamSocket)->then($r)->except($d);
-    });
+
+/**
+ * modules
+ */
+
+
+/**
+ * @return IO
+ */
+function IO(): IO
+{
+    return IO::getInstance();
 }
 
 /**
- * @param Stream $stream
- * @return Promise
+ * @return Coroutine
  */
-function streamEnableCrypto(Stream $stream): Promise
+function Coroutine(): Coroutine
 {
-    return new Promise(function ($r, $d) use ($stream) {
-        $handshakeResult = stream_socket_enable_crypto($stream->stream, true, STREAM_CRYPTO_METHOD_SSLv23_CLIENT);
-
-        if ($handshakeResult === false) {
-            $stream->close();
-            $d(new Exception('Failed to enable crypto.'));
-            return;
-        }
-
-        if ($handshakeResult === true) {
-            $r($stream);
-            return;
-        }
-
-        if ($handshakeResult === 0) {
-            onReadable($stream, function (Stream $stream, Closure $cancel) use ($r, $d) {
-                try {
-                    $handshakeResult = stream_socket_enable_crypto($stream->stream, true, STREAM_CRYPTO_METHOD_SSLv23_CLIENT);
-                } catch (Throwable $exception) {
-                    $cancel();
-                    $stream->close();
-                    $d($exception);
-                    return;
-                }
-
-                if ($handshakeResult === false) {
-                    $cancel();
-                    $stream->close();
-                    $d(new Exception('Failed to enable crypto.'));
-                    return;
-                }
-
-                if ($handshakeResult === true) {
-                    $cancel();
-                    $r($stream);
-                }
-            });
-        }
-    });
+    return Coroutine::getInstance();
 }
+
+/**
+ * @return Net
+ */
+function Net(): Net
+{
+    return Net::getInstance();
+}
+

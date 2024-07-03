@@ -32,7 +32,7 @@
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-namespace Cclilshy\PRippleEvent\Core\Stream;
+namespace Psc\Core\Stream;
 
 use Exception as ExceptionNative;
 

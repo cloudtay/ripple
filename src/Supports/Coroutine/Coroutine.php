@@ -1,6 +1,6 @@
 <?php declare(strict_types=1);
 /*
- * Copyright (c) 2023-2024.
+ * Copyright (c) 2024.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -32,11 +32,19 @@
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-namespace Psc\Core\Standard;
+namespace Psc\Supports\Coroutine;
 
-/**
- * @interface StreamInterface
- */
-interface StreamInterface extends \Psr\Http\Message\StreamInterface
+use Psc\Supports\SupportAbstract;
+
+class Coroutine extends SupportAbstract
 {
+    protected static SupportAbstract $instance;
+
+    /**
+     * @return Async
+     */
+    public static function Async(): Async
+    {
+        return Async::getInstance();
+    }
 }
