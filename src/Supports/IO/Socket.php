@@ -35,19 +35,20 @@
 namespace Psc\Supports\IO;
 
 use Closure;
-use Psc\Core\Coroutine\Exception\Exception;
+use Psc\Core\Coroutine\Exception;
 use Psc\Core\Coroutine\Promise;
+use Psc\Core\ModuleAbstract;
 use Psc\Core\Stream\Stream;
-use Psc\Supports\ModuleAbstract;
 use Throwable;
 use function P\async;
 use function P\await;
-use function P\onReadable;
-use function P\onWritable;
 use function P\promise;
 
 class Socket extends ModuleAbstract
 {
+    /**
+     * @var ModuleAbstract
+     */
     protected static ModuleAbstract $instance;
 
     /**
@@ -95,7 +96,7 @@ class Socket extends ModuleAbstract
 
             $stream = new Stream($connection);
             $stream->setBlocking(false);
-            onWritable($stream, function (Stream $stream, Closure $cancel) use ($resolve) {
+            $stream->onWritable(function (Stream $stream, Closure $cancel) use ($resolve) {
                 $cancel();
                 $resolve($stream);
             });
@@ -123,7 +124,7 @@ class Socket extends ModuleAbstract
             }
 
             if ($handshakeResult === 0) {
-                onReadable($stream, function (Stream $stream, Closure $cancel) use ($r, $d) {
+                $stream->onReadable(function (Stream $stream, Closure $cancel) use ($r, $d) {
                     try {
                         $handshakeResult = stream_socket_enable_crypto($stream->stream, true, STREAM_CRYPTO_METHOD_SSLv23_CLIENT);
                     } catch (Throwable $exception) {

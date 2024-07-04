@@ -1,6 +1,6 @@
 <?php declare(strict_types=1);
 /*
- * Copyright (c) 2023-2024.
+ * Copyright (c) 2024.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -34,11 +34,6 @@
 
 namespace Psc\Core\Stream;
 
-use Exception as ExceptionNative;
-
-/**
- * @class Exception 套接字传输异常
- */
-class Exception extends ExceptionNative
+class Exception extends \Psc\Std\Stream\Exception
 {
 }

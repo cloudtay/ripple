@@ -43,13 +43,8 @@ use Closure;
 use Fiber;
 use Psc\Core\Coroutine\Promise;
 use Psc\Core\Output;
-use Psc\Core\Stream\Stream;
-use Psc\Supports\Coroutine\Coroutine;
-use Psc\Supports\IO\IO;
-use Psc\Supports\Net\Net;
 use Revolt\EventLoop;
 use Throwable;
-
 
 /**
  * @param Promise $promise
@@ -58,7 +53,7 @@ use Throwable;
  */
 function await(Promise $promise): mixed
 {
-    return Coroutine()->Async()->await($promise);
+    return Coroutine::Async()->await($promise);
 }
 
 /**
@@ -67,7 +62,7 @@ function await(Promise $promise): mixed
  */
 function async(Closure $closure): Promise
 {
-    return Coroutine()->Async()->async($closure);
+    return Coroutine::Async()->async($closure);
 }
 
 /**
@@ -96,8 +91,13 @@ function sleep(int|float $second): void
             Output::exception($e);
         }
     } else {
-        delay($second, function () {
-        });
+        $suspension = EventLoop::getSuspension();
+        $callbackId = delay($second, fn() => $suspension->resume());
+        try {
+            $suspension->suspend();
+        } finally {
+            cancel($callbackId);
+        }
     }
 }
 
@@ -108,11 +108,7 @@ function sleep(int|float $second): void
  */
 function delay(int|float $second, Closure $closure): string
 {
-    $id = EventLoop::delay($second, $closure);
-    if (!Fiber::getCurrent()) {
-        EventLoop::run();
-    }
-    return $id;
+    return EventLoop::delay($second, $closure);
 }
 
 /**
@@ -133,38 +129,6 @@ function repeat(int|float $second, Closure $closure): string
 {
     return EventLoop::repeat($second, function ($cancelId) use ($closure) {
         call_user_func($closure, fn() => EventLoop::cancel($cancelId));
-    });
-}
-
-/**
- * @param Stream                        $stream
- * @param Closure(Stream, Closure):void $closure
- * @return string
- */
-function onReadable(Stream $stream, Closure $closure): string
-{
-    return EventLoop::onReadable($stream->stream, function (string $cancelId) use ($closure, $stream) {
-        try {
-            call_user_func_array($closure, [$stream, fn() => cancel($cancelId)]);
-        } catch (Throwable $e) {
-            Output::exception($e);
-        }
-    });
-}
-
-/**
- * @param Stream                        $stream
- * @param Closure(Stream, Closure):void $closure
- * @return string
- */
-function onWritable(Stream $stream, Closure $closure): string
-{
-    return EventLoop::onWritable($stream->stream, function (string $cancelId) use ($closure, $stream) {
-        try {
-            call_user_func_array($closure, [$stream, fn() => cancel($cancelId)]);
-        } catch (Throwable $e) {
-            Output::exception($e);
-        }
     });
 }
 
@@ -207,38 +171,15 @@ function fork(Closure $closure): int
 function run(int $microseconds = 100000): void
 {
     while (true) {
-        EventLoop::run();
+        tick();
         usleep($microseconds);
     }
 }
 
-
 /**
- * modules
+ * @return void
  */
-
-
-/**
- * @return IO
- */
-function IO(): IO
+function tick(): void
 {
-    return IO::getInstance();
+    EventLoop::run();
 }
-
-/**
- * @return Coroutine
- */
-function Coroutine(): Coroutine
-{
-    return Coroutine::getInstance();
-}
-
-/**
- * @return Net
- */
-function Net(): Net
-{
-    return Net::getInstance();
-}
-

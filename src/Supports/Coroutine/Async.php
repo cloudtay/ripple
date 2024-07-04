@@ -36,13 +36,16 @@ namespace Psc\Supports\Coroutine;
 
 use Closure;
 use Fiber;
-use Psc\Core\Coroutine\Exception\Exception;
+use Psc\Core\Coroutine\Exception;
 use Psc\Core\Coroutine\Promise;
-use Psc\Supports\ModuleAbstract;
+use Psc\Core\ModuleAbstract;
 use Throwable;
 
 class Async extends ModuleAbstract
 {
+    /**
+     * @var ModuleAbstract
+     */
     protected static ModuleAbstract $instance;
 
     /**
@@ -57,7 +60,7 @@ class Async extends ModuleAbstract
             throw new Exception('The await function must be called in a coroutine.');
         }
 
-        if ($promise->status !== Promise::PENDING) {
+        if ($promise->getStatus() !== Promise::PENDING) {
             return $promise->result;
         }
 

@@ -32,23 +32,33 @@
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-namespace Psc\Supports\Net;
+namespace Psc\Plugins;
 
 use GuzzleHttp\Client;
 use GuzzleHttp\Handler\CurlMultiHandler;
 use GuzzleHttp\HandlerStack;
 use Psc\Core\Coroutine\Promise;
-use Psc\Supports\ModuleAbstract;
+use Psc\Core\ModuleAbstract;
 use function array_merge;
 use function P\promise;
 use function P\repeat;
 
 class Guzzle extends ModuleAbstract
 {
+    /**
+     * @var ModuleAbstract
+     */
     protected static ModuleAbstract $instance;
 
+    /**
+     * @var CurlMultiHandler
+     */
     private CurlMultiHandler $curlMultiHandler;
-    private HandlerStack     $handlerStack;
+
+    /**
+     * @var HandlerStack
+     */
+    private HandlerStack $handlerStack;
 
     public function __construct()
     {

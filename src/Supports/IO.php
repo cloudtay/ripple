@@ -32,19 +32,26 @@
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-namespace Psc\Supports\Coroutine;
+namespace P;
 
-use Psc\Supports\SupportAbstract;
+use Psc\Supports\IO\File;
+use Psc\Supports\IO\Socket;
 
-class Coroutine extends SupportAbstract
+class IO
 {
-    protected static SupportAbstract $instance;
+    /**
+     * @return File
+     */
+    public static function File(): File
+    {
+        return File::getInstance();
+    }
 
     /**
-     * @return Async
+     * @return Socket
      */
-    public static function Async(): Async
+    public static function Socket(): Socket
     {
-        return Async::getInstance();
+        return Socket::getInstance();
     }
 }

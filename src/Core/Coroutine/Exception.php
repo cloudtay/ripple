@@ -1,6 +1,6 @@
 <?php declare(strict_types=1);
 /*
- * Copyright (c) 2024.
+ * Copyright (c) 2023-2024.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -32,21 +32,13 @@
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-namespace Psc\Supports\IO;
+namespace Psc\Core\Coroutine;
 
-use Psc\Supports\SupportAbstract;
+use Exception as ExceptionNative;
 
-class IO extends SupportAbstract
+/**
+ * @configure Exception
+ */
+class Exception extends ExceptionNative
 {
-    protected static SupportAbstract $instance;
-
-    public static function File(): File
-    {
-        return File::getInstance();
-    }
-
-    public static function Socket(): Socket
-    {
-        return Socket::getInstance();
-    }
 }

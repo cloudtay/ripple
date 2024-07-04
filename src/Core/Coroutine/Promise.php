@@ -35,7 +35,6 @@
 namespace Psc\Core\Coroutine;
 
 use Closure;
-use Psc\Core\Coroutine\Exception\Exception;
 use Psc\Core\Output;
 use Throwable;
 use function call_user_func;
@@ -43,23 +42,28 @@ use function call_user_func_array;
 
 class Promise
 {
-    public const string   PENDING = 'pending';
-    private const string  FULFILLED = 'fulfilled';
-    private const string  REJECTED  = 'rejected';
-    public string $status = Promise::PENDING;
+    public const string   PENDING   = 'pending';   // 悬空
+    public const string   FULFILLED = 'fulfilled'; // 已完成
+    public const string   REJECTED  = 'rejected';  // 已拒绝
+
 
     /**
-     * @var mixed $result
+     * @var string
+     */
+    private string $status = Promise::PENDING;
+
+    /**
+     * @var mixed
      */
     public mixed $result;
 
     /**
-     * @var Closure[] $onFulfilled
+     * @var Closure[]
      */
     private array $onFulfilled = [];
 
     /**
-     * @var Closure[] $onRejected
+     * @var Closure[]
      */
     private array $onRejected = [];
 
@@ -83,12 +87,10 @@ class Promise
                 fn(mixed $result = null) => $this->reject($this->result = $result)
             ]);
         } catch (Throwable $exception) {
-
             Output::error($exception->getMessage());
-
             try {
                 $this->reject($exception);
-            } catch (Exception $e) {
+            } catch (Throwable $e) {
                 Output::exception($e);
             }
         }
@@ -97,7 +99,7 @@ class Promise
     /**
      * @param mixed $result
      * @return $this
-     * @throws Exception
+     * @throws Throwable
      */
     private function resolve(mixed $result): Promise
     {
@@ -106,6 +108,8 @@ class Promise
         }
 
         $this->status = Promise::FULFILLED;
+        $this->result = $result;
+
         foreach ($this->onFulfilled as $onFulfilled) {
             try {
                 call_user_func($onFulfilled, $result);
@@ -119,7 +123,7 @@ class Promise
     /**
      * @param Throwable $exception
      * @return $this
-     * @throws Exception
+     * @throws Throwable
      */
     private function reject(Throwable $exception): Promise
     {
@@ -196,5 +200,23 @@ class Promise
             $this->onRejected[]  = $onFinally;
         }
         return $this;
+    }
+
+    /**
+     * @param Closure $onRejected
+     * @return $this
+     * @deprecated 你应该使用except方法,因为该方法是一个保留关键字
+     */
+    public function catch(Closure $onRejected): Promise
+    {
+        return $this->except($onRejected);
+    }
+
+    /**
+     * @return string
+     */
+    public function getStatus(): string
+    {
+        return $this->status;
     }
 }

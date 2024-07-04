@@ -34,7 +34,8 @@
 
 namespace Psc\Supports\Net;
 
-use Psc\Supports\ModuleAbstract;
+use Psc\Core\ModuleAbstract;
+use Psc\Plugins\Guzzle;
 
 class Http extends ModuleAbstract
 {

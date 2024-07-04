@@ -32,16 +32,23 @@
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-namespace Psc\Supports\Net;
+namespace Psc\Core;
 
-use Psc\Supports\SupportAbstract;
-
-class Net extends SupportAbstract
+abstract class SupportAbstract
 {
+    /**
+     * @var SupportAbstract
+     */
     protected static SupportAbstract $instance;
 
-    public static function Http(): Http
+    /**
+     * @return static
+     */
+    public static function getInstance(): static
     {
-        return Http::getInstance();
+        if (!isset(static::$instance)) {
+            static::$instance = new static();
+        }
+        return static::$instance;
     }
 }

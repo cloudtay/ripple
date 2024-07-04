@@ -1,4 +1,4 @@
-<?php
+<?php declare(strict_types=1);
 /*
  * Copyright (c) 2024.
  *
@@ -32,17 +32,17 @@
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-namespace Psc\Supports;
+namespace P;
 
-abstract class ModuleAbstract
+use Psc\Supports\Coroutine\Async;
+
+class Coroutine
 {
-    protected static ModuleAbstract $instance;
-
-    public static function getInstance(): static
+    /**
+     * @return Async
+     */
+    public static function Async(): Async
     {
-        if (!isset(static::$instance)) {
-            static::$instance = new static();
-        }
-        return static::$instance;
+        return Async::getInstance();
     }
 }
