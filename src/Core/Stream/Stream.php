@@ -141,10 +141,11 @@ class Stream extends \Psc\Std\Stream\Stream
             return;
         }
 
+        parent::close();
+
         foreach ($this->onCloseCallbacks as $callback) {
             call_user_func($callback);
         }
-        parent::close();
     }
 
     /**
