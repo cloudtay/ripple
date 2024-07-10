@@ -34,6 +34,7 @@
 
 namespace P;
 
+use P\Net\WebSocket\WebSocket;
 use Psc\Supports\Net\Http;
 
 class Net
@@ -44,5 +45,13 @@ class Net
     public static function Http(): Http
     {
         return Http::getInstance();
+    }
+
+    /**
+     * @return WebSocket
+     */
+    public static function WebSocket(): WebSocket
+    {
+        return WebSocket::getInstance();
     }
 }

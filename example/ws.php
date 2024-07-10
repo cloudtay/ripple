@@ -1,4 +1,5 @@
 <?php declare(strict_types=1);
+
 /*
  * Copyright (c) 2024.
  *
@@ -32,60 +33,26 @@
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-namespace Psc\Supports\IO;
+use P\Net\WebSocket\Connection;
 
-use Closure;
-use Psc\Core\Coroutine\Promise;
-use Psc\Core\ModuleAbstract;
-use Psc\Core\Stream\Stream;
-use Psc\Std\Stream\Exception;
-use Throwable;
-use function P\promise;
+include_once __DIR__ . '/../vendor/autoload.php';
 
-class File extends ModuleAbstract
-{
-    /**
-     * @var ModuleAbstract
-     */
-    protected static ModuleAbstract $instance;
 
-    /**
-     * @param string $path
-     * @return Promise
-     */
-    public function getContents(string $path): Promise
-    {
-        return promise(function (Closure $resolve, Closure $reject) use ($path) {
-            if (!$resource = fopen($path, 'r')) {
-                $reject(new Exception('Failed to open file: ' . $path));
-                return;
-            }
+P\Net::Websocket()->connect('wss://127.0.0.1:8001')
+    ->then(function (Connection $connection) {
+        $connection->send('{"action":"sub","data":{"channel":"market:panel@8"}}');
 
-            $stream = new Stream($resource);
-            $stream->setBlocking(false);
-            $content = '';
+        $connection->onMessage = function ($data) {
+            echo 'Received: ' . $data . PHP_EOL;
+        };
 
-            $stream->onReadable(function (Stream $stream) use ($resolve, $reject, &$content) {
-                try {
-                    $fragment = $stream->read(8192);
-                    if ($fragment === '') {
-                        $stream->close();
-                        $resolve($content);
-                        return;
-                    }
-                    $content .= $fragment;
-                } catch (Throwable $e) {
-                    $stream->close();
-                    $reject($e);
-                    return;
-                }
+        $connection->onClose = function () {
+            debug_print_backtrace();
+            echo 'Connection closed' . PHP_EOL;
+        };
+    })
+    ->except(function () {
+        echo 'Connection failed' . PHP_EOL;
+    });
 
-                if ($stream->eof()) {
-                    $stream->close();
-                    $resolve($content);
-                    return;
-                }
-            });
-        });
-    }
-}
+P\run();

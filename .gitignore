@@ -1,6 +1,5 @@
 .idea
-p-ripple-event.iml
+p-ripple-core.iml
 
 /vendor/
-
 composer.lock

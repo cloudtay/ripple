@@ -91,7 +91,7 @@ class Promise
             try {
                 $this->reject($exception);
             } catch (Throwable $e) {
-                Output::exception($e);
+                Output::error($e->getMessage());
             }
         }
     }
@@ -114,7 +114,7 @@ class Promise
             try {
                 call_user_func($onFulfilled, $result);
             } catch (Throwable $exception) {
-                Output::exception($exception);
+                Output::error($exception->getMessage());
             }
         }
         return $this;
@@ -138,7 +138,7 @@ class Promise
             try {
                 call_user_func($onRejected, $exception);
             } catch (Throwable $exception) {
-                Output::exception($exception);
+                Output::error($exception->getMessage());
             }
         }
         return $this;
@@ -154,7 +154,7 @@ class Promise
             try {
                 call_user_func($onFulfilled, $this->result);
             } catch (Throwable $exception) {
-                Output::exception($exception);
+                Output::error($exception->getMessage());
             }
             return $this;
         } else {
@@ -173,7 +173,7 @@ class Promise
             try {
                 call_user_func($onRejected, $this->result);
             } catch (Throwable $exception) {
-                Output::exception($exception);
+                Output::error($exception->getMessage());
             }
             return $this;
         } else {
@@ -192,7 +192,7 @@ class Promise
             try {
                 call_user_func($onFinally, $this->result);
             } catch (Throwable $exception) {
-                Output::exception($exception);
+                Output::error($exception->getMessage());
             }
             return $this;
         } else {
