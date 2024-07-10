@@ -42,6 +42,7 @@ use Psc\Core\Stream\Stream;
 use Throwable;
 use function P\async;
 use function P\await;
+use function P\delay;
 use function P\promise;
 
 class Socket extends ModuleAbstract
@@ -67,7 +68,16 @@ class Socket extends ModuleAbstract
              * @var Stream $streamSocket
              */
             $streamSocket = await($streamSocketClientPromise);
-            $this->streamEnableCrypto($streamSocket)->then($r)->except($d);
+            $promise = $this->streamEnableCrypto($streamSocket)->then($r)->except($d);
+
+            if ($timeout > 0) {
+                delay($timeout, function () use ($promise, $streamSocket, $d) {
+                    if ($promise->getStatus() === Promise::PENDING) {
+                        $streamSocket->close();
+                        $d(new Exception('Connection timeout.'));
+                    }
+                });
+            }
         });
     }
 
@@ -75,11 +85,11 @@ class Socket extends ModuleAbstract
      * @param string     $address
      * @param int        $timeout
      * @param mixed|null $context
-     * @return Promise
+     * @return Promise<Stream>
      */
     public function streamSocketClient(string $address, int $timeout = 0, mixed $context = null): Promise
     {
-        return promise(function (Closure $resolve, Closure $reject) use ($address, $timeout, $context) {
+        return promise(function (Closure $r, Closure $d) use ($address, $timeout, $context) {
             $connection = stream_socket_client(
                 $address,
                 $_,
@@ -90,15 +100,15 @@ class Socket extends ModuleAbstract
             );
 
             if (!$connection) {
-                $reject(new Exception('Failed to connect to the server.'));
+                $d(new Exception('Failed to connect to the server.'));
                 return;
             }
 
             $stream = new Stream($connection);
             $stream->setBlocking(false);
-            $stream->onWritable(function (Stream $stream, Closure $cancel) use ($resolve) {
+            $stream->onWritable(function (Stream $stream, Closure $cancel) use ($r) {
                 $cancel();
-                $resolve($stream);
+                $r($stream);
             });
         });
     }
@@ -128,14 +138,12 @@ class Socket extends ModuleAbstract
                     try {
                         $handshakeResult = stream_socket_enable_crypto($stream->stream, true, STREAM_CRYPTO_METHOD_SSLv23_CLIENT);
                     } catch (Throwable $exception) {
-                        $cancel();
                         $stream->close();
                         $d($exception);
                         return;
                     }
 
                     if ($handshakeResult === false) {
-                        $cancel();
                         $stream->close();
                         $d(new Exception('Failed to enable crypto.'));
                         return;
@@ -144,6 +152,7 @@ class Socket extends ModuleAbstract
                     if ($handshakeResult === true) {
                         $cancel();
                         $r($stream);
+                        return;
                     }
                 });
             }
