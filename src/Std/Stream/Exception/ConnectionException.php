@@ -32,23 +32,11 @@
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-namespace Psc\Core;
+namespace Psc\Std\Stream\Exception;
 
-abstract class SupportAbstract
+/**
+ *
+ */
+class ConnectionException extends Exception
 {
-    /**
-     * @var SupportAbstract
-     */
-    protected static SupportAbstract $instance;
-
-    /**
-     * @return static
-     */
-    public static function getInstance(): static
-    {
-        if (!isset(static::$instance)) {
-            static::$instance = new static();
-        }
-        return static::$instance;
-    }
 }

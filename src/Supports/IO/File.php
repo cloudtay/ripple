@@ -1,6 +1,6 @@
 <?php declare(strict_types=1);
 /*
- * Copyright (c) 2024.
+ * Copyright (c) 2023-2024.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -38,8 +38,7 @@ use Closure;
 use Psc\Core\Coroutine\Promise;
 use Psc\Core\ModuleAbstract;
 use Psc\Core\Stream\Stream;
-use Psc\Std\Stream\Exception;
-use Throwable;
+use Psc\Std\Stream\Exception\Exception;
 use function P\promise;
 
 class File extends ModuleAbstract
@@ -66,24 +65,17 @@ class File extends ModuleAbstract
             $content = '';
 
             $stream->onReadable(function (Stream $stream) use ($resolve, $reject, &$content) {
-                try {
-                    $fragment = $stream->read(8192);
-                    if ($fragment === '') {
-                        $stream->close();
-                        $resolve($content);
-                        return;
-                    }
-                    $content .= $fragment;
-                } catch (Throwable $e) {
-                    $stream->close();
-                    $reject($e);
-                    return;
-                }
-
-                if ($stream->eof()) {
+                $fragment = $stream->read(8192);
+                if ($fragment === '') {
                     $stream->close();
                     $resolve($content);
                     return;
+                }
+
+                $content .= $fragment;
+                if ($stream->eof()) {
+                    $stream->close();
+                    $resolve($content);
                 }
             });
         });

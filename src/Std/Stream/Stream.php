@@ -35,7 +35,7 @@
 namespace Psc\Std\Stream;
 
 use Psc\Core\Standard\StreamInterface;
-use RuntimeException;
+use Psc\Std\Stream\Exception\ConnectionException;
 use function fclose;
 use function feof;
 use function fread;
@@ -89,12 +89,13 @@ class Stream implements StreamInterface
     /**
      * @param int|null $length
      * @return string
+     * @throws ConnectionException
      */
     public function read(int|null $length): string
     {
         $content = fread($this->stream, $length);
         if ($content === false) {
-            throw new RuntimeException('Unable to read from stream');
+            throw new ConnectionException('Unable to read from stream');
         }
         return $content;
     }
@@ -102,12 +103,13 @@ class Stream implements StreamInterface
     /**
      * @param string $string
      * @return int
+     * @throws ConnectionException
      */
     public function write(string $string): int
     {
         $result = fwrite($this->stream, $string);
         if ($result === false) {
-            throw new RuntimeException('Unable to write to stream');
+            throw new ConnectionException('Unable to write to stream');
         }
         return $result;
     }

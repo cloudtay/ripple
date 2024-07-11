@@ -1,4 +1,4 @@
-<?php declare(strict_types=1);
+<?php
 /*
  * Copyright (c) 2023-2024.
  *
@@ -32,23 +32,9 @@
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-namespace Psc\Core;
+namespace P\Net\Exception;
 
-abstract class SupportAbstract
+class ConnectionException extends \Psc\Std\Stream\Exception\ConnectionException
 {
-    /**
-     * @var SupportAbstract
-     */
-    protected static SupportAbstract $instance;
 
-    /**
-     * @return static
-     */
-    public static function getInstance(): static
-    {
-        if (!isset(static::$instance)) {
-            static::$instance = new static();
-        }
-        return static::$instance;
-    }
 }

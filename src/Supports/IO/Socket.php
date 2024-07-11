@@ -1,6 +1,6 @@
 <?php declare(strict_types=1);
 /*
- * Copyright (c) 2024.
+ * Copyright (c) 2023-2024.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -68,7 +68,7 @@ class Socket extends ModuleAbstract
              * @var Stream $streamSocket
              */
             $streamSocket = await($streamSocketClientPromise);
-            $promise = $this->streamEnableCrypto($streamSocket)->then($r)->except($d);
+            $promise      = $this->streamEnableCrypto($streamSocket)->then($r)->except($d);
 
             if ($timeout > 0) {
                 delay($timeout, function () use ($promise, $streamSocket, $d) {

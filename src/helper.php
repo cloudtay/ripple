@@ -52,6 +52,7 @@ function await(Promise $promise): mixed
 }
 
 /**
+ * async闭包中抛出的异常落地位置可能为调用上下文/挂起恢复处,因此对异常的管理要谨慎
  * @param Closure $closure
  * @return Promise
  */

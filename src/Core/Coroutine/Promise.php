@@ -46,16 +46,15 @@ class Promise
     public const string   FULFILLED = 'fulfilled'; // 已完成
     public const string   REJECTED  = 'rejected';  // 已拒绝
 
+    /**
+     * @var mixed
+     */
+    public mixed $result;
 
     /**
      * @var string
      */
     private string $status = Promise::PENDING;
-
-    /**
-     * @var mixed
-     */
-    public mixed $result;
 
     /**
      * @var Closure[]
@@ -84,7 +83,8 @@ class Promise
         try {
             call_user_func_array($closure, [
                 fn(mixed $result = null) => $this->resolve($this->result = $result),
-                fn(mixed $result = null) => $this->reject($this->result = $result)
+                fn(mixed $result = null) => $this->reject($this->result = $result),
+                $this
             ]);
         } catch (Throwable $exception) {
             Output::error($exception->getMessage());
@@ -101,7 +101,7 @@ class Promise
      * @return $this
      * @throws Throwable
      */
-    private function resolve(mixed $result): Promise
+    public function resolve(mixed $result): Promise
     {
         if ($this->status !== Promise::PENDING) {
             return $this;
@@ -125,7 +125,7 @@ class Promise
      * @return $this
      * @throws Throwable
      */
-    private function reject(Throwable $exception): Promise
+    public function reject(Throwable $exception): Promise
     {
         if ($this->status !== Promise::PENDING) {
             return $this;
@@ -164,25 +164,6 @@ class Promise
     }
 
     /**
-     * @param Closure $onRejected
-     * @return $this
-     */
-    public function except(Closure $onRejected): Promise
-    {
-        if ($this->status === Promise::REJECTED) {
-            try {
-                call_user_func($onRejected, $this->result);
-            } catch (Throwable $exception) {
-                Output::error($exception->getMessage());
-            }
-            return $this;
-        } else {
-            $this->onRejected[] = $onRejected;
-        }
-        return $this;
-    }
-
-    /**
      * @param Closure $onFinally
      * @return $this
      */
@@ -213,10 +194,37 @@ class Promise
     }
 
     /**
+     * @param Closure $onRejected
+     * @return $this
+     */
+    public function except(Closure $onRejected): Promise
+    {
+        if ($this->status === Promise::REJECTED) {
+            try {
+                call_user_func($onRejected, $this->result);
+            } catch (Throwable $exception) {
+                Output::error($exception->getMessage());
+            }
+            return $this;
+        } else {
+            $this->onRejected[] = $onRejected;
+        }
+        return $this;
+    }
+
+    /**
      * @return string
      */
     public function getStatus(): string
     {
         return $this->status;
+    }
+
+    /**
+     * @return mixed
+     */
+    public function getResult(): mixed
+    {
+        return $this->result;
     }
 }

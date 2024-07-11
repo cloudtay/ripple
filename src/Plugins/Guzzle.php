@@ -60,6 +60,7 @@ class Guzzle extends ModuleAbstract
      */
     private HandlerStack $handlerStack;
 
+
     public function __construct()
     {
         $this->curlMultiHandler = new CurlMultiHandler;
@@ -83,6 +84,15 @@ class Guzzle extends ModuleAbstract
         });
     }
 
+    /**
+     * @param array|null $config
+     * @return Client
+     */
+    public function client(array|null $config = []): Client
+    {
+        $config = array_merge(['handler' => Guzzle::getInstance()->handlerStack], $config);
+        return new Client($config);
+    }
 
     /**
      * @param string $uri
@@ -154,15 +164,5 @@ class Guzzle extends ModuleAbstract
         return promise(function ($r, $d) use ($uri, $options) {
             $this->client()->patchAsync($uri, $options)->then($r, $d);
         });
-    }
-
-    /**
-     * @param array|null $config
-     * @return Client
-     */
-    public function client(array|null $config = []): Client
-    {
-        $config = array_merge(['handler' => Guzzle::getInstance()->handlerStack], $config);
-        return new Client($config);
     }
 }

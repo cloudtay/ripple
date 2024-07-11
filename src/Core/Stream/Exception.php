@@ -1,6 +1,6 @@
 <?php declare(strict_types=1);
 /*
- * Copyright (c) 2024.
+ * Copyright (c) 2023-2024.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -34,6 +34,6 @@
 
 namespace Psc\Core\Stream;
 
-class Exception extends \Psc\Std\Stream\Exception
+class Exception extends \Psc\Std\Stream\Exception\Exception
 {
 }
