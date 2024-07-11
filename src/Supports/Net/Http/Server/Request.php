@@ -1,0 +1,132 @@
+<?php declare(strict_types=1);
+/*
+ * Copyright (c) 2023-2024.
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *
+ * 特此免费授予任何获得本软件及相关文档文件（“软件”）副本的人，不受限制地处理
+ * 本软件，包括但不限于使用、复制、修改、合并、出版、发行、再许可和/或销售
+ * 软件副本的权利，并允许向其提供本软件的人做出上述行为，但须符合以下条件：
+ *
+ * 上述版权声明和本许可声明应包含在本软件的所有副本或主要部分中。
+ *
+ * 本软件按“原样”提供，不提供任何形式的保证，无论是明示或暗示的，
+ * 包括但不限于适销性、特定目的的适用性和非侵权性的保证。在任何情况下，
+ * 无论是合同诉讼、侵权行为还是其他方面，作者或版权持有人均不对
+ * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
+ */
+
+namespace P\Net\Http\Server;
+
+use Psr\Http\Message\MessageInterface;
+use Psr\Http\Message\RequestInterface;
+use Psr\Http\Message\StreamInterface;
+use Psr\Http\Message\UriInterface;
+
+/**
+ * 请求实体
+ */
+class Request implements RequestInterface
+{
+
+    public function getProtocolVersion(): string
+    {
+        // TODO: Implement getProtocolVersion() method.
+    }
+
+    public function withProtocolVersion(string $version): MessageInterface
+    {
+        // TODO: Implement withProtocolVersion() method.
+    }
+
+    public function getHeaders(): array
+    {
+        // TODO: Implement getHeaders() method.
+    }
+
+    public function hasHeader(string $name): bool
+    {
+        // TODO: Implement hasHeader() method.
+    }
+
+    public function getHeader(string $name): array
+    {
+        // TODO: Implement getHeader() method.
+    }
+
+    public function getHeaderLine(string $name): string
+    {
+        // TODO: Implement getHeaderLine() method.
+    }
+
+    public function withHeader(string $name, $value): MessageInterface
+    {
+        // TODO: Implement withHeader() method.
+    }
+
+    public function withAddedHeader(string $name, $value): MessageInterface
+    {
+        // TODO: Implement withAddedHeader() method.
+    }
+
+    public function withoutHeader(string $name): MessageInterface
+    {
+        // TODO: Implement withoutHeader() method.
+    }
+
+    public function getBody(): StreamInterface
+    {
+        // TODO: Implement getBody() method.
+    }
+
+    public function withBody(StreamInterface $body): MessageInterface
+    {
+        // TODO: Implement withBody() method.
+    }
+
+    public function getRequestTarget(): string
+    {
+        // TODO: Implement getRequestTarget() method.
+    }
+
+    public function withRequestTarget(string $requestTarget): RequestInterface
+    {
+        // TODO: Implement withRequestTarget() method.
+    }
+
+    public function getMethod(): string
+    {
+        // TODO: Implement getMethod() method.
+    }
+
+    public function withMethod(string $method): RequestInterface
+    {
+        // TODO: Implement withMethod() method.
+    }
+
+    public function getUri(): UriInterface
+    {
+        // TODO: Implement getUri() method.
+    }
+
+    public function withUri(UriInterface $uri, bool $preserveHost = false): RequestInterface
+    {
+        // TODO: Implement withUri() method.
+    }
+}

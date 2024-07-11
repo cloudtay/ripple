@@ -32,26 +32,86 @@
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-namespace P;
+namespace P\Net\Http\Server;
 
-use P\Net\Http\Http;
-use P\Net\WebSocket\WebSocket;
 
-class Net
+use Psr\Http\Message\MessageInterface;
+use Psr\Http\Message\ResponseInterface;
+use Psr\Http\Message\StreamInterface;
+
+/**
+ * 响应实体
+ */
+class Response implements ResponseInterface
 {
-    /**
-     * @return Http
-     */
-    public static function Http(): Http
+
+    public function getProtocolVersion(): string
     {
-        return Http::getInstance();
+        // TODO: Implement getProtocolVersion() method.
     }
 
-    /**
-     * @return WebSocket
-     */
-    public static function WebSocket(): WebSocket
+    public function withProtocolVersion(string $version): MessageInterface
     {
-        return WebSocket::getInstance();
+        // TODO: Implement withProtocolVersion() method.
+    }
+
+    public function getHeaders(): array
+    {
+        // TODO: Implement getHeaders() method.
+    }
+
+    public function hasHeader(string $name): bool
+    {
+        // TODO: Implement hasHeader() method.
+    }
+
+    public function getHeader(string $name): array
+    {
+        // TODO: Implement getHeader() method.
+    }
+
+    public function getHeaderLine(string $name): string
+    {
+        // TODO: Implement getHeaderLine() method.
+    }
+
+    public function withHeader(string $name, $value): MessageInterface
+    {
+        // TODO: Implement withHeader() method.
+    }
+
+    public function withAddedHeader(string $name, $value): MessageInterface
+    {
+        // TODO: Implement withAddedHeader() method.
+    }
+
+    public function withoutHeader(string $name): MessageInterface
+    {
+        // TODO: Implement withoutHeader() method.
+    }
+
+    public function getBody(): StreamInterface
+    {
+        // TODO: Implement getBody() method.
+    }
+
+    public function withBody(StreamInterface $body): MessageInterface
+    {
+        // TODO: Implement withBody() method.
+    }
+
+    public function getStatusCode(): int
+    {
+        // TODO: Implement getStatusCode() method.
+    }
+
+    public function withStatus(int $code, string $reasonPhrase = ''): ResponseInterface
+    {
+        // TODO: Implement withStatus() method.
+    }
+
+    public function getReasonPhrase(): string
+    {
+        // TODO: Implement getReasonPhrase() method.
     }
 }

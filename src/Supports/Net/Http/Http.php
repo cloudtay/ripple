@@ -32,26 +32,23 @@
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-namespace P;
+namespace P\Net\Http;
 
-use P\Net\Http\Http;
-use P\Net\WebSocket\WebSocket;
+use Psc\Core\ModuleAbstract;
+use Psc\Plugins\Guzzle;
 
-class Net
+class Http extends ModuleAbstract
 {
     /**
-     * @return Http
+     * @var ModuleAbstract
      */
-    public static function Http(): Http
-    {
-        return Http::getInstance();
-    }
+    protected static ModuleAbstract $instance;
 
     /**
-     * @return WebSocket
+     * @return Guzzle
      */
-    public static function WebSocket(): WebSocket
+    public function Guzzle(): Guzzle
     {
-        return WebSocket::getInstance();
+        return Guzzle::getInstance();
     }
 }

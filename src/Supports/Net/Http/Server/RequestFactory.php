@@ -32,23 +32,27 @@
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-namespace Psc\Supports\Net;
+namespace P\Net\Http\Server;
 
-use Psc\Core\ModuleAbstract;
-use Psc\Plugins\Guzzle;
 
-class Http extends ModuleAbstract
+use Psc\Core\Stream\Stream;
+
+/**
+ * @class RequestFactory Http流工厂
+ */
+class RequestFactory
 {
-    /**
-     * @var ModuleAbstract
-     */
-    protected static ModuleAbstract $instance;
+    public const string COMPLETE   = 'plugin.httpService.requestFactory.complete';      # 传输完成
+    public const string INCOMPLETE = 'plugin.httpService.requestFactory.incomplete';    # 传输中
 
     /**
-     * @return Guzzle
+     * 解析请求
+     * @param string $context
+     * @param Stream $client
+     * @return Request|null
      */
-    public function Guzzle(): Guzzle
+    public function revolve(string $context, Stream $client): ?Request
     {
-        return Guzzle::getInstance();
+
     }
 }
