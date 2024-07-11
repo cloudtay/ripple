@@ -105,7 +105,6 @@ class Socket extends ModuleAbstract
             }
 
             $stream = new Stream($connection);
-            $stream->setBlocking(false);
             $stream->onWritable(function (Stream $stream, Closure $cancel) use ($r) {
                 $cancel();
                 $r($stream);
@@ -156,6 +155,74 @@ class Socket extends ModuleAbstract
                     }
                 });
             }
+        });
+    }
+
+    /**
+     * @param string     $address
+     * @param mixed|null $context
+     * @return Promise
+     */
+    public function streamSocketServer(string $address, mixed $context = null): Promise
+    {
+        return promise(function (Closure $r, Closure $d) use ($address, $context) {
+            $server = stream_socket_server($address, $_errCode, $_errMsg, STREAM_SERVER_BIND | STREAM_SERVER_LISTEN, $context);
+            if (!$server) {
+                $d(new Exception($_errMsg, $_errCode));
+                return;
+            }
+
+            $r(new Stream($server));
+            return;
+        });
+    }
+
+    /**
+     * @param string     $address
+     * @param mixed|null $context
+     * @return Promise
+     */
+    public function streamSocketServerSSL(string $address, mixed $context = null): Promise
+    {
+        return async(function (Closure $r, Closure $d) use ($address, $context) {
+            $streamSocketServerPromise = $this->streamSocketServer($address, $context);
+
+            /**
+             * @var Stream $server
+             */
+            $server = await($streamSocketServerPromise);
+            $server->onReadable(function (Stream $server, Closure $cancel) use ($r, $d) {
+                $connection = stream_socket_accept($server->stream, 0);
+                if (!$connection) {
+                    $d(new Exception('Failed to accept connection.'));
+                    return;
+                }
+
+                $stream = new Stream($connection);
+                $this->streamEnableCrypto($stream)->then($r)->except($d);
+                $cancel();
+            });
+        });
+    }
+
+    /**
+     * @param Stream $server
+     * @return Promise
+     */
+    public function streamSocketAccept(Stream $server): Promise
+    {
+        return new Promise(function ($r, $d) use ($server) {
+            $server->onReadable(function (Stream $server, Closure $cancel) use ($r, $d) {
+                $connection = stream_socket_accept($server->stream, 0);
+                if (!$connection) {
+                    $d(new Exception('Failed to accept connection.'));
+                    return;
+                }
+
+                $clientStream = new Stream($connection);
+                $r($clientStream);
+                $cancel();
+            });
         });
     }
 }

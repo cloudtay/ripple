@@ -32,26 +32,53 @@
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-namespace P;
 
-use P\Net\Http\Http;
-use P\Net\WebSocket\WebSocket;
+namespace P\Net\Http\Server;
 
-class Net
+use Closure;
+use P\IO;
+use Psc\Core\Stream\Stream;
+use function P\async;
+use function P\await;
+
+/**
+ * Http服务类
+ */
+class HttpServer
 {
     /**
-     * @return Http
+     * 请求处理器
+     * @var Closure
      */
-    public static function Http(): Http
+    public Closure $requestHandler;
+    /**
+     * Http流工厂
+     * @var RequestFactory
+     */
+    private RequestFactory $requestFactory;
+
+    /**
+     * 创建请求工厂
+     * @return void
+     */
+    public function __construct()
     {
-        return Http::getInstance();
+        $this->requestFactory = new RequestFactory();
+        async(function () {
+            $server = await(IO::Socket()->streamSocketServer('tcp://127.0.0.1:8008'));
+            while (true) {
+                $this->listenClient(await(IO::Socket()->streamSocketAccept($server)));
+            }
+        });
     }
 
     /**
-     * @return WebSocket
+     * @param Stream $stream
+     * @return void
      */
-    public static function WebSocket(): WebSocket
+    private function listenClient(Stream $stream): void
     {
-        return WebSocket::getInstance();
+        $stream->onReadable(function (Stream $stream, Closure $cancel) {
+        });
     }
 }
