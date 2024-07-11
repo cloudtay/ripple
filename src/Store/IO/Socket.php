@@ -32,7 +32,7 @@
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-namespace Psc\Supports\IO;
+namespace Psc\Store\IO;
 
 use Closure;
 use Psc\Core\Coroutine\Exception;

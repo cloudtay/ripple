@@ -34,8 +34,8 @@
 
 namespace P;
 
-use P\Net\Http\Http;
-use P\Net\WebSocket\WebSocket;
+use Psc\Store\Net\Http\Http;
+use Psc\Store\Net\WebSocket\WebSocket;
 
 class Net
 {

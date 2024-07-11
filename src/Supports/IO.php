@@ -34,8 +34,8 @@
 
 namespace P;
 
-use Psc\Supports\IO\File;
-use Psc\Supports\IO\Socket;
+use Psc\Store\IO\File;
+use Psc\Store\IO\Socket;
 
 class IO
 {

@@ -32,52 +32,9 @@
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-namespace Psc\Supports\IO;
+namespace Psc\Store\Net\Exception;
 
-use Closure;
-use Psc\Core\Coroutine\Promise;
-use Psc\Core\ModuleAbstract;
-use Psc\Core\Stream\Stream;
-use Psc\Std\Stream\Exception\Exception;
-use function P\promise;
-
-class File extends ModuleAbstract
+class Exception extends \Exception
 {
-    /**
-     * @var ModuleAbstract
-     */
-    protected static ModuleAbstract $instance;
 
-    /**
-     * @param string $path
-     * @return Promise
-     */
-    public function getContents(string $path): Promise
-    {
-        return promise(function (Closure $resolve, Closure $reject) use ($path) {
-            if (!$resource = fopen($path, 'r')) {
-                $reject(new Exception('Failed to open file: ' . $path));
-                return;
-            }
-
-            $stream = new Stream($resource);
-            $stream->setBlocking(false);
-            $content = '';
-
-            $stream->onReadable(function (Stream $stream) use ($resolve, $reject, &$content) {
-                $fragment = $stream->read(8192);
-                if ($fragment === '') {
-                    $stream->close();
-                    $resolve($content);
-                    return;
-                }
-
-                $content .= $fragment;
-                if ($stream->eof()) {
-                    $stream->close();
-                    $resolve($content);
-                }
-            });
-        });
-    }
 }
