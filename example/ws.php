@@ -1,7 +1,7 @@
 <?php declare(strict_types=1);
 
 /*
- * Copyright (c) 2024.
+ * Copyright (c) 2023-2024.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -34,25 +34,29 @@
  */
 
 use P\Net\WebSocket\Connection;
+use function P\repeat;
 
 include_once __DIR__ . '/../vendor/autoload.php';
 
+$connection         = P\Net::Websocket()->connect('wss://127.0.0.1:8001/wss');
+$connection->onOpen = function () use (&$connection) {
+    $connection->send('{"action":"sub","data":{"channel":"market:panel@8"}}');
 
-P\Net::Websocket()->connect('wss://127.0.0.1:8001')
-    ->then(function (Connection $connection) {
-        $connection->send('{"action":"sub","data":{"channel":"market:panel@8"}}');
-
-        $connection->onMessage = function ($data) {
-            echo 'Received: ' . $data . PHP_EOL;
-        };
-
-        $connection->onClose = function () {
-            debug_print_backtrace();
-            echo 'Connection closed' . PHP_EOL;
-        };
-    })
-    ->except(function () {
-        echo 'Connection failed' . PHP_EOL;
+    $timerId = repeat(10, function () use ($connection) {
+        $connection->send('{"action":"ping","data":{}}');
     });
+
+    $connection->onClose = function (Connection $connection) use ($timerId) {
+        P\cancel($timerId);
+    };
+
+    $connection->onMessage = function (string $message, int $opcode, Connection $connection) {
+        echo "receive: $message\n";
+    };
+};
+
+$connection->onError = function (Throwable $throwable) {
+    echo "error: {$throwable->getMessage()}\n";
+};
 
 P\run();

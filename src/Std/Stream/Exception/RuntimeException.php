@@ -32,13 +32,9 @@
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-namespace Psc\Std\Stream;
+namespace Psc\Std\Stream\Exception;
 
-use Exception as ExceptionNative;
-
-/**
- * @class Exception 套接字传输异常
- */
-class Exception extends ExceptionNative
+class RuntimeException extends Exception
 {
+
 }

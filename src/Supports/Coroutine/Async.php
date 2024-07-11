@@ -1,6 +1,6 @@
 <?php declare(strict_types=1);
 /*
- * Copyright (c) 2024.
+ * Copyright (c) 2023-2024.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -47,6 +47,10 @@ class Async extends ModuleAbstract
      * @var ModuleAbstract
      */
     protected static ModuleAbstract $instance;
+    /**
+     * @var Promise[]
+     */
+    private array $hash2promise = [];
 
     /**
      * @param Promise $promise
@@ -60,15 +64,30 @@ class Async extends ModuleAbstract
             throw new Exception('The await function must be called in a coroutine.');
         }
 
-        if ($promise->getStatus() !== Promise::PENDING) {
-            return $promise->result;
+        if ($promise->getStatus() === Promise::FULFILLED) {
+            return $promise->getResult();
         }
 
-        $promise->finally(function (mixed $result) use ($fiber) {
-            if ($result instanceof Throwable) {
-                return $fiber->throw($result);
-            } else {
-                return $fiber->resume($result);
+        if ($promise->getStatus() === Promise::REJECTED) {
+            throw $promise->getResult();
+        }
+
+        $currentPromise = $this->hash2promise[spl_object_hash($fiber)];
+
+        $promise->finally(function (mixed $result) use ($fiber, $promise, $currentPromise) {
+            if ($promise->getStatus() === Promise::REJECTED) {
+                $fiber->throw($result);
+                return;
+            }
+
+            if ($promise->getStatus() === Promise::FULFILLED) {
+                try {
+                    $fiber->resume($result);
+                    return;
+                } catch (Throwable $e) {
+                    $currentPromise->reject($e);
+                    return;
+                }
             }
         });
 
@@ -82,6 +101,13 @@ class Async extends ModuleAbstract
     public function async(Closure $closure): Promise
     {
         $fiber = new Fiber($closure);
-        return new Promise(fn($r, $d) => $fiber->start($r, $d));
+        return new Promise(function ($r, $d, $promise) use ($fiber) {
+            $hash                      = spl_object_hash($fiber);
+            $this->hash2promise[$hash] = $promise;
+            $promise->finally(function () use ($hash) {
+                unset($this->hash2promise[$hash]);
+            });
+            $fiber->start($r, $d);
+        });
     }
 }

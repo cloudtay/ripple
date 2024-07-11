@@ -1,6 +1,6 @@
 <?php declare(strict_types=1);
 /*
- * Copyright (c) 2024.
+ * Copyright (c) 2023-2024.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -35,170 +35,368 @@
 namespace P\Net\WebSocket;
 
 use Closure;
+use Exception;
+use P\IO;
+use P\Net\Exception\HandshakeException;
+use Psc\Core\Coroutine\Promise;
+use Psc\Core\Output;
 use Psc\Core\Stream\Stream;
+use Psc\Std\Stream\Exception\ConnectionException;
+use Random\RandomException;
 use Throwable;
+use function P\async;
+use function P\await;
 
+/**
+ * [协议相关]
+ * 白皮书: https://datatracker.ietf.org/doc/html/rfc6455
+ * 最新规范: https://websockets.spec.whatwg.org/
+ */
 class Connection
 {
+    /**
+     * @var Promise
+     */
+    public readonly Promise $promise;
+
+    /**
+     * @var Closure
+     */
     public Closure $onOpen;
+
+    /**
+     * @var Closure
+     */
     public Closure $onMessage;
+
+    /**
+     * @var Closure
+     */
     public Closure $onClose;
+
+    /**
+     * @var Closure
+     */
     public Closure $onError;
+
+    /**
+     * @var Stream
+     */
+    private Stream $stream;
 
     /**
      * @var string
      */
     private string $buffer = '';
 
-    /**
-     * @param Stream $stream
-     */
-    public function __construct(private readonly Stream $stream)
-    {
-        $this->stream->onClose(function () {
-            if (isset($this->onClose)) {
-                call_user_func($this->onClose, $this);
-            }
-        });
 
-        $this->stream->onReadable(function (Stream $stream) {
+    /**
+     * @param string     $address
+     * @param int|float  $timeout
+     * @param mixed|null $context
+     */
+    public function __construct(
+        private readonly string    $address,
+        private readonly int|float $timeout = 10,
+        private readonly mixed     $context = null)
+    {
+        $this->promise = async(function () {
             try {
-                $read = $stream->read(8192);
+                await($this->_handshake());
+
+                $this->_open();
             } catch (Throwable $e) {
-                $stream->close();
+                $this->_error($e);
+
+                if (isset($this->stream)) {
+                    $this->_close();
+                }
                 return;
             }
-            $this->buffer .= $read;
-            $this->tick();
+
+            $this->stream->onReadable(function () {
+                try {
+                    $read         = $this->stream->read(8192);
+                    $this->buffer .= $read;
+                    while (strlen($this->buffer) >= 2) {
+                        $firstByte     = ord($this->buffer[0]);
+                        $fin           = ($firstByte & 0x80) === 0x80;
+                        $opcode        = $firstByte & 0x0f;
+                        $secondByte    = ord($this->buffer[1]);
+                        $masked        = ($secondByte & 0x80) === 0x80;
+                        $payloadLength = $secondByte & 0x7f;
+                        $offset        = 2;
+                        if ($payloadLength === 126) {
+                            if (strlen($this->buffer) < 4) {
+                                return;
+                            }
+                            $payloadLength = unpack('n', substr($this->buffer, 2, 2))[1];
+                            $offset        += 2;
+                        } elseif ($payloadLength === 127) {
+                            if (strlen($this->buffer) < 10) {
+                                return;
+                            }
+                            $payloadLength = unpack('J', substr($this->buffer, 2, 8))[1];
+                            $offset        += 8;
+                        }
+
+                        if ($masked) {
+                            if (strlen($this->buffer) < $offset + 4) {
+                                return;
+                            }
+                            $maskingKey = substr($this->buffer, $offset, 4);
+                            $offset     += 4;
+                        }
+
+                        if (strlen($this->buffer) < $offset + $payloadLength) {
+                            return;
+                        }
+
+                        $payloadData = substr($this->buffer, $offset, $payloadLength);
+                        $offset      += $payloadLength;
+
+                        if ($masked) {
+                            $unmaskedData = '';
+                            for ($i = 0; $i < $payloadLength; $i++) {
+                                $unmaskedData .= chr(ord($payloadData[$i]) ^ ord($maskingKey[$i % 4]));
+                            }
+                        } else {
+                            $unmaskedData = $payloadData;
+                        }
+
+                        switch ($opcode) {
+                            case 0x1: // 文本
+                                break;
+                            case 0x2: // 二进制
+                                break;
+                            case 0x8: // 关闭
+                                $this->_close();
+                                if (isset($this->onClose)) {
+                                    call_user_func($this->onClose, $this);
+                                }
+                                return;
+                            case 0x9: // ping
+                                // 发送pong响应
+                                $pongFrame = chr(0x8A) . chr(0x00);
+                                $this->stream->write($pongFrame);
+                                return;
+                            case 0xA: // pong
+                                return;
+                            default:
+                                break;
+                        }
+
+                        $this->_message($unmaskedData, $opcode);
+                        $this->buffer = substr($this->buffer, $offset);
+                    }
+                } catch (Throwable $e) {
+                    $this->_close();
+                    $this->_error($e);
+                    return;
+                }
+            });
         });
+    }
 
+    /**
+     * @return Promise
+     */
+    private function _handshake(): Promise
+    {
+        return async(function ($r) {
+            $exploded = explode('://', $this->address);
+
+            if (count($exploded) !== 2) {
+                throw new Exception('Invalid address');
+            }
+
+            $scheme           = $exploded[0];
+            $hostExploded     = explode('/', $exploded[1]);
+            $hostPort         = $hostExploded[0];
+            $hostPortExploded = explode(':', $hostPort);
+            $host             = $hostPortExploded[0];
+            $port             = $hostPortExploded[1] ?? match ($scheme) {
+                'ws' => 80,
+                'wss' => 443,
+                default => throw new Exception('Unsupported scheme')
+            };
+
+            $path = $hostExploded[1] ?? '';
+            $path = "/{$path}";
+
+            $this->stream = match ($scheme) {
+                'ws' => await(IO::Socket()->streamSocketClient("tcp://{$host}:{$port}", $this->timeout, $this->context)),
+                'wss' => await(IO::Socket()->streamSocketClientSSL("ssl://{$host}:{$port}", $this->timeout, $this->context)),
+                default => throw new Exception('Unsupported scheme')
+            };
+
+            $this->stream->onClose(fn() => $this->_close());
+            $this->stream->setBlocking(false);
+
+            $key     = base64_encode(random_bytes(16));
+            $context = '';
+            $context .= "GET {$path} HTTP/1.1\r\n";
+            $context .= "Host: {$hostPort}\r\n";
+            $context .= "Upgrade: websocket\r\n";
+            $context .= "Connection: Upgrade\r\n";
+            $context .= "Sec-WebSocket-Key: {$key}\r\n";
+            $context .= "Sec-WebSocket-Version: 13\r\n";
+            $context .= "\r\n";
+
+            $buffer = '';
+
+            $this->stream->write($context);
+            $this->stream->onReadable(function (Stream $stream, Closure $cancel) use (
+                $r,
+                $key,
+                &$buffer,
+            ) {
+                $response = $this->stream->read(8192);
+                if ($response === '') {
+                    throw new HandshakeException('Connection closed');
+                }
+
+                $buffer .= $response;
+
+                if (str_contains($buffer, "\r\n\r\n")) {
+                    $headBody = explode("\r\n\r\n", $buffer);
+                    $header   = $headBody[0];
+                    $body     = $headBody[1] ?? '';
+
+                    if (!str_contains(
+                        strtolower($header),
+                        strtolower("HTTP/1.1 101 Switching Protocols")
+                    )) {
+                        throw new HandshakeException('Invalid response');
+                    }
+
+                    $headers  = [];
+                    $exploded = explode("\r\n", $header);
+
+                    foreach ($exploded as $index => $line) {
+                        if ($index === 0) {
+                            continue;
+                        }
+                        $exploded                          = explode(': ', $line);
+                        $headers[strtolower($exploded[0])] = $exploded[1] ?? '';
+                    }
+
+                    if (!$signature = $headers['sec-websocket-accept'] ?? null) {
+                        throw new Exception('Invalid response');
+                    }
+
+                    $expectedSignature = base64_encode(sha1($key . '258EAFA5-E914-47DA-95CA-C5AB0DC85B11', true));
+                    if ($signature !== $expectedSignature) {
+                        throw new Exception('Invalid response');
+                    }
+
+                    $cancel();
+                    $r();
+                }
+            });
+        });
+    }
+
+    /**
+     * @return void
+     */
+    private function _close(): void
+    {
+        if (isset($this->stream)) {
+            $this->stream->close();
+
+            if (isset($this->onClose)) {
+                try {
+                    call_user_func($this->onClose, $this);
+                } catch (Throwable $e) {
+                    Output::error($e->getMessage());
+                }
+            }
+        }
+    }
+
+    /**
+     * @return void
+     */
+    public function close(): void
+    {
+        $this->_close();
+    }
+
+    /**
+     * @return void
+     */
+    private function _open(): void
+    {
         if (isset($this->onOpen)) {
-            call_user_func($this->onOpen, $this);
+            try {
+                call_user_func($this->onOpen, $this);
+            } catch (Throwable $e) {
+                Output::error($e->getMessage());
+            }
         }
     }
 
     /**
+     * @param Throwable $e
      * @return void
      */
-    private function tick(): void
+    private function _error(Throwable $e): void
     {
-        while (strlen($this->buffer) >= 2) {
-            $firstByte     = ord($this->buffer[0]);
-            $fin           = ($firstByte & 0x80) === 0x80;
-            $opcode        = $firstByte & 0x0f;
-            $secondByte    = ord($this->buffer[1]);
-            $masked        = ($secondByte & 0x80) === 0x80;
-            $payloadLength = $secondByte & 0x7f;
-            $offset        = 2;
-            if ($payloadLength === 126) {
-                if (strlen($this->buffer) < 4) {
-                    return;
-                }
-                $payloadLength = unpack('n', substr($this->buffer, 2, 2))[1];
-                $offset        += 2;
-            } elseif ($payloadLength === 127) {
-                if (strlen($this->buffer) < 10) {
-                    return;
-                }
-                $payloadLength = unpack('J', substr($this->buffer, 2, 8))[1];
-                $offset        += 8;
+        if (isset($this->onError)) {
+            try {
+                call_user_func($this->onError, $e, $this);
+            } catch (Throwable $e) {
+                Output::error($e->getMessage());
             }
-            if ($masked) {
-                if (strlen($this->buffer) < $offset + 4) {
-                    return;
-                }
-                $maskingKey = substr($this->buffer, $offset, 4);
-                $offset     += 4;
-            }
-            if (strlen($this->buffer) < $offset + $payloadLength) {
-                return;
-            }
-            $payloadData = substr($this->buffer, $offset, $payloadLength);
-            $offset      += $payloadLength;
-            if ($masked) {
-                $unmaskedData = '';
-                for ($i = 0; $i < $payloadLength; $i++) {
-                    $unmaskedData .= chr(ord($payloadData[$i]) ^ ord($maskingKey[$i % 4]));
-                }
-            } else {
-                $unmaskedData = $payloadData;
-            }
-            $this->handleMessage($opcode, $unmaskedData);
-            $this->buffer = substr($this->buffer, $offset);
         }
     }
 
     /**
+     * @param string $unmaskedData
      * @param int    $opcode
-     * @param string $data
      * @return void
      */
-    private function handleMessage(int $opcode, string $data): void
+    private function _message(string $unmaskedData, int $opcode): void
     {
-        switch ($opcode) {
-            case 0x1: // 文本
-                break;
-            case 0x2: // 二进制
-                break;
-            case 0x8: // 关闭
-                $this->stream->close();
-                return;
-            case 0x9: // ping
-                $this->sendPong();
-                return;
-            case 0xA: // pong
-                return;
-            default:
-                break;
-        }
-
         if (isset($this->onMessage)) {
-            call_user_func($this->onMessage, $data, $this);
+            try {
+                call_user_func($this->onMessage, $unmaskedData, $opcode, $this);
+            } catch (Throwable $e) {
+                Output::error($e->getMessage());
+            }
         }
-    }
-
-    /**
-     * @return void
-     */
-    private function sendPong(): void
-    {
-        $pongFrame = chr(0x8A) . chr(0x00);
-        $this->stream->write($pongFrame);
     }
 
     /**
      * @param string $data
      * @return void
+     * @throws ConnectionException
+     * @throws RandomException
      */
     public function send(string $data): void
     {
-        try {
-            $finOpcode = 0x81;
-            $packet    = chr($finOpcode);
-            $length    = strlen($data);
-            if ($length <= 125) {
-                $packet .= chr($length | 0x80);
-            } elseif ($length < 65536) {
-                $packet .= chr(126 | 0x80);
-                $packet .= pack('n', $length);
-            } else {
-                $packet .= chr(127 | 0x80);
-                $packet .= pack('J', $length);
-            }
-            $maskingKey = random_bytes(4);
-            $packet     .= $maskingKey;
-            $maskedData = '';
-            for ($i = 0; $i < $length; $i++) {
-                $maskedData .= chr(ord($data[$i]) ^ ord($maskingKey[$i % 4]));
-            }
-            $packet .= $maskedData;
-            $this->stream->write($packet);
-        } catch (Throwable $e) {
-            $this->stream->close();
-            if (isset($this->onError)) {
-                call_user_func($this->onError, $e, $this);
-            }
+        $finOpcode = 0x81;
+        $packet    = chr($finOpcode);
+        $length    = strlen($data);
+
+        if ($length <= 125) {
+            $packet .= chr($length | 0x80);
+        } elseif ($length < 65536) {
+            $packet .= chr(126 | 0x80);
+            $packet .= pack('n', $length);
+        } else {
+            $packet .= chr(127 | 0x80);
+            $packet .= pack('J', $length);
         }
 
+        $maskingKey = random_bytes(4);
+        $packet     .= $maskingKey;
+        $maskedData = '';
+        for ($i = 0; $i < $length; $i++) {
+            $maskedData .= chr(ord($data[$i]) ^ ord($maskingKey[$i % 4]));
+        }
+        $packet .= $maskedData;
+        $this->stream->write($packet);
     }
 }

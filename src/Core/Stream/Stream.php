@@ -1,6 +1,6 @@
 <?php declare(strict_types=1);
 /*
- * Copyright (c) 2024.
+ * Copyright (c) 2023-2024.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -36,6 +36,7 @@ namespace Psc\Core\Stream;
 
 use Closure;
 use Psc\Core\Output;
+use Psc\Std\Stream\Exception\ConnectionException;
 use Revolt\EventLoop;
 use Throwable;
 use function P\cancel;
@@ -75,6 +76,15 @@ class Stream extends \Psc\Std\Stream\Stream
 
     /**
      * @param Closure $closure
+     * @return void
+     */
+    public function onClose(Closure $closure): void
+    {
+        $this->onCloseCallbacks[] = $closure;
+    }
+
+    /**
+     * @param Closure $closure
      * @return string
      */
     public function onReadable(Closure $closure): string
@@ -91,11 +101,30 @@ class Stream extends \Psc\Std\Stream\Stream
                         }
                     }
                 ]);
+            } catch (ConnectionException $e) {
+                $this->close();
+                Output::error($e->getMessage());
             } catch (Throwable $e) {
-                Output::exception($e);
+                Output::error($e->getMessage());
             }
         });
         return $eventId;
+    }
+
+    /**
+     * @return void
+     */
+    public function close(): void
+    {
+        if (is_resource($this->stream) === false) {
+            return;
+        }
+
+        parent::close();
+
+        foreach ($this->onCloseCallbacks as $callback) {
+            call_user_func($callback);
+        }
     }
 
     /**
@@ -116,36 +145,14 @@ class Stream extends \Psc\Std\Stream\Stream
                         }
                     }
                 ]);
+            } catch (ConnectionException $e) {
+                $this->close();
+                Output::error($e->getMessage());
             } catch (Throwable $e) {
-                Output::exception($e);
+                Output::error($e->getMessage());
             }
         });
         return $eventId;
-    }
-
-    /**
-     * @param Closure $closure
-     * @return void
-     */
-    public function onClose(Closure $closure): void
-    {
-        $this->onCloseCallbacks[] = $closure;
-    }
-
-    /**
-     * @return void
-     */
-    public function close(): void
-    {
-        if (is_resource($this->stream) === false) {
-            return;
-        }
-
-        parent::close();
-
-        foreach ($this->onCloseCallbacks as $callback) {
-            call_user_func($callback);
-        }
     }
 
     /**
