@@ -32,27 +32,53 @@
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-namespace P\Net\Http\Server;
 
+namespace Psc\Store\Net\Http\Server;
 
+use Closure;
+use P\IO;
 use Psc\Core\Stream\Stream;
+use function P\async;
+use function P\await;
 
 /**
- * @class RequestFactory Http流工厂
+ * Http服务类
  */
-class RequestFactory
+class HttpServer
 {
-    public const string COMPLETE   = 'plugin.httpService.requestFactory.complete';      # 传输完成
-    public const string INCOMPLETE = 'plugin.httpService.requestFactory.incomplete';    # 传输中
+    /**
+     * 请求处理器
+     * @var Closure
+     */
+    public Closure $requestHandler;
+    /**
+     * Http流工厂
+     * @var RequestFactory
+     */
+    private RequestFactory $requestFactory;
 
     /**
-     * 解析请求
-     * @param string $context
-     * @param Stream $client
-     * @return Request|null
+     * 创建请求工厂
+     * @return void
      */
-    public function revolve(string $context, Stream $client): ?Request
+    public function __construct()
     {
+        $this->requestFactory = new RequestFactory();
+        async(function () {
+            $server = await(IO::Socket()->streamSocketServer('tcp://127.0.0.1:8008'));
+            while (true) {
+                $this->listenClient(await(IO::Socket()->streamSocketAccept($server)));
+            }
+        });
+    }
 
+    /**
+     * @param Stream $stream
+     * @return void
+     */
+    private function listenClient(Stream $stream): void
+    {
+        $stream->onReadable(function (Stream $stream, Closure $cancel) {
+        });
     }
 }

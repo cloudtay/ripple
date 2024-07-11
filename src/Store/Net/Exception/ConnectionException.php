@@ -1,4 +1,4 @@
-<?php declare(strict_types=1);
+<?php
 /*
  * Copyright (c) 2023-2024.
  *
@@ -32,26 +32,9 @@
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-namespace P\Net\WebSocket;
+namespace Psc\Store\Net\Exception;
 
-
-use Psc\Core\ModuleAbstract;
-
-class WebSocket extends ModuleAbstract
+class ConnectionException extends \Psc\Std\Stream\Exception\ConnectionException
 {
-    /**
-     * @var ModuleAbstract
-     */
-    protected static ModuleAbstract $instance;
 
-    /**
-     * @param string     $address
-     * @param int|float  $timeout
-     * @param mixed|null $context
-     * @return Connection
-     */
-    public function connect(string $address, int|float $timeout = 10, mixed $context = null): Connection
-    {
-        return new Connection($address, $timeout, $context);
-    }
 }

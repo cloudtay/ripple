@@ -33,7 +33,7 @@
  */
 
 
-namespace P\Net\Http\Server;
+namespace Psc\Store\Net\Http\Server;
 
 use Psc\Core\Output;
 use Psc\Std\Stream\Exception\RuntimeException;

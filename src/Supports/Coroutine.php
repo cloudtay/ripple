@@ -34,7 +34,7 @@
 
 namespace P;
 
-use Psc\Supports\Coroutine\Async;
+use Psc\Store\Coroutine\Async;
 
 class Coroutine
 {

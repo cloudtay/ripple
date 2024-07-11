@@ -33,7 +33,7 @@
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-use P\Net\WebSocket\Connection;
+use Psc\Store\Net\WebSocket\Connection;
 use function P\repeat;
 
 include_once __DIR__ . '/../vendor/autoload.php';

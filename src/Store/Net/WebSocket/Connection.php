@@ -32,16 +32,16 @@
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-namespace P\Net\WebSocket;
+namespace Psc\Store\Net\WebSocket;
 
 use Closure;
 use Exception;
 use P\IO;
-use P\Net\Exception\HandshakeException;
 use Psc\Core\Coroutine\Promise;
 use Psc\Core\Output;
 use Psc\Core\Stream\Stream;
 use Psc\Std\Stream\Exception\ConnectionException;
+use Psc\Store\Net\Exception\HandshakeException;
 use Random\RandomException;
 use Throwable;
 use function P\async;

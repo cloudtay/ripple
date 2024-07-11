@@ -32,9 +32,23 @@
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-namespace P\Net\Exception;
+namespace Psc\Store\Net\Http;
 
-class Exception extends \Exception
+use Psc\Core\ModuleAbstract;
+use Psc\Plugins\Guzzle;
+
+class Http extends ModuleAbstract
 {
+    /**
+     * @var ModuleAbstract
+     */
+    protected static ModuleAbstract $instance;
 
+    /**
+     * @return Guzzle
+     */
+    public function Guzzle(): Guzzle
+    {
+        return Guzzle::getInstance();
+    }
 }

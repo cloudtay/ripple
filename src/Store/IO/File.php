@@ -32,82 +32,52 @@
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-namespace Psc\Supports\Coroutine;
+namespace Psc\Store\IO;
 
 use Closure;
-use Fiber;
-use Psc\Core\Coroutine\Exception;
 use Psc\Core\Coroutine\Promise;
 use Psc\Core\ModuleAbstract;
-use Throwable;
+use Psc\Core\Stream\Stream;
+use Psc\Std\Stream\Exception\Exception;
+use function P\promise;
 
-class Async extends ModuleAbstract
+class File extends ModuleAbstract
 {
     /**
      * @var ModuleAbstract
      */
     protected static ModuleAbstract $instance;
-    /**
-     * @var Promise[]
-     */
-    private array $hash2promise = [];
 
     /**
-     * @param Promise $promise
-     * @return mixed
-     * @throws Throwable
+     * @param string $path
+     * @return Promise
      */
-    public function await(Promise $promise): mixed
+    public function getContents(string $path): Promise
     {
-        $fiber = Fiber::getCurrent();
-        if (!$fiber) {
-            throw new Exception('The await function must be called in a coroutine.');
-        }
-
-        if ($promise->getStatus() === Promise::FULFILLED) {
-            return $promise->getResult();
-        }
-
-        if ($promise->getStatus() === Promise::REJECTED) {
-            throw $promise->getResult();
-        }
-
-        $currentPromise = $this->hash2promise[spl_object_hash($fiber)];
-
-        $promise->finally(function (mixed $result) use ($fiber, $promise, $currentPromise) {
-            if ($promise->getStatus() === Promise::REJECTED) {
-                $fiber->throw($result);
+        return promise(function (Closure $resolve, Closure $reject) use ($path) {
+            if (!$resource = fopen($path, 'r')) {
+                $reject(new Exception('Failed to open file: ' . $path));
                 return;
             }
 
-            if ($promise->getStatus() === Promise::FULFILLED) {
-                try {
-                    $fiber->resume($result);
-                    return;
-                } catch (Throwable $e) {
-                    $currentPromise->reject($e);
+            $stream = new Stream($resource);
+            $stream->setBlocking(false);
+            $content = '';
+
+            $stream->onReadable(function (Stream $stream) use ($resolve, $reject, &$content) {
+                $fragment = $stream->read(8192);
+                if ($fragment === '') {
+                    $stream->close();
+                    $resolve($content);
                     return;
                 }
-            }
-        });
 
-        return $fiber->suspend();
-    }
-
-    /**
-     * @param Closure $closure
-     * @return Promise
-     */
-    public function async(Closure $closure): Promise
-    {
-        $fiber = new Fiber($closure);
-        return new Promise(function ($r, $d, $promise) use ($fiber) {
-            $hash                      = spl_object_hash($fiber);
-            $this->hash2promise[$hash] = $promise;
-            $promise->finally(function () use ($hash) {
-                unset($this->hash2promise[$hash]);
+                $content .= $fragment;
+                if ($stream->eof()) {
+                    $stream->close();
+                    $resolve($content);
+                }
             });
-            $fiber->start($r, $d);
         });
     }
 }

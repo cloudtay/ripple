@@ -34,7 +34,7 @@
  */
 
 use GuzzleHttp\Psr7\Response;
-use P\Net\WebSocket\Connection;
+use Psc\Store\Net\WebSocket\Connection;
 use function P\async;
 use function P\await;
 use function P\repeat;

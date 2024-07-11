@@ -32,53 +32,82 @@
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-
-namespace P\Net\Http\Server;
+namespace Psc\Store\Coroutine;
 
 use Closure;
-use P\IO;
-use Psc\Core\Stream\Stream;
-use function P\async;
-use function P\await;
+use Fiber;
+use Psc\Core\Coroutine\Exception;
+use Psc\Core\Coroutine\Promise;
+use Psc\Core\ModuleAbstract;
+use Throwable;
 
-/**
- * Http服务类
- */
-class HttpServer
+class Async extends ModuleAbstract
 {
     /**
-     * 请求处理器
-     * @var Closure
+     * @var ModuleAbstract
      */
-    public Closure $requestHandler;
+    protected static ModuleAbstract $instance;
     /**
-     * Http流工厂
-     * @var RequestFactory
+     * @var Promise[]
      */
-    private RequestFactory $requestFactory;
+    private array $hash2promise = [];
 
     /**
-     * 创建请求工厂
-     * @return void
+     * @param Promise $promise
+     * @return mixed
+     * @throws Throwable
      */
-    public function __construct()
+    public function await(Promise $promise): mixed
     {
-        $this->requestFactory = new RequestFactory();
-        async(function () {
-            $server = await(IO::Socket()->streamSocketServer('tcp://127.0.0.1:8008'));
-            while (true) {
-                $this->listenClient(await(IO::Socket()->streamSocketAccept($server)));
+        $fiber = Fiber::getCurrent();
+        if (!$fiber) {
+            throw new Exception('The await function must be called in a coroutine.');
+        }
+
+        if ($promise->getStatus() === Promise::FULFILLED) {
+            return $promise->getResult();
+        }
+
+        if ($promise->getStatus() === Promise::REJECTED) {
+            throw $promise->getResult();
+        }
+
+        $currentPromise = $this->hash2promise[spl_object_hash($fiber)];
+
+        $promise->finally(function (mixed $result) use ($fiber, $promise, $currentPromise) {
+            if ($promise->getStatus() === Promise::REJECTED) {
+                $fiber->throw($result);
+                return;
+            }
+
+            if ($promise->getStatus() === Promise::FULFILLED) {
+                try {
+                    $fiber->resume($result);
+                    return;
+                } catch (Throwable $e) {
+                    $currentPromise->reject($e);
+                    return;
+                }
             }
         });
+
+        return $fiber->suspend();
     }
 
     /**
-     * @param Stream $stream
-     * @return void
+     * @param Closure $closure
+     * @return Promise
      */
-    private function listenClient(Stream $stream): void
+    public function async(Closure $closure): Promise
     {
-        $stream->onReadable(function (Stream $stream, Closure $cancel) {
+        $fiber = new Fiber($closure);
+        return new Promise(function ($r, $d, $promise) use ($fiber) {
+            $hash                      = spl_object_hash($fiber);
+            $this->hash2promise[$hash] = $promise;
+            $promise->finally(function () use ($hash) {
+                unset($this->hash2promise[$hash]);
+            });
+            $fiber->start($r, $d);
         });
     }
 }
