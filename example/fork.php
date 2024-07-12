@@ -1,4 +1,4 @@
-<?php declare(strict_types=1);
+<?php
 /*
  * Copyright (c) 2023-2024.
  *
@@ -32,34 +32,19 @@
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-namespace Psc\Store\Net\Http;
+use function P\fork;
 
-use Psc\Core\ModuleAbstract;
-use Psc\Plugins\Guzzle;
-use Psc\Store\Net\Http\Server\HttpServer;
+include_once __DIR__ . '/../vendor/autoload.php';
 
-class Http extends ModuleAbstract
-{
-    /**
-     * @var ModuleAbstract
-     */
-    protected static ModuleAbstract $instance;
+P\async(function () {
+    $server = P\await(P\IO::Socket()->streamSocketServer('tcp://127.0.0.1:8008'));
+    $client = P\await(P\IO::Socket()->streamSocketAccept($server));
 
-    /**
-     * @return Guzzle
-     */
-    public function Guzzle(): Guzzle
-    {
-        return Guzzle::getInstance();
-    }
+    fork(function () {
 
-    /**
-     * @param string $address
-     * @param mixed  $context
-     * @return HttpServer
-     */
-    public function server(string $address, mixed $context = null): HttpServer
-    {
-        return new HttpServer($address, $context);
-    }
-}
+    });
+
+    posix_kill(posix_getpid(), SIGKILL);
+});
+
+P\run();

@@ -32,34 +32,9 @@
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-namespace Psc\Store\Net\Http;
+namespace Psc\Store\Net\Http\Server\Exception;
 
-use Psc\Core\ModuleAbstract;
-use Psc\Plugins\Guzzle;
-use Psc\Store\Net\Http\Server\HttpServer;
-
-class Http extends ModuleAbstract
+class TransferException extends Exception
 {
-    /**
-     * @var ModuleAbstract
-     */
-    protected static ModuleAbstract $instance;
 
-    /**
-     * @return Guzzle
-     */
-    public function Guzzle(): Guzzle
-    {
-        return Guzzle::getInstance();
-    }
-
-    /**
-     * @param string $address
-     * @param mixed  $context
-     * @return HttpServer
-     */
-    public function server(string $address, mixed $context = null): HttpServer
-    {
-        return new HttpServer($address, $context);
-    }
 }

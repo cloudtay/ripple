@@ -155,7 +155,7 @@ function fork(Closure $closure): int
     if ($processId === 0) {
         EventLoop::setDriver((new EventLoop\DriverFactory())->create());
         $closure();
-        exit(0);
+        run();
     }
     return $processId;
 }

@@ -1,4 +1,5 @@
 <?php declare(strict_types=1);
+
 /*
  * Copyright (c) 2023-2024.
  *
@@ -32,34 +33,50 @@
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-namespace Psc\Store\Net\Http;
+use P\IO;
+use Psc\Std\Stream\Stream;
+use Psc\Store\Net\Http\Server\Request;
+use Psc\Store\Net\Http\Server\Response;
 
-use Psc\Core\ModuleAbstract;
-use Psc\Plugins\Guzzle;
-use Psc\Store\Net\Http\Server\HttpServer;
+include_once __DIR__ . '/../vendor/autoload.php';
 
-class Http extends ModuleAbstract
-{
-    /**
-     * @var ModuleAbstract
-     */
-    protected static ModuleAbstract $instance;
+$server = P\Net::Http()->server('http://127.0.0.1:8008');
 
-    /**
-     * @return Guzzle
-     */
-    public function Guzzle(): Guzzle
-    {
-        return Guzzle::getInstance();
+$server->requestHandler = function (Request $request, Response $response, Stream $stream) {
+
+    if ($request->getMethod() === 'POST') {
+        $files = $request->files->get('file');
+        $data  = [];
+        foreach ($files as $file) {
+            $data[] = [
+                'name' => $file->getClientOriginalName(),
+                'path' => $file->getPathname(),
+            ];
+        }
+
+        $response->headers->set('Content-Type', 'application/json');
+        $response->setBody(json_encode($data));
+        $response->respond();
     }
 
-    /**
-     * @param string $address
-     * @param mixed  $context
-     * @return HttpServer
-     */
-    public function server(string $address, mixed $context = null): HttpServer
-    {
-        return new HttpServer($address, $context);
+
+    if ($request->getMethod() === 'GET') {
+        if ($request->getPathInfo() === '/') {
+            $response->setBody('Hello World!');
+        }
+
+        if ($request->getPathInfo() === '/download') {
+            $response->setBody(
+                IO::File()->open(__FILE__, 'r')
+            );
+        }
+
+        if ($request->getPathInfo() === '/upload') {
+            $template = '<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>Upload</title></head><body><form action="/upload" method="post" enctype="multipart/form-data"><input type="file" name="file"><button type="submit">Upload</button></form></body>';
+            $response->setBody($template);
+        }
+        $response->respond();
     }
-}
+};
+
+P\run();

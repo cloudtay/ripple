@@ -163,25 +163,6 @@ class Socket extends ModuleAbstract
      * @param mixed|null $context
      * @return Promise
      */
-    public function streamSocketServer(string $address, mixed $context = null): Promise
-    {
-        return promise(function (Closure $r, Closure $d) use ($address, $context) {
-            $server = stream_socket_server($address, $_errCode, $_errMsg, STREAM_SERVER_BIND | STREAM_SERVER_LISTEN, $context);
-            if (!$server) {
-                $d(new Exception($_errMsg, $_errCode));
-                return;
-            }
-
-            $r(new Stream($server));
-            return;
-        });
-    }
-
-    /**
-     * @param string     $address
-     * @param mixed|null $context
-     * @return Promise
-     */
     public function streamSocketServerSSL(string $address, mixed $context = null): Promise
     {
         return async(function (Closure $r, Closure $d) use ($address, $context) {
@@ -202,6 +183,25 @@ class Socket extends ModuleAbstract
                 $this->streamEnableCrypto($stream)->then($r)->except($d);
                 $cancel();
             });
+        });
+    }
+
+    /**
+     * @param string     $address
+     * @param mixed|null $context
+     * @return Promise
+     */
+    public function streamSocketServer(string $address, mixed $context = null): Promise
+    {
+        return promise(function (Closure $r, Closure $d) use ($address, $context) {
+            $server = stream_socket_server($address, $_errCode, $_errMsg, STREAM_SERVER_BIND | STREAM_SERVER_LISTEN, $context);
+            if (!$server) {
+                $d(new Exception($_errMsg, $_errCode));
+                return;
+            }
+
+            $r(new Stream($server));
+            return;
         });
     }
 

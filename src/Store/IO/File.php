@@ -80,4 +80,14 @@ class File extends ModuleAbstract
             });
         });
     }
+
+    /**
+     * @param string $path
+     * @param string $mode
+     * @return Stream
+     */
+    public function open(string $path, string $mode): Stream
+    {
+        return new Stream(fopen($path, $mode));
+    }
 }
