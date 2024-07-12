@@ -80,7 +80,7 @@ $connection->onError = function (Throwable $throwable) {
 run();
 ```
 
-### HttpServer
+### Http Server
 
 > 本项目提供了一个简单的HttpServer,可以用于快速搭建一个简单的HttpServer,使用方法如下
 > 其中Request和Response继承并实现了`Symfony`的`RequestInterface`和`ResponseInterface`接口规范
@@ -88,16 +88,23 @@ run();
 
 ```php
 use P\IO;
-use Psc\Std\Stream\Stream;
 use Psc\Store\Net\Http\Server\Request;
 use Psc\Store\Net\Http\Server\Response;
+use function P\await;
+use function P\run;
 
 include_once __DIR__ . '/../vendor/autoload.php';
 
-$server = P\Net::Http()->server('http://127.0.0.1:8008');
+$context = stream_context_create([
+    'socket' => [
+        'so_reuseport' => true,
+        'so_reuseaddr' => true,
+    ],
+]);
 
-$server->requestHandler = function (Request $request, Response $response, Stream $stream) {
+$server = P\Net::Http()->server('http://127.0.0.1:8008', $context);
 
+$handler = function (Request $request, Response $response) {
     if ($request->getMethod() === 'POST') {
         $files = $request->files->get('file');
         $data  = [];
@@ -107,43 +114,51 @@ $server->requestHandler = function (Request $request, Response $response, Stream
                 'path' => $file->getPathname(),
             ];
         }
-
         $response->headers->set('Content-Type', 'application/json');
         $response->setBody(json_encode($data));
         $response->respond();
     }
 
-
     if ($request->getMethod() === 'GET') {
         if ($request->getPathInfo() === '/') {
             $response->setBody('Hello World!');
+            $response->respond();
         }
 
         if ($request->getPathInfo() === '/download') {
             $response->setBody(
                 IO::File()->open(__FILE__, 'r')
             );
+            $response->respond();
         }
 
         if ($request->getPathInfo() === '/upload') {
             $template = '<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>Upload</title></head><body><form action="/upload" method="post" enctype="multipart/form-data"><input type="file" name="file"><button type="submit">Upload</button></form></body>';
             $response->setBody($template);
+            $response->respond();
         }
-        $response->respond();
+
+        if ($request->getPathInfo() === '/qq') {
+            $qq = await(P\Net::Http()->Guzzle()->getAsync(
+                'https://www.qq.com/'
+            ));
+
+            $response->setBody($qq->getBody()->getContents());
+            $response->respond();
+        }
+
     }
 };
 
-P\run();
+$server->requestHandler = $handler;
+run();
 ```
 
 ### 在你的应用中使用?
 
-#### Workerman
-
-[Workerman集成方法](https://github.com/cloudtay/p-ripple-drive.git)
+- [Workerman集成方法](https://github.com/cloudtay/p-ripple-drive.git)
 
 ### More
-
 本项目的异步遵循Promise规范 ,IO操作依赖`Psc\Core\Stream\Stream`开发,遵循`PSR-7`
 标准,深入了解请参考`StreamInterface`、`PromiseInterface`等接口定义.
 尽可能保证支持库的原始性,不做过多封装,以便于用户自定义扩展.

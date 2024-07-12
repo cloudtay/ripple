@@ -35,6 +35,7 @@
 namespace Psc\Store\Net\Http\Server;
 
 
+use Closure;
 use Psc\Core\Stream\Stream;
 use Psc\Std\Stream\Exception\ConnectionException;
 
@@ -50,9 +51,10 @@ class Response extends \Symfony\Component\HttpFoundation\Response
     protected mixed  $body;
 
     /**
-     * @param Stream $stream
+     * @param Stream  $stream
+     * @param Closure $done
      */
-    public function __construct(public readonly Stream $stream)
+    public function __construct(public readonly Stream $stream, private readonly Closure $done)
     {
         parent::__construct();
     }
@@ -81,7 +83,10 @@ class Response extends \Symfony\Component\HttpFoundation\Response
                 $this->headers->set('Content-Disposition', 'attachment; filename=' . basename($path));
             }
 
-            $this->stream->onClose(fn() => $content->close());
+            $this->stream->onClose(function () {
+                $this->body->close();
+                $this->done();
+            });
         }
 
         if ($contentType) {
@@ -115,9 +120,11 @@ class Response extends \Symfony\Component\HttpFoundation\Response
                 $this->stream->write("$name: $value\r\n");
             }
         }
+
         foreach ($this->headers->getCookies() as $cookie) {
             $this->stream->write('Set-Cookie: ' . $cookie . "\r\n");
         }
+
         $this->stream->write("\r\n");
         return $this;
     }
@@ -130,15 +137,29 @@ class Response extends \Symfony\Component\HttpFoundation\Response
     {
         if (is_string($this->body)) {
             $this->stream->write($this->body);
+            $this->done();
         }
+
         if ($this->body instanceof Stream) {
             $this->body->onReadable(function () {
                 $this->stream->write($this->body->read(8192));
                 if ($this->body->eof()) {
                     $this->body->close();
+                    $this->done();
                 }
             });
         }
+
         return $this;
+    }
+
+    /**
+     * @return void
+     */
+    private function done(): void
+    {
+        if ($this->headers->get('Connection') !== 'Keep-Alive') {
+            call_user_func($this->done);
+        }
     }
 }

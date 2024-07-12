@@ -89,7 +89,6 @@ class Connection
      */
     private string $buffer = '';
 
-
     /**
      * @param string     $address
      * @param int|float  $timeout

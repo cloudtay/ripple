@@ -1,5 +1,4 @@
 <?php declare(strict_types=1);
-
 /*
  * Copyright (c) 2023-2024.
  *
@@ -34,16 +33,23 @@
  */
 
 use P\IO;
-use Psc\Std\Stream\Stream;
 use Psc\Store\Net\Http\Server\Request;
 use Psc\Store\Net\Http\Server\Response;
+use function P\await;
+use function P\run;
 
 include_once __DIR__ . '/../vendor/autoload.php';
 
-$server = P\Net::Http()->server('http://127.0.0.1:8008');
+$context = stream_context_create([
+    'socket' => [
+        'so_reuseport' => true,
+        'so_reuseaddr' => true,
+    ],
+]);
 
-$server->requestHandler = function (Request $request, Response $response, Stream $stream) {
+$server = P\Net::Http()->server('http://127.0.0.1:8008', $context);
 
+$handler = function (Request $request, Response $response) {
     if ($request->getMethod() === 'POST') {
         $files = $request->files->get('file');
         $data  = [];
@@ -53,30 +59,41 @@ $server->requestHandler = function (Request $request, Response $response, Stream
                 'path' => $file->getPathname(),
             ];
         }
-
         $response->headers->set('Content-Type', 'application/json');
         $response->setBody(json_encode($data));
         $response->respond();
     }
 
-
     if ($request->getMethod() === 'GET') {
         if ($request->getPathInfo() === '/') {
             $response->setBody('Hello World!');
+            $response->respond();
         }
 
         if ($request->getPathInfo() === '/download') {
             $response->setBody(
                 IO::File()->open(__FILE__, 'r')
             );
+            $response->respond();
         }
 
         if ($request->getPathInfo() === '/upload') {
             $template = '<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>Upload</title></head><body><form action="/upload" method="post" enctype="multipart/form-data"><input type="file" name="file"><button type="submit">Upload</button></form></body>';
             $response->setBody($template);
+            $response->respond();
         }
-        $response->respond();
+
+        if ($request->getPathInfo() === '/qq') {
+            $qq = await(P\Net::Http()->Guzzle()->getAsync(
+                'https://www.qq.com/'
+            ));
+
+            $response->setBody($qq->getBody()->getContents());
+            $response->respond();
+        }
+
     }
 };
 
-P\run();
+$server->requestHandler = $handler;
+run();

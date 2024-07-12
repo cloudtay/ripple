@@ -38,7 +38,7 @@ use Closure;
 use Psc\Core\Coroutine\Exception;
 use Psc\Core\Coroutine\Promise;
 use Psc\Core\ModuleAbstract;
-use Psc\Core\Stream\Stream;
+use Psc\Core\Stream\SocketStream;
 use Throwable;
 use function P\async;
 use function P\await;
@@ -65,7 +65,7 @@ class Socket extends ModuleAbstract
             $streamSocketClientPromise = $this->streamSocketClient($address, $timeout, $context);
 
             /**
-             * @var Stream $streamSocket
+             * @var SocketStream $streamSocket
              */
             $streamSocket = await($streamSocketClientPromise);
             $promise      = $this->streamEnableCrypto($streamSocket)->then($r)->except($d);
@@ -85,7 +85,7 @@ class Socket extends ModuleAbstract
      * @param string     $address
      * @param int        $timeout
      * @param mixed|null $context
-     * @return Promise<Stream>
+     * @return Promise<SocketStream>
      */
     public function streamSocketClient(string $address, int $timeout = 0, mixed $context = null): Promise
     {
@@ -104,8 +104,8 @@ class Socket extends ModuleAbstract
                 return;
             }
 
-            $stream = new Stream($connection);
-            $stream->onWritable(function (Stream $stream, Closure $cancel) use ($r) {
+            $stream = new SocketStream($connection);
+            $stream->onWritable(function (SocketStream $stream, Closure $cancel) use ($r) {
                 $cancel();
                 $r($stream);
             });
@@ -113,10 +113,10 @@ class Socket extends ModuleAbstract
     }
 
     /**
-     * @param Stream $stream
+     * @param SocketStream $stream
      * @return Promise
      */
-    public function streamEnableCrypto(Stream $stream): Promise
+    public function streamEnableCrypto(SocketStream $stream): Promise
     {
         return new Promise(function ($r, $d) use ($stream) {
             $handshakeResult = stream_socket_enable_crypto($stream->stream, true, STREAM_CRYPTO_METHOD_SSLv23_CLIENT);
@@ -133,7 +133,7 @@ class Socket extends ModuleAbstract
             }
 
             if ($handshakeResult === 0) {
-                $stream->onReadable(function (Stream $stream, Closure $cancel) use ($r, $d) {
+                $stream->onReadable(function (SocketStream $stream, Closure $cancel) use ($r, $d) {
                     try {
                         $handshakeResult = stream_socket_enable_crypto($stream->stream, true, STREAM_CRYPTO_METHOD_SSLv23_CLIENT);
                     } catch (Throwable $exception) {
@@ -169,17 +169,17 @@ class Socket extends ModuleAbstract
             $streamSocketServerPromise = $this->streamSocketServer($address, $context);
 
             /**
-             * @var Stream $server
+             * @var SocketStream $server
              */
             $server = await($streamSocketServerPromise);
-            $server->onReadable(function (Stream $server, Closure $cancel) use ($r, $d) {
+            $server->onReadable(function (SocketStream $server, Closure $cancel) use ($r, $d) {
                 $connection = stream_socket_accept($server->stream, 0);
                 if (!$connection) {
                     $d(new Exception('Failed to accept connection.'));
                     return;
                 }
 
-                $stream = new Stream($connection);
+                $stream = new SocketStream($connection);
                 $this->streamEnableCrypto($stream)->then($r)->except($d);
                 $cancel();
             });
@@ -200,27 +200,27 @@ class Socket extends ModuleAbstract
                 return;
             }
 
-            $r(new Stream($server));
+            $r(new SocketStream($server));
             return;
         });
     }
 
     /**
-     * @param Stream $server
+     * @param SocketStream $server
      * @return Promise
      */
-    public function streamSocketAccept(Stream $server): Promise
+    public function streamSocketAccept(SocketStream $server): Promise
     {
         return new Promise(function ($r, $d) use ($server) {
-            $server->onReadable(function (Stream $server, Closure $cancel) use ($r, $d) {
+            $server->onReadable(function (SocketStream $server, Closure $cancel) use ($r, $d) {
                 $connection = stream_socket_accept($server->stream, 0);
                 if (!$connection) {
                     $d(new Exception('Failed to accept connection.'));
                     return;
                 }
 
-                $clientStream = new Stream($connection);
-                $r($clientStream);
+                $clientSocketStream = new SocketStream($connection);
+                $r($clientSocketStream);
                 $cancel();
             });
         });

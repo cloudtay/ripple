@@ -161,6 +161,14 @@ function fork(Closure $closure): int
 }
 
 /**
+ * @return void
+ */
+function tick(): void
+{
+    EventLoop::run();
+}
+
+/**
  * @param int $microseconds
  * @return void
  */
@@ -170,12 +178,4 @@ function run(int $microseconds = 100000): void
         tick();
         usleep($microseconds);
     }
-}
-
-/**
- * @return void
- */
-function tick(): void
-{
-    EventLoop::run();
 }
