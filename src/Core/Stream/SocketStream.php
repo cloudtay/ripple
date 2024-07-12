@@ -1,6 +1,6 @@
-<?php
+<?php declare(strict_types=1);
 /*
- * Copyright (c) 2023-2024.
+ * Copyright (c) 2024.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -32,19 +32,47 @@
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-use function P\fork;
+namespace Psc\Core\Stream;
 
-include_once __DIR__ . '/../vendor/autoload.php';
+use RuntimeException;
+use Socket;
 
-P\async(function () {
-    $server = P\await(P\IO::Socket()->streamSocketServer('tcp://127.0.0.1:8008'));
-    $client = P\await(P\IO::Socket()->streamSocketAccept($server));
+class SocketStream extends Stream
+{
+    public Socket $socket;
 
-    fork(function () {
+    /**
+     * @param mixed $resource
+     */
+    public function __construct(mixed $resource)
+    {
+        parent::__construct($resource);
 
-    });
+        $this->socket = socket_import_stream($this->stream);
+    }
 
-    posix_kill(posix_getpid(), SIGKILL);
-});
+    /**
+     * @return $this
+     */
+    public function accept(): SocketStream
+    {
+        $socket = stream_socket_accept($this->stream);
+        if ($socket === false) {
+            throw new RuntimeException('Failed to accept connection: ' . socket_strerror(socket_last_error($this->socket)));
+        }
+        return new static($socket);
+    }
 
-P\run();
+    /**
+     * @param int   $level
+     * @param int   $option
+     * @param mixed $value
+     * @return void
+     */
+    public function setOption(int $level, int $option, mixed $value): void
+    {
+        if (!socket_set_option($this->socket, $level, $option, $value)) {
+            throw new RuntimeException('Failed to set socket option: ' . socket_strerror(socket_last_error($this->socket)));
+        }
+    }
+}

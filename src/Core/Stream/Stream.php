@@ -112,22 +112,6 @@ class Stream extends \Psc\Std\Stream\Stream
     }
 
     /**
-     * @return void
-     */
-    public function close(): void
-    {
-        if (is_resource($this->stream) === false) {
-            return;
-        }
-
-        parent::close();
-
-        foreach ($this->onCloseCallbacks as $callback) {
-            call_user_func($callback);
-        }
-    }
-
-    /**
      * @param Closure $closure
      * @return string
      */
@@ -153,6 +137,22 @@ class Stream extends \Psc\Std\Stream\Stream
             }
         });
         return $eventId;
+    }
+
+    /**
+     * @return void
+     */
+    public function close(): void
+    {
+        if (is_resource($this->stream) === false) {
+            return;
+        }
+
+        parent::close();
+
+        foreach ($this->onCloseCallbacks as $callback) {
+            call_user_func($callback);
+        }
     }
 
     /**

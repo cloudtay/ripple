@@ -39,6 +39,7 @@ use Fiber;
 use Psc\Core\Coroutine\Exception;
 use Psc\Core\Coroutine\Promise;
 use Psc\Core\ModuleAbstract;
+use Revolt\EventLoop;
 use Throwable;
 
 class Async extends ModuleAbstract
@@ -72,26 +73,27 @@ class Async extends ModuleAbstract
             throw $promise->getResult();
         }
 
-        $currentPromise = $this->hash2promise[spl_object_hash($fiber)];
+        $currentPromise = $this->hash2promise[spl_object_hash($fiber)] ?? null;
+        $fiberEventLoop = EventLoop::getSuspension();
 
-        $promise->finally(function (mixed $result) use ($fiber, $promise, $currentPromise) {
+        $promise->finally(function (mixed $result) use ($fiber, $promise, $currentPromise, $fiberEventLoop) {
             if ($promise->getStatus() === Promise::REJECTED) {
-                $fiber->throw($result);
+                $fiberEventLoop->throw($result);
                 return;
             }
 
             if ($promise->getStatus() === Promise::FULFILLED) {
                 try {
-                    $fiber->resume($result);
+                    $fiberEventLoop->resume($result);
                     return;
                 } catch (Throwable $e) {
-                    $currentPromise->reject($e);
+                    $currentPromise?->reject($e);
                     return;
                 }
             }
         });
 
-        return $fiber->suspend();
+        return $fiberEventLoop->suspend();
     }
 
     /**

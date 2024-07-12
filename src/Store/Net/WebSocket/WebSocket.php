@@ -54,4 +54,9 @@ class WebSocket extends ModuleAbstract
     {
         return new Connection($address, $timeout, $context);
     }
+
+    public function server(string $address, mixed $context): void
+    {
+        //TODO: Implement server() method.
+    }
 }
