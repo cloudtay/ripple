@@ -73,11 +73,22 @@ class File extends ModuleAbstract
                 }
 
                 $content .= $fragment;
+
                 if ($stream->eof()) {
                     $stream->close();
                     $resolve($content);
                 }
             });
         });
+    }
+
+    /**
+     * @param string $path
+     * @param string $mode
+     * @return Stream
+     */
+    public function open(string $path, string $mode): Stream
+    {
+        return new Stream(fopen($path, $mode));
     }
 }

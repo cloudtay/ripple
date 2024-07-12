@@ -32,12 +32,16 @@
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-
 namespace Psc\Store\Net\Http\Server;
 
 use Closure;
 use P\IO;
-use Psc\Core\Stream\Stream;
+use Psc\Core\Stream\SocketStream;
+use Psc\Std\Stream\Exception\RuntimeException;
+use Psc\Store\Net\Http\Server\Exception\FormatException;
+use Psc\Store\Net\Http\Server\Upload\MultipartHandler;
+use Symfony\Component\HttpFoundation\File\UploadedFile;
+use Throwable;
 use function P\async;
 use function P\await;
 
@@ -50,35 +54,349 @@ class HttpServer
      * 请求处理器
      * @var Closure
      */
-    public Closure $requestHandler;
-    /**
-     * Http流工厂
-     * @var RequestFactory
-     */
-    private RequestFactory $requestFactory;
+    public Closure $onRequest;
 
     /**
-     * 创建请求工厂
-     * @return void
+     * @param string     $address
+     * @param mixed|null $context
      */
-    public function __construct()
+    public function __construct(string $address, mixed $context = null)
     {
-        $this->requestFactory = new RequestFactory();
-        async(function () {
-            $server = await(IO::Socket()->streamSocketServer('tcp://127.0.0.1:8008'));
-            while (true) {
-                $this->listenClient(await(IO::Socket()->streamSocketAccept($server)));
+        async(function () use (
+            $address,
+            $context
+        ) {
+            $addressExploded = explode('://', $address);
+            if (count($addressExploded) !== 2) {
+                throw new RuntimeException('Address format error');
             }
+
+            $scheme             = $addressExploded[0];
+            $tcpAddress         = $addressExploded[1];
+            $tcpAddressExploded = explode(':', $tcpAddress);
+            $host               = $tcpAddressExploded[0];
+            $port               = $tcpAddressExploded[1] ?? match ($scheme) {
+                'http' => 80,
+                'https' => 443,
+                default => throw new RuntimeException('Address format error')
+            };
+
+            /**
+             * @var SocketStream $server
+             */
+            $server = match ($scheme) {
+                'http' => await(IO::Socket()->streamSocketServer("tcp://{$host}:{$port}", $context)),
+                'https' => await(IO::Socket()->streamSocketServerSSL("ssl://{$host}:{$port}", $context)),
+                default => throw new RuntimeException('Address format error')
+            };
+
+            $server->setBlocking(false);
+            $server->onReadable(function (SocketStream $stream) {
+                $client = $stream->accept();
+                $client->setBlocking(false);
+
+                /**
+                 * Debug: 低水位 & 缓冲区
+                 */
+                //$lowWaterMarkRecv = socket_get_option($clientSocket, SOL_SOCKET, SO_RCVLOWAT);
+                //$lowWaterMarkSend = socket_get_option($clientSocket, SOL_SOCKET, SO_SNDLOWAT);
+                //$recvBuffer       = socket_get_option($clientSocket, SOL_SOCKET, SO_RCVBUF);
+                //$sendBuffer       = socket_get_option($clientSocket, SOL_SOCKET, SO_SNDBUF);
+                //var_dump($lowWaterMarkRecv, $lowWaterMarkSend, $recvBuffer, $sendBuffer);
+
+                /**
+                 * 优化缓冲区: 256kb标准速率帧
+                 */
+                $client->setOption(SOL_SOCKET, SO_RCVBUF, 256000);
+                $client->setOption(SOL_SOCKET, SO_SNDBUF, 256000);
+                $client->setOption(SOL_SOCKET, SO_KEEPALIVE, 1);
+
+                /**
+                 * 设置发送低水位防止充盈内存
+                 */
+                $client->setOption(SOL_SOCKET, SO_SNDLOWAT, 1024);
+
+                /**
+                 * CPU亲密度: 弃用的
+                 */
+                //socket_set_option($clientSocket, SOL_SOCKET, SO_INCOMING_CPU, 1);
+                $this->factory($client)->run();
+            });
         });
     }
 
     /**
-     * @param Stream $stream
+     * @param SocketStream $stream
+     * @return object
+     */
+    private function factory(SocketStream $stream): object
+    {
+        return new class ($stream, fn(Request $request, Response $response) => $this->onRequest($request, $response)) {
+            private int                   $step;
+            private array                 $query;
+            private array                 $request;
+            private array                 $attributes;
+            private array                 $cookies;
+            private array                 $files;
+            private array                 $server;
+            private string                $content;
+            private string                $buffer;
+            private MultipartHandler|null $requestUpload;
+            private int                   $bodyLength;
+
+            /**
+             * @param SocketStream $stream
+             * @param Closure      $onRequest
+             */
+            public function __construct(private readonly SocketStream $stream, private readonly Closure $onRequest)
+            {
+                $this->reset();
+            }
+
+            /**
+             * @return void
+             */
+            public function reset(): void
+            {
+                $this->step          = 0;
+                $this->query         = [];
+                $this->request       = [];
+                $this->attributes    = [];
+                $this->cookies       = [];
+                $this->files         = [];
+                $this->server        = [];
+                $this->content       = '';
+                $this->buffer        = '';
+                $this->requestUpload = null;
+                $this->bodyLength    = 0;
+            }
+
+            /**
+             * @return void
+             */
+            public function run(): void
+            {
+                $this->stream->onReadable(function (SocketStream $stream, Closure $cancel) {
+                    $context = $stream->read(8192);
+                    if ($context === '') {
+                        $stream->close();
+                        return;
+                    }
+
+                    $this->buffer .= $context;
+
+                    if ($this->step === 0) {
+                        if ($headerEnd = strpos($context, "\r\n\r\n")) {
+                            /**
+                             * 切割解析head与body部分
+                             */
+                            $this->step       = 1;
+                            $header           = substr($context, 0, $headerEnd);
+                            $this->content    = substr($context, $headerEnd + 4);
+                            $this->bodyLength = strlen($this->content);
+                            $baseContent      = strtok($header, "\r\n");
+
+                            if (count($base = explode(' ', $baseContent)) !== 3) {
+                                throw new RuntimeException('Request head is not match');
+                            }
+
+                            /**
+                             * 初始化闭包参数
+                             */
+                            $url     = $base[1];
+                            $version = $base[2];
+                            $method  = $base[0];
+
+                            $urlExploded = explode('?', $url);
+                            $path        = parse_url($base[1], PHP_URL_PATH);
+
+                            if (isset($urlExploded[1])) {
+                                $queryArray = explode('&', $urlExploded[1]);
+                                foreach ($queryArray as $item) {
+                                    $item = explode('=', $item);
+                                    if (count($item) === 2) {
+                                        $this->query[$item[0]] = $item[1];
+                                    }
+                                }
+                            }
+
+                            $this->server['REQUEST_URI']     = $path;
+                            $this->server['REQUEST_METHOD']  = $method;
+                            $this->server['SERVER_PROTOCOL'] = $version;
+
+                            /**
+                             * 解析header
+                             */
+                            while ($line = strtok("\r\n")) {
+                                $lineParam = explode(': ', $line, 2);
+                                if (count($lineParam) >= 2) {
+                                    $this->server['HTTP_' . str_replace('-', '_', strtoupper($lineParam[0]))] = $lineParam[1];
+                                }
+                            }
+
+                            /**
+                             * 解析文件
+                             */
+                            if ($method === 'GET') {
+                                $this->bodyLength = 0;
+                                $this->step       = 2;
+                            }
+
+                            if ($method === 'POST') {
+                                if (!$contentType = $this->server['HTTP_CONTENT_TYPE'] ?? null) {
+                                    throw new RuntimeException('Content-Type is not set');
+                                }
+
+                                if (!isset($this->server['HTTP_CONTENT_LENGTH'])) {
+                                    throw new RuntimeException('Content-Length is not set');
+                                }
+
+                                if (str_contains($contentType, 'multipart/form-data')) {
+                                    preg_match('/boundary=(.*)$/', $contentType, $matches);
+                                    if (!isset($matches[1])) {
+                                        throw new RuntimeException('boundary is not set');
+                                    } else {
+                                        $this->step          = 3;
+                                        $this->requestUpload = new MultipartHandler($matches[1]);
+                                        $stream->onClose(fn() => $this->requestUpload?->disconnect());
+                                        $this->requestUpload->onFile = function (UploadedFile $file, string $name) {
+                                            $this->files[$name][] = $file;
+                                            if ($this->bodyLength === intval($this->server['HTTP_CONTENT_LENGTH'])) {
+                                                $this->step = 2;
+                                            }
+                                            $this->requestUpload->done();
+                                        };
+
+                                        try {
+                                            $this->requestUpload->push($this->content);
+                                        } catch (Throwable $e) {
+                                            $this->stream->close();
+                                            return;
+                                        }
+                                        $this->content = '';
+                                    }
+                                }
+
+                                if ($this->bodyLength === intval($this->server['HTTP_CONTENT_LENGTH'])) {
+                                    $this->step = 2;
+                                } elseif ($this->bodyLength > intval($this->server['HTTP_CONTENT_LENGTH'])) {
+                                    throw new RuntimeException('Content-Length is not match');
+                                }
+                            }
+                            $this->buffer = '';
+                        }
+                    }
+
+                    /**
+                     * 持续传输
+                     */
+                    if ($this->step === 1) {
+                        $this->content    .= $context;
+                        $this->bodyLength += strlen($context);
+                        if ($this->bodyLength === intval($this->server['HTTP_CONTENT_LENGTH'])) {
+                            $this->step = 2;
+                        } elseif ($this->bodyLength > intval($this->server['HTTP_CONTENT_LENGTH'])) {
+                            throw new RuntimeException('Content-Length is not match');
+                        }
+                    }
+
+                    /**
+                     * 文件传输
+                     */
+                    if ($this->step === 3) {
+                        $this->bodyLength += strlen($this->buffer);
+                        try {
+                            $this->requestUpload->push($this->buffer);
+                            $this->buffer = '';
+                        } catch (Throwable $e) {
+                            $this->stream->close();
+                            return;
+                        }
+                    }
+
+                    /**
+                     * 请求解析完成
+                     */
+                    if ($this->step === 2) {
+                        /**
+                         * 解析cookie
+                         */
+                        if (isset($this->server['HTTP_COOKIE'])) {
+                            $cookie = $this->server['HTTP_COOKIE'];
+                            $cookie = explode('; ', $cookie);
+                            foreach ($cookie as $item) {
+                                $item                    = explode('=', $item);
+                                $this->cookies[$item[0]] = $item[1];
+                            }
+                        }
+
+                        /**
+                         * 解析body
+                         */
+                        if ($this->server['REQUEST_METHOD'] === 'POST') {
+                            if (str_contains($this->server['HTTP_CONTENT_TYPE'], 'application/json')) {
+                                $this->request = json_decode($this->content, true);
+                            } else {
+                                parse_str($this->content, $this->request);
+                            }
+                        }
+
+                        $symfonyReqeust = new Request(
+                            $this->query,
+                            $this->request,
+                            $this->attributes,
+                            $this->cookies,
+                            $this->files,
+                            $this->server,
+                            $this->content
+                        );
+
+                        $keepAlive = $symfonyReqeust->headers->has('Connection')
+                                     && strtolower($symfonyReqeust->headers->get('Connection')) === 'keep-alive';
+
+                        $symfonyResponse = new Response($this->stream, function () use ($keepAlive) {
+                            $keepAlive ? $this->reset() : $this->stream->close();
+                        });
+
+                        try {
+                            if ($keepAlive) {
+                                $symfonyResponse->headers->set('Connection', 'keep-alive');
+                            } else {
+                                $cancel();
+                            }
+
+                            call_user_func($this->onRequest, $symfonyReqeust, $symfonyResponse);
+                        } catch (FormatException) {
+                            /**
+                             * 报文格式非法
+                             */
+                            $stream->write("HTTP/1.1 400 Bad Request\r\n\r\n");
+                            $stream->close();
+                        } catch (Throwable $e) {
+                            /**
+                             * 服务内部逻辑错误
+                             */
+                            $stream->write($e->getMessage());
+                            $stream->close();
+                        }
+                    }
+                });
+            }
+        };
+    }
+
+    /**
+     * @param Request  $request
+     * @param Response $response
      * @return void
      */
-    private function listenClient(Stream $stream): void
+    private function onRequest(Request $request, Response $response): void
     {
-        $stream->onReadable(function (Stream $stream, Closure $cancel) {
-        });
+        if (isset($this->onRequest)) {
+            call_user_func_array($this->onRequest, [
+                $request,
+                $response
+            ]);
+        }
     }
 }

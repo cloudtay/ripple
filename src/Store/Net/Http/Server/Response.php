@@ -35,83 +35,136 @@
 namespace Psc\Store\Net\Http\Server;
 
 
-use Psr\Http\Message\MessageInterface;
-use Psr\Http\Message\ResponseInterface;
-use Psr\Http\Message\StreamInterface;
+use Closure;
+use Psc\Core\Stream\SocketStream;
+use Psc\Core\Stream\Stream;
+use Psc\Std\Stream\Exception\ConnectionException;
 
 /**
  * 响应实体
  */
-class Response implements ResponseInterface
+class Response extends \Symfony\Component\HttpFoundation\Response
 {
+    /**
+     * @var mixed
+     */
+    protected mixed $body;
 
-    public function getProtocolVersion(): string
+    /**
+     * @param SocketStream $stream
+     * @param Closure $done
+     */
+    public function __construct(public readonly SocketStream $stream, private readonly Closure $done)
     {
-        // TODO: Implement getProtocolVersion() method.
+        parent::__construct();
     }
 
-    public function withProtocolVersion(string $version): MessageInterface
+    /**
+     * @param mixed       $content
+     * @param string|null $contentType
+     * @return $this
+     */
+    public function setContent(mixed $content, string $contentType = null): static
     {
-        // TODO: Implement withProtocolVersion() method.
+        if (is_string($content)) {
+            $this->headers->set('Content-Length', strval(strlen($content)));
+        }
+
+        if (is_resource($content)) {
+            $content = new Stream($content);
+        }
+
+        if ($content instanceof Stream) {
+            $path   = $content->getMetadata('uri');
+            $length = filesize($path);
+            $this->headers->set('Content-Length', strval($length));
+            $this->headers->set('Content-Type', 'application/octet-stream');
+            if (!$this->headers->get('Content-Disposition')) {
+                $this->headers->set('Content-Disposition', 'attachment; filename=' . basename($path));
+            }
+
+            $this->stream->onClose(function () {
+                $this->body->close();
+                $this->done();
+            });
+        }
+
+        if ($contentType) {
+            $this->headers->set('Content-Type', $contentType);
+        }
+
+        $this->body = $content;
+        return $this;
     }
 
-    public function getHeaders(): array
+    /**
+     * @return void
+     * @throws ConnectionException
+     */
+    public function respond(): void
     {
-        // TODO: Implement getHeaders() method.
+        $this->sendHeaders();
+        $this->sendContent();
     }
 
-    public function hasHeader(string $name): bool
+    /**
+     * @param int|null $statusCode
+     * @return $this
+     * @throws ConnectionException
+     */
+    public function sendHeaders(?int $statusCode = null): static
     {
-        // TODO: Implement hasHeader() method.
+        /**
+         *
+         */
+        $this->stream->write("HTTP/1.1 {$this->getStatusCode()} {$this->statusText}\r\n");
+        foreach ($this->headers->allPreserveCaseWithoutCookies() as $name => $values) {
+            foreach ($values as $value) {
+                $this->stream->write("$name: $value\r\n");
+            }
+        }
+
+        foreach ($this->headers->getCookies() as $cookie) {
+            $this->stream->write('Set-Cookie: ' . $cookie . "\r\n");
+        }
+
+        $this->stream->write("\r\n");
+        return $this;
     }
 
-    public function getHeader(string $name): array
+    /**
+     * @return $this
+     * @throws ConnectionException
+     */
+    public function sendContent(): static
     {
-        // TODO: Implement getHeader() method.
+        if (is_string($this->body)) {
+            $this->stream->write($this->body);
+            $this->done();
+        }
+
+        if ($this->body instanceof Stream) {
+            $this->body->onReadable(function () {
+                $this->stream->write($this->body->read(8192));
+                if ($this->body->eof()) {
+                    $this->body->close();
+                    $this->done();
+                }
+            });
+        }
+
+        return $this;
     }
 
-    public function getHeaderLine(string $name): string
+    /**
+     * @return void
+     */
+    private function done(): void
     {
-        // TODO: Implement getHeaderLine() method.
-    }
-
-    public function withHeader(string $name, $value): MessageInterface
-    {
-        // TODO: Implement withHeader() method.
-    }
-
-    public function withAddedHeader(string $name, $value): MessageInterface
-    {
-        // TODO: Implement withAddedHeader() method.
-    }
-
-    public function withoutHeader(string $name): MessageInterface
-    {
-        // TODO: Implement withoutHeader() method.
-    }
-
-    public function getBody(): StreamInterface
-    {
-        // TODO: Implement getBody() method.
-    }
-
-    public function withBody(StreamInterface $body): MessageInterface
-    {
-        // TODO: Implement withBody() method.
-    }
-
-    public function getStatusCode(): int
-    {
-        // TODO: Implement getStatusCode() method.
-    }
-
-    public function withStatus(int $code, string $reasonPhrase = ''): ResponseInterface
-    {
-        // TODO: Implement withStatus() method.
-    }
-
-    public function getReasonPhrase(): string
-    {
-        // TODO: Implement getReasonPhrase() method.
+        if (
+            strtolower($this->headers->get('Connection')) !== 'keep-alive'
+        ) {
+            call_user_func($this->done);
+        }
     }
 }

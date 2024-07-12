@@ -1,4 +1,5 @@
 <?php declare(strict_types=1);
+
 /*
  * Copyright (c) 2023-2024.
  *
@@ -32,34 +33,67 @@
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-namespace Psc\Store\Net\Http;
+use P\IO;
+use Psc\Store\Net\Http\Server\Request;
+use Psc\Store\Net\Http\Server\Response;
+use function P\await;
+use function P\run;
 
-use Psc\Core\ModuleAbstract;
-use Psc\Plugins\Guzzle;
-use Psc\Store\Net\Http\Server\HttpServer;
+include_once __DIR__ . '/../vendor/autoload.php';
 
-class Http extends ModuleAbstract
-{
-    /**
-     * @var ModuleAbstract
-     */
-    protected static ModuleAbstract $instance;
+$context = stream_context_create([
+    'socket' => [
+        'so_reuseport' => true,
+        'so_reuseaddr' => true,
+    ],
+]);
 
-    /**
-     * @return Guzzle
-     */
-    public function Guzzle(): Guzzle
-    {
-        return Guzzle::getInstance();
+$server = P\Net::Http()->server('http://127.0.0.1:8008', $context);
+
+$handler = function (Request $request, Response $response) {
+    if ($request->getMethod() === 'POST') {
+        $files = $request->files->get('file');
+        $data  = [];
+        foreach ($files as $file) {
+            $data[] = [
+                'name' => $file->getClientOriginalName(),
+                'path' => $file->getPathname(),
+            ];
+        }
+        $response->headers->set('Content-Type', 'application/json');
+        $response->setContent(json_encode($data));
+        $response->respond();
     }
 
-    /**
-     * @param string $address
-     * @param mixed  $context
-     * @return HttpServer
-     */
-    public function server(string $address, mixed $context = null): HttpServer
-    {
-        return new HttpServer($address, $context);
+    if ($request->getMethod() === 'GET') {
+        if ($request->getPathInfo() === '/') {
+            $response->setContent('Hello World!');
+            $response->respond();
+        }
+
+        if ($request->getPathInfo() === '/download') {
+            $response->setContent(
+                IO::File()->open(__FILE__, 'r')
+            );
+            $response->respond();
+        }
+
+        if ($request->getPathInfo() === '/upload') {
+            $template = '<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>Upload</title></head><body><form action="/upload" method="post" enctype="multipart/form-data"><input type="file" name="file"><button type="submit">Upload</button></form></body>';
+            $response->setContent($template);
+            $response->respond();
+        }
+
+        if ($request->getPathInfo() === '/qq') {
+            $qq = await(P\Net::Http()->Guzzle()->getAsync(
+                'https://www.qq.com/'
+            ));
+
+            $response->setContent($qq->getBody()->getContents());
+            $response->respond();
+        }
     }
-}
+};
+
+$server->onRequest = $handler;
+run();

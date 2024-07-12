@@ -155,9 +155,17 @@ function fork(Closure $closure): int
     if ($processId === 0) {
         EventLoop::setDriver((new EventLoop\DriverFactory())->create());
         $closure();
-        exit(0);
+        run();
     }
     return $processId;
+}
+
+/**
+ * @return void
+ */
+function tick(): void
+{
+    EventLoop::run();
 }
 
 /**
@@ -170,12 +178,4 @@ function run(int $microseconds = 100000): void
         tick();
         usleep($microseconds);
     }
-}
-
-/**
- * @return void
- */
-function tick(): void
-{
-    EventLoop::run();
 }

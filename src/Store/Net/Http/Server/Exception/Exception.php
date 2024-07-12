@@ -32,27 +32,9 @@
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-namespace Psc\Store\Net\Http\Server;
+namespace Psc\Store\Net\Http\Server\Exception;
 
-
-use Psc\Core\Stream\Stream;
-
-/**
- * @class RequestFactory Http流工厂
- */
-class RequestFactory
+class Exception extends \Exception
 {
-    public const string COMPLETE   = 'plugin.httpService.requestFactory.complete';      # 传输完成
-    public const string INCOMPLETE = 'plugin.httpService.requestFactory.incomplete';    # 传输中
 
-    /**
-     * 解析请求
-     * @param string $context
-     * @param Stream $client
-     * @return Request|null
-     */
-    public function revolve(string $context, Stream $client): ?Request
-    {
-
-    }
 }
