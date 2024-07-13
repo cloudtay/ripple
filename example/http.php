@@ -1,4 +1,5 @@
 <?php declare(strict_types=1);
+
 /*
  * Copyright (c) 2023-2024.
  *
@@ -60,18 +61,18 @@ $handler = function (Request $request, Response $response) {
             ];
         }
         $response->headers->set('Content-Type', 'application/json');
-        $response->setBody(json_encode($data));
+        $response->setContent(json_encode($data));
         $response->respond();
     }
 
     if ($request->getMethod() === 'GET') {
         if ($request->getPathInfo() === '/') {
-            $response->setBody('Hello World!');
+            $response->setContent('Hello World!');
             $response->respond();
         }
 
         if ($request->getPathInfo() === '/download') {
-            $response->setBody(
+            $response->setContent(
                 IO::File()->open(__FILE__, 'r')
             );
             $response->respond();
@@ -79,7 +80,7 @@ $handler = function (Request $request, Response $response) {
 
         if ($request->getPathInfo() === '/upload') {
             $template = '<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>Upload</title></head><body><form action="/upload" method="post" enctype="multipart/form-data"><input type="file" name="file"><button type="submit">Upload</button></form></body>';
-            $response->setBody($template);
+            $response->setContent($template);
             $response->respond();
         }
 
@@ -88,12 +89,11 @@ $handler = function (Request $request, Response $response) {
                 'https://www.qq.com/'
             ));
 
-            $response->setBody($qq->getBody()->getContents());
+            $response->setContent($qq->getBody()->getContents());
             $response->respond();
         }
-
     }
 };
 
-$server->requestHandler = $handler;
+$server->onRequest = $handler;
 run();

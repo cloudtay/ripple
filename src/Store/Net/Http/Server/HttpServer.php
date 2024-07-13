@@ -54,7 +54,7 @@ class HttpServer
      * 请求处理器
      * @var Closure
      */
-    public Closure $requestHandler;
+    public Closure $onRequest;
 
     /**
      * @param string     $address
@@ -110,6 +110,11 @@ class HttpServer
                 $client->setOption(SOL_SOCKET, SO_RCVBUF, 256000);
                 $client->setOption(SOL_SOCKET, SO_SNDBUF, 256000);
                 $client->setOption(SOL_SOCKET, SO_KEEPALIVE, 1);
+
+                /**
+                 * 设置发送低水位防止充盈内存
+                 */
+                $client->setOption(SOL_SOCKET, SO_SNDLOWAT, 1024);
 
                 /**
                  * CPU亲密度: 弃用的
@@ -387,8 +392,8 @@ class HttpServer
      */
     private function onRequest(Request $request, Response $response): void
     {
-        if (isset($this->requestHandler)) {
-            call_user_func_array($this->requestHandler, [
+        if (isset($this->onRequest)) {
+            call_user_func_array($this->onRequest, [
                 $request,
                 $response
             ]);

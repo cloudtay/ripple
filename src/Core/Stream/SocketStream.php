@@ -34,6 +34,8 @@
 
 namespace Psc\Core\Stream;
 
+use P\IO;
+use Psc\Std\Stream\Exception\ConnectionException;
 use RuntimeException;
 use Socket;
 
@@ -74,5 +76,92 @@ class SocketStream extends Stream
         if (!socket_set_option($this->socket, $level, $option, $value)) {
             throw new RuntimeException('Failed to set socket option: ' . socket_strerror(socket_last_error($this->socket)));
         }
+    }
+
+    /**
+     * @param int $level
+     * @param int $option
+     * @return array|int
+     */
+    public function getOption(int $level, int $option): array|int
+    {
+        $option = socket_get_option($this->socket, $level, $option);
+        if ($option === false) {
+            throw new RuntimeException('Failed to get socket option: ' . socket_strerror(socket_last_error($this->socket)));
+        }
+        return $option;
+    }
+
+    /**
+     * @var bool
+     */
+    private bool $blocking = false;
+
+    /**
+     * @var Stream|null
+     */
+    private Stream|null $storageCacheWrite = null;
+
+    /**
+     * @var Stream|null
+     */
+    private Stream|null $storageCacheRead = null;
+
+    /**
+     * @param string $string
+     * @return int
+     * @throws ConnectionException
+     */
+    public function write(string $string): int
+    {
+        if ($this->blocking) {
+            if ($this->storageCacheWrite === null) {
+                $tempFilePath            = sys_get_temp_dir() . '/' . uniqid('buf_');
+                $this->storageCacheWrite = IO::File()->open($tempFilePath, 'w+');
+                $this->storageCacheWrite->setBlocking(true);
+                $this->storageCacheRead = IO::File()->open($tempFilePath, 'r+');
+
+                $this->onClose(function () use ($tempFilePath) {
+                    $this->storageCacheWrite->close();
+                    $this->storageCacheRead->close();
+
+                    if (file_exists($tempFilePath)) {
+                        unlink($tempFilePath);
+                    }
+                });
+
+                $this->onWritable(function ($_, $cancel) use ($tempFilePath) {
+                    if ($this->storageCacheRead->eof()) {
+                        $this->blocking = false;
+                        $this->storageCacheWrite->close();
+                        $this->storageCacheRead->close();
+
+                        if (file_exists($tempFilePath)) {
+                            unlink($tempFilePath);
+                        }
+
+                        $this->storageCacheWrite = null;
+                        $this->storageCacheRead  = null;
+                        $cancel();
+                    }
+
+                    $string = $this->storageCacheRead->read(
+                        $this->getOption(SOL_SOCKET, SO_SNDLOWAT)
+                    );
+                    parent::write($string);
+                });
+            }
+
+            return $this->storageCacheWrite->write($string);
+        } else {
+            $length = parent::write($string);
+            $string = substr($string, $length);
+
+            if ($string !== '') {
+                $this->blocking = true;
+                $this->write($string);
+            }
+        }
+        return $length;
     }
 }

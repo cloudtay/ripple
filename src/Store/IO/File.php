@@ -73,6 +73,7 @@ class File extends ModuleAbstract
                 }
 
                 $content .= $fragment;
+
                 if ($stream->eof()) {
                     $stream->close();
                     $resolve($content);

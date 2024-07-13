@@ -36,7 +36,7 @@ namespace Psc\Store\Net\Http\Server;
 
 
 use Closure;
-use Psc\Core\Stream\Stream;
+use Psc\Core\Stream\SocketStream;
 use Psc\Std\Stream\Exception\ConnectionException;
 
 /**
@@ -45,16 +45,15 @@ use Psc\Std\Stream\Exception\ConnectionException;
 class Response extends \Symfony\Component\HttpFoundation\Response
 {
     /**
-     * @var string
+     * @var mixed
      */
-    protected string $content;
     protected mixed  $body;
 
     /**
-     * @param Stream  $stream
+     * @param SocketStream $stream
      * @param Closure $done
      */
-    public function __construct(public readonly Stream $stream, private readonly Closure $done)
+    public function __construct(public readonly SocketStream $stream, private readonly Closure $done)
     {
         parent::__construct();
     }
@@ -64,17 +63,17 @@ class Response extends \Symfony\Component\HttpFoundation\Response
      * @param string|null $contentType
      * @return $this
      */
-    public function setBody(mixed $content, string $contentType = null): static
+    public function setContent(mixed $content, string $contentType = null): static
     {
         if (is_string($content)) {
             $this->headers->set('Content-Length', strval(strlen($content)));
         }
 
         if (is_resource($content)) {
-            $content = new Stream($this->body);
+            $content = new SocketStream($content);
         }
 
-        if ($content instanceof Stream) {
+        if ($content instanceof SocketStream) {
             $path   = $content->getMetadata('uri');
             $length = filesize($path);
             $this->headers->set('Content-Length', strval($length));
@@ -114,6 +113,9 @@ class Response extends \Symfony\Component\HttpFoundation\Response
      */
     public function sendHeaders(?int $statusCode = null): static
     {
+        /**
+         *
+         */
         $this->stream->write("HTTP/1.1 {$this->getStatusCode()} {$this->statusText}\r\n");
         foreach ($this->headers->allPreserveCaseWithoutCookies() as $name => $values) {
             foreach ($values as $value) {
@@ -140,7 +142,7 @@ class Response extends \Symfony\Component\HttpFoundation\Response
             $this->done();
         }
 
-        if ($this->body instanceof Stream) {
+        if ($this->body instanceof SocketStream) {
             $this->body->onReadable(function () {
                 $this->stream->write($this->body->read(8192));
                 if ($this->body->eof()) {
