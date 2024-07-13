@@ -117,6 +117,7 @@ class HttpServer
                 $client->setOption(SOL_SOCKET, SO_SNDLOWAT, 1024);
 
                 /**
+
                  * CPU亲密度: 弃用的
                  */
                 //socket_set_option($clientSocket, SOL_SOCKET, SO_INCOMING_CPU, 1);
