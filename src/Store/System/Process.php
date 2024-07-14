@@ -1,4 +1,4 @@
-<?php
+<?php declare(strict_types=1);
 /*
  * Copyright (c) 2024.
  *
@@ -40,9 +40,13 @@ use JetBrains\PhpStorm\NoReturn;
 use Psc\Core\StoreAbstract;
 use Psc\Store\System\Exception\ProcessException;
 use Revolt\EventLoop;
+use function call_user_func;
 use function P\onSignal;
 use function P\promise;
 use function P\run;
+use function pcntl_wait;
+use function pcntl_wexitstatus;
+use function pcntl_wifexited;
 
 class Process extends StoreAbstract
 {
@@ -113,7 +117,6 @@ class Process extends StoreAbstract
                     'reject'  => $d,
                 ];
             });
-
 
             $runtime = new Runtime(
                 $promise,

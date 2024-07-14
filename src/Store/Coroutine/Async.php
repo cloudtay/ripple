@@ -40,6 +40,7 @@ use Psc\Core\Coroutine\Exception;
 use Psc\Core\Coroutine\Promise;
 use Psc\Core\StoreAbstract;
 use Throwable;
+use function spl_object_hash;
 
 class Async extends StoreAbstract
 {

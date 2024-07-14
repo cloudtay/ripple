@@ -43,6 +43,7 @@ use function fseek;
 use function ftell;
 use function fwrite;
 use function get_resource_id;
+use function is_resource;
 use function rewind;
 use function stream_get_contents;
 use function stream_get_meta_data;

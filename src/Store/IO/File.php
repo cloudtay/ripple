@@ -54,9 +54,9 @@ class File extends StoreAbstract
      */
     public function getContents(string $path): Promise
     {
-        return promise(function (Closure $resolve, Closure $reject) use ($path) {
+        return promise(function (Closure $r, Closure $d) use ($path) {
             if (!$resource = fopen($path, 'r')) {
-                $reject(new Exception('Failed to open file: ' . $path));
+                $d(new Exception('Failed to open file: ' . $path));
                 return;
             }
 
@@ -64,11 +64,11 @@ class File extends StoreAbstract
             $stream->setBlocking(false);
             $content = '';
 
-            $stream->onReadable(function (Stream $stream) use ($resolve, $reject, &$content) {
+            $stream->onReadable(function (Stream $stream) use ($r, $d, &$content) {
                 $fragment = $stream->read(8192);
                 if ($fragment === '') {
                     $stream->close();
-                    $resolve($content);
+                    $r($content);
                     return;
                 }
 
@@ -76,7 +76,7 @@ class File extends StoreAbstract
 
                 if ($stream->eof()) {
                     $stream->close();
-                    $resolve($content);
+                    $r($content);
                 }
             });
         });

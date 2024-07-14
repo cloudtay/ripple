@@ -38,6 +38,16 @@ use P\IO;
 use Psc\Std\Stream\Exception\ConnectionException;
 use RuntimeException;
 use Socket;
+use function file_exists;
+use function socket_get_option;
+use function socket_import_stream;
+use function socket_last_error;
+use function socket_set_option;
+use function socket_strerror;
+use function stream_socket_accept;
+use function substr;
+use function sys_get_temp_dir;
+use function uniqid;
 
 class SocketStream extends Stream
 {

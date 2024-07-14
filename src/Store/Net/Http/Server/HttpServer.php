@@ -42,8 +42,24 @@ use Psc\Store\Net\Http\Server\Exception\FormatException;
 use Psc\Store\Net\Http\Server\Upload\MultipartHandler;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Throwable;
+use function call_user_func;
+use function call_user_func_array;
+use function count;
+use function explode;
+use function intval;
+use function json_decode;
 use function P\async;
 use function P\await;
+use function parse_str;
+use function parse_url;
+use function preg_match;
+use function str_contains;
+use function str_replace;
+use function strlen;
+use function strtok;
+use function strtolower;
+use function strtoupper;
+use function substr;
 
 /**
  * Http服务类
@@ -103,7 +119,12 @@ class HttpServer
     public function listen(): void
     {
         $this->server->onReadable(function (SocketStream $stream) {
-            $client = $stream->accept();
+            try {
+                $client = $stream->accept();
+            } catch (Throwable) {
+                return;
+            }
+
             $client->setBlocking(false);
 
             /**
@@ -120,15 +141,17 @@ class HttpServer
              */
             $client->setOption(SOL_SOCKET, SO_RCVBUF, 256000);
             $client->setOption(SOL_SOCKET, SO_SNDBUF, 256000);
-            $client->setOption(SOL_SOCKET, SO_KEEPALIVE, 1);
+            //$client->setOption(SOL_SOCKET, SO_KEEPALIVE, 1);
 
             /**
              * 设置发送低水位防止充盈内存
+             * @deprecated 兼容未覆盖
              */
-            $client->setOption(SOL_SOCKET, SO_SNDLOWAT, 1024);
+            //$client->setOption(SOL_SOCKET, SO_SNDLOWAT, 1024);
 
             /**
-             * CPU亲密度: 弃用的
+             * CPU亲密度
+             * @deprecated 兼容未覆盖
              */
             //socket_set_option($clientSocket, SOL_SOCKET, SO_INCOMING_CPU, 1);
             $this->factory($client)->run();
@@ -351,7 +374,7 @@ class HttpServer
                             }
                         }
 
-                        $symfonyReqeust = new Request(
+                        $symfonyRequest = new Request(
                             $this->query,
                             $this->request,
                             $this->attributes,
@@ -361,8 +384,8 @@ class HttpServer
                             $this->content
                         );
 
-                        $keepAlive = $symfonyReqeust->headers->has('Connection')
-                                     && strtolower($symfonyReqeust->headers->get('Connection')) === 'keep-alive';
+                        $keepAlive = $symfonyRequest->headers->has('Connection')
+                                     && strtolower($symfonyRequest->headers->get('Connection')) === 'keep-alive';
 
                         $symfonyResponse = new Response($this->stream, function () use ($keepAlive) {
                             $keepAlive ? $this->reset() : $this->stream->close();
@@ -375,7 +398,7 @@ class HttpServer
                                 $cancel();
                             }
 
-                            call_user_func($this->onRequest, $symfonyReqeust, $symfonyResponse);
+                            call_user_func($this->onRequest, $symfonyRequest, $symfonyResponse);
                         } catch (FormatException) {
                             /**
                              * 报文格式非法

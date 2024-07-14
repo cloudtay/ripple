@@ -44,6 +44,11 @@ use function P\async;
 use function P\await;
 use function P\delay;
 use function P\promise;
+use function str_replace;
+use function stream_socket_accept;
+use function stream_socket_client;
+use function stream_socket_enable_crypto;
+use function stream_socket_server;
 
 class Socket extends StoreAbstract
 {

@@ -34,8 +34,10 @@
  */
 
 use P\IO;
+use Psc\Core\Output;
 use Psc\Store\Net\Http\Server\Request;
 use Psc\Store\Net\Http\Server\Response;
+use Psc\Store\System\Exception\ProcessException;
 use function P\await;
 use function P\run;
 
@@ -95,6 +97,11 @@ $handler = function (Request $request, Response $response) {
 };
 
 $server->onRequest = $handler;
-$server->listen();
-
+try {
+    $task = P\System::Process()->task(fn() => $server->listen());
+} catch (ProcessException $e) {
+    Output::error($e->getMessage());
+    exit;
+}
+$task->run();
 run();

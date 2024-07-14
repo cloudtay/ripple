@@ -34,6 +34,7 @@
 
 namespace Psc\Plugins;
 
+use Closure;
 use GuzzleHttp\Client;
 use GuzzleHttp\Handler\CurlMultiHandler;
 use GuzzleHttp\HandlerStack;
@@ -79,7 +80,7 @@ class Guzzle extends StoreAbstract
      */
     public function requestAsync(string $method, string $uri, array $options = []): Promise
     {
-        return promise(function ($r, $d) use ($method, $uri, $options) {
+        return promise(function (Closure $r, Closure $d) use ($method, $uri, $options) {
             $this->client()->requestAsync($method, $uri, $options)->then($r, $d);
         });
     }
@@ -101,7 +102,7 @@ class Guzzle extends StoreAbstract
      */
     public function getAsync(string $uri, array $options = []): Promise
     {
-        return promise(function ($r, $d) use ($uri, $options) {
+        return promise(function (Closure $r, Closure $d) use ($uri, $options) {
             $this->client()->getAsync($uri, $options)->then($r, $d);
         });
     }
@@ -113,7 +114,7 @@ class Guzzle extends StoreAbstract
      */
     public function postAsync(string $uri, array $options = []): Promise
     {
-        return promise(function ($r, $d) use ($uri, $options) {
+        return promise(function (Closure $r, Closure $d) use ($uri, $options) {
             $this->client()->postAsync($uri, $options)->then($r, $d);
         });
     }
@@ -125,7 +126,7 @@ class Guzzle extends StoreAbstract
      */
     public function putAsync(string $uri, array $options = []): Promise
     {
-        return promise(function ($r, $d) use ($uri, $options) {
+        return promise(function (Closure $r, Closure $d) use ($uri, $options) {
             $this->client()->putAsync($uri, $options)->then($r, $d);
         });
     }
@@ -137,7 +138,7 @@ class Guzzle extends StoreAbstract
      */
     public function deleteAsync(string $uri, array $options = []): Promise
     {
-        return promise(function ($r, $d) use ($uri, $options) {
+        return promise(function (Closure $r, Closure $d) use ($uri, $options) {
             $this->client()->deleteAsync($uri, $options)->then($r, $d);
         });
     }
@@ -149,7 +150,7 @@ class Guzzle extends StoreAbstract
      */
     public function headAsync(string $uri, array $options = []): Promise
     {
-        return promise(function ($r, $d) use ($uri, $options) {
+        return promise(function (Closure $r, Closure $d) use ($uri, $options) {
             $this->client()->headAsync($uri, $options)->then($r, $d);
         });
     }
@@ -161,7 +162,7 @@ class Guzzle extends StoreAbstract
      */
     public function patchAsync(string $uri, array $options = []): Promise
     {
-        return promise(function ($r, $d) use ($uri, $options) {
+        return promise(function (Closure $r, Closure $d) use ($uri, $options) {
             $this->client()->patchAsync($uri, $options)->then($r, $d);
         });
     }

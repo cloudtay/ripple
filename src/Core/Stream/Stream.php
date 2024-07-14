@@ -39,7 +39,12 @@ use Psc\Core\Output;
 use Psc\Std\Stream\Exception\ConnectionException;
 use Revolt\EventLoop;
 use Throwable;
+use function array_search;
+use function call_user_func_array;
+use function is_resource;
 use function P\cancel;
+use function stream_set_blocking;
+
 
 class Stream extends \Psc\Std\Stream\Stream
 {
@@ -103,7 +108,6 @@ class Stream extends \Psc\Std\Stream\Stream
                 ]);
             } catch (ConnectionException $e) {
                 $this->close();
-                Output::error($e->getMessage());
             } catch (Throwable $e) {
                 Output::error($e->getMessage());
             }

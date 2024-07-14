@@ -39,6 +39,13 @@ use Closure;
 use Psc\Core\Stream\SocketStream;
 use Psc\Core\Stream\Stream;
 use Psc\Std\Stream\Exception\ConnectionException;
+use function basename;
+use function call_user_func;
+use function filesize;
+use function is_resource;
+use function is_string;
+use function strlen;
+use function strval;
 
 /**
  * 响应实体

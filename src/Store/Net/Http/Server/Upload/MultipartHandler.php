@@ -38,6 +38,20 @@ namespace Psc\Store\Net\Http\Server\Upload;
 use Closure;
 use Psc\Store\Net\Http\Server\Exception\FormatException;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
+use function array_pop;
+use function array_shift;
+use function call_user_func;
+use function explode;
+use function fclose;
+use function fopen;
+use function fwrite;
+use function preg_match;
+use function strlen;
+use function strpos;
+use function substr;
+use function sys_get_temp_dir;
+use function uniqid;
+
 
 /**
  * Http上传解析器

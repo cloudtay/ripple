@@ -44,8 +44,22 @@ use Psc\Std\Stream\Exception\ConnectionException;
 use Psc\Store\Net\Exception\HandshakeException;
 use Random\RandomException;
 use Throwable;
+use function base64_encode;
+use function call_user_func;
+use function chr;
+use function count;
+use function explode;
+use function ord;
 use function P\async;
 use function P\await;
+use function pack;
+use function random_bytes;
+use function sha1;
+use function str_contains;
+use function strlen;
+use function strtolower;
+use function substr;
+use function unpack;
 
 /**
  * [协议相关]

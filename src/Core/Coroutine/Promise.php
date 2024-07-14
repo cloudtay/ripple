@@ -87,7 +87,6 @@ class Promise
                 $this
             ]);
         } catch (Throwable $exception) {
-            Output::error($exception->getMessage());
             try {
                 $this->reject($exception);
             } catch (Throwable $e) {
@@ -133,6 +132,10 @@ class Promise
 
         $this->status = Promise::REJECTED;
         $this->result = $exception;
+
+        if (count($this->onRejected) === 0) {
+            Output::error($exception->getMessage());
+        }
 
         foreach ($this->onRejected as $onRejected) {
             try {

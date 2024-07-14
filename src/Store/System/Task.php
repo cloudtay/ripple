@@ -1,4 +1,4 @@
-<?php
+<?php declare(strict_types=1);
 /*
  * Copyright (c) 2024.
  *
@@ -35,6 +35,7 @@
 namespace Psc\Store\System;
 
 use Closure;
+use function call_user_func;
 
 readonly class Task
 {

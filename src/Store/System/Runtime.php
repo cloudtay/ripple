@@ -1,4 +1,4 @@
-<?php
+<?php declare(strict_types=1);
 /*
  * Copyright (c) 2024.
  *
@@ -36,6 +36,7 @@ namespace Psc\Store\System;
 
 use Closure;
 use Psc\Core\Coroutine\Promise;
+use function posix_kill;
 
 readonly class Runtime
 {

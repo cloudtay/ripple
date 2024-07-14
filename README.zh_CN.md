@@ -8,37 +8,38 @@
 <a href="https://packagist.org/packages/cclilshy/p-ripple-core"><img src="https://img.shields.io/packagist/l/cclilshy/p-ripple-core" alt="License"></a>
 </p>
 <p>
-PRipple is a modern, high-performance native PHP coroutine framework designed to solve PHP's challenges in high concurrency, complex network communication and data operations.
-The framework uses an innovative architecture and efficient programming model to provide powerful and flexible backend support for modern web and web applications.
-By using PRipple, you will experience the advantages of managing tasks from a global view of the system and efficiently handle network traffic and data.</p>
+PRipple是现代化的一个高性能的原生PHP协程框架，旨在解决PHP在高并发、复杂网络通信和数据操作方面的挑战。
+该框架采用创新的架构和高效的编程模型，为现代 Web 和 Web 应用程序提供强大而灵活的后端支持。
+通过使用 PRipple，你将体验到优势从系统的全局视图管理任务并有效处理网络流量和数据。</p>
 
 <p align="center">
     <a href="https://github.com/cloudtay/p-ripple-core">English</a>
     ·
     <a href="https://github.com/cloudtay/p-ripple-core/blob/main/README.zh_CN.md">简体中文</a>
     ·
-    <a href="https://github.com/cloudtay/p-ripple-core/issues">issues »</a>
+    <a href="https://github.com/cloudtay/p-ripple-core/issues">报告错误 »</a>
 </p>
 
 ---
 
-> ⚠️This document is an AI machine translation, and there may be inaccuracies in the translation. If there are any
-> problems, please feel free to make corrections.
-
-## Install
+## 安装
 
 ```bash
+# 安装最佳兼容性依赖 (LibEvent/Select/UV 可能达不到最佳效果)
+pecl install ev
+
+# 安装PRipple
 composer require cclilshy/p-ripple-core
 ```
 
 ---
 
-## Usage
+## 用法
 
-> All tools of PRipple are provided by Store. Store is a global collection of tools with the namespace of `P\{Module}`
-> , you can get all the tools through the Store, such as `P\Net`, `P\IO`, `P\System`, etc.
+> PRipple所有工具由Store提供, Store是一个全局的工具集合, 命名空间为`P\{Module}`
+> ,你可以通过Store获取到所有的工具,如`P\Net`、`P\IO`、`P\System`等
 
-### Example
+### 例子
 
 ```php
 \P\IO::File();
@@ -48,18 +49,17 @@ composer require cclilshy/p-ripple-core
 \P\System::Process();
 ```
 
-### Basic Usage
+### 基本使用
 
-> In addition, basic syntax sugar is provided, such as `async`, `await`, etc., to simplify asynchronous programming such
-> as
+> PRipple还提供了基本语法糖,如`async`、`await`等,用于简化异步编程如
 
 ```php
-# Promise asynchronous mode
+# Promise异步模式
 $promise1 = \P\promise($r,$d)->then(function(){
     $r('done');
 });
 
-# async/await asynchronous mode
+# async/await异步模式
 $promise2 = \P\async(function($r,$d){
     \P\sleep(1);
     
@@ -74,43 +74,41 @@ $promise2 = \P\async(function($r,$d){
 });
 
 /**
- * Timer related
+ * Timer相关
  */
-# Do something repeatedly until cancel is called
+# 重复做某事直到cancel被调用
 $timerId = \P\repeat(1, function(Closure $cancel){
     echo 'repeat' . PHP_EOL;
 });
 
-# Cancel Timer behavior
+# 取消Timer行为
 \P\cancel($timerId);
 
-# Execute something after a specified time
+# 在指定时间后执行某事
 $timerId = \P\delay(1, function(){
     echo 'after' . PHP_EOL;
 });
 
-# Cancel the delay statement before it occurs
+# 在发生前取消delay声明
 \P\cancel($timerId);
 ```
 
-### File Module
+### File 模块
 
-> ⚠️This module relies on the Event processor of the `kqueue` mechanism. The event processor under the epoll mechanism
-> does not support monitoring of file streams.
-> In OSX, `lib-event` uses `kqueue`, in Linux it uses `epoll`, and in Windows it uses `select`. Please make sure your
-> system supports `kqueue`
-> mechanism,
+> ⚠️该模块依赖于`kqueue`机制的Event处理器,epoll机制下的事件处理器不支持对文件流的监听,
+> 在OSX中`lib-event`使用的是`kqueue`, 在Linux中使用的是`epoll`, 在Windows中使用的是`select`, 请确保你的系统支持`kqueue`
+> 机制,
 
-> To achieve a high level of compatibility, please install the `Ev` extension
+> 为达到高水准的兼容性, 请安装`Ev`扩展
 
-#### Install Ev Extension
+#### 安装 Ev 扩展
 
 ```bash
 pecl install ev
 ```
 
 ```php
-# Read file contents
+# 读取文件内容
 async(function () {
     $fileContent = await(
         P\IO::File()->getContents(__FILE__)
@@ -120,20 +118,20 @@ async(function () {
     echo "[await] File content hash: {$hash}" . PHP_EOL;
 });
 
-# Write file content
+# 写入文件内容
 P\IO::File()->getContents(__FILE__)->then(function ($fileContent) {
     $hash = hash('sha256', $fileContent);
     echo "[async] File content hash: {$hash}" . PHP_EOL;
 });
 
-# open a file
+# 打开文件
 $stream = P\IO::File()->open(__FILE__, 'r');
 ```
 
-### Socket Module
+### Socket 模块
 
 ```php
-# Establish a Socket connection
+# 建立一个Socket连接
 /**
  * @param string $uri
  * @param int $flags
@@ -142,14 +140,14 @@ $stream = P\IO::File()->open(__FILE__, 'r');
  */
 P\IO::Socket()->streamSocketClient('tcp://www.baidu.com:80');
 
-# Establish an SSL Socket connection
+# 建立一个SSL Socket连接
 P\IO::Socket()->streamSocketClientSSL('tcp://www.baidu.com:443');
 ```
 
-### Net Module
+### Net 模块
 
 ```php
-# Initiate 100 requests asynchronously, method 1
+# 异步发起100个请求,方式1
 for ($i = 0; $i < 100; $i++) {
     P\Net::Http()->Guzzle()->getAsync('https://www.baidu.com/')->then(function (Response $response) {
         echo "[async] Response status code: {$response->getStatusCode()}" . PHP_EOL;
@@ -158,7 +156,7 @@ for ($i = 0; $i < 100; $i++) {
     });
 }
 
-# Initiate 100 requests asynchronously, method 2
+# 异步发起100个请求,方式2
 for ($i = 0; $i < 100; $i++) {
     async(function () {
         try {
@@ -170,7 +168,7 @@ for ($i = 0; $i < 100; $i++) {
     });
 }
 
-# WebSocket connection
+# WebSocket 连接
 $connection         = P\Net::Websocket()->connect('wss://127.0.0.1:8001/wss');
 $connection->onOpen = function (Connection $connection) {
     $connection->send('{"action":"sub","data":{"channel":"market:panel@8"}}');
@@ -197,33 +195,31 @@ run();
 
 ---
 
-### Parallel Module
+### Parallel 模块
 
-#### illustrate
+#### 说明
 
-> PRipple provides runtime support for parallel running, relying on multiple processes and abstracting the details of
-> multiple processes. Users only need to care about how to use parallel running.
-> You can use almost any PHP statement in a closure, but there are still things you need to pay attention to
+> PRipple提供了 runtime 的并行运行支持,依赖于多进程,抽象了多进程的细节,使用者只需要关心并行运行的使用方式 ,
+> 你可以在闭包中使用几乎所有的PHP语句, 但依然存在需要注意的事项
 
-#### Precautions
+#### 注意事项
 
-* In the child process, all context resources inherit the resources of the parent process, including open files,
-  connected databases, connected networks, and global variables
-* All defined events such as `onRead`, `onWrite`, etc. will be forgotten in the child process
-* You cannot create subprocesses in async such as
+* 在子进程中,所有上下文资源都继承了父进程的资源,包括已打开的文件,已连接的数据库,已连接的网络,全局变量
+* 所有定义的Event如`onRead`、`onWrite`等都会在子进程中被遗忘
+* 你不能在async中创建子进程如
 
 ```php
 async(function(){
     $task = P\System::Process()->task(function(){
-        // childProcess
+        // 子进程
     });
     $task->run();
 });
 ```
 
-> This will throw an exception `ProcessException`
+> 这将会抛出一个异常 `ProcessException`
 
-#### USING
+#### 用法
 
 ```php
 $task = P\System::Process()->task(function(){
@@ -232,35 +228,33 @@ $task = P\System::Process()->task(function(){
     exit(0);
 });
 
-$runtime = $task->run();                // Returns a Runtime object
+$runtime = $task->run();                // 返回一个Runtime对象
 
-$runtime->stop();                       // Cancel operation (signal SIGTERM)
-$runtime->stop(true);                   // Forced termination, equivalent to $runtime->kill()
-$runtime->kill();                       // Forced termination (signal SIGKILL)
-$runtime->signal(SIGTERM);              // Sending signals provides more granular control
-$runtime->then(function($exitCode){});  // The code here will be triggered when the program exits normally, code is the exit code
-$runtime->except(function(){});         // The code here will be triggered when the program exits abnormally, and exceptions can be handled here, such as process daemon/task restart
-$runtime->finally(function(){});        // Whether the program exits normally or abnormally, the code here will be triggered.
-$runtime->getProcessId();               // Get child process ID
-$runtime->getPromise();                 // Get Promise object
+$runtime->stop();                       // 取消运行(信号SIGTERM)
+$runtime->stop(true);                   // 强制终止,等同于$runtime->kill()
+$runtime->kill();                       // 强制终止(信号SIGKILL)
+$runtime->signal(SIGTERM);              // 发送信号,提供了更精细的控制手段
+$runtime->then(function($exitCode){});  // 程序正常退出时会触发这里的代码,code为退出码
+$runtime->except(function(){});         // 程序非正常退出时会触发这里的代码,可以在这里处理异常,如进程守护/task重启
+$runtime->finally(function(){});        // 无论程序正常退出还是非正常退出都会触发这里的代码
+$runtime->getProcessId();               // 获取子进程ID
+$runtime->getPromise();                 // 获取Promise对象
 ```
 
 ---
 
-### HttpServer Module
+### Http服务 模块
 
-#### desc
+#### 说明
 
-> PRipple provides a simple HttpServer, which can be used to quickly build a simple Http server. The usage method is as
-> follows
+> PRipple提供了一个简单的HttpServer,可以用于快速搭建一个简单的Http服务器,使用方法如下
 
-#### desc
+#### 简介
 
-> Among them, Request and Response inherit and implement the `RequestInterface` and `ResponseInterface` interface
-> specifications of `Symfony`
-> You can use them just like the HttpFoundation component in Symfony/Laravel
+> 其中Request和Response继承并实现了`Symfony`的`RequestInterface`和`ResponseInterface`接口规范
+> 可以像使用Symfony / Laravel中的 HttpFoundation 组件一样使用他们
 
-#### Example
+#### 用例
 
 ```php
 use P\IO;
@@ -321,12 +315,12 @@ $server->listen();
 run();
 ```
 
-#### Port reuse
+#### 端口复用
 
-> PRipple supports port multiplexing with `Parallel` Module
+> PRipple支持配合Parallel的模块实现端口多路复用
 
 ```php
-# After creating the HttpServer as above, you can replace the listening method to implement port multiplexing.
+# 如上创建好HttpServer后,可以替代监听方式实现端口多路复用
 
 $task = P\System::Process()->task( fn() => $server->listen() );
 
@@ -336,7 +330,7 @@ $task->run();   //runtime3
 $task->run();   //runtime4
 $task->run();   //runtime5
 
-# Guardian mode startup example
+# 守护模式启动例子
 $guardRun = function($task) use (&$guardRun){
     $task->run()->except(function() use ($task, &$guardRun){
         $guardRun($task);
@@ -347,38 +341,34 @@ $guardRun($task);
 P\run();
 ```
 
-## Std API
+## 标准API
 
-- Stream ~
-- SocketStream ~
-- Promise ~
+- Stream (暂定)
+- SocketStream (暂定)
+- Promise (暂定)
 - ...
 
-## Extends
+## 扩展
 
-- [Workerman](https://github.com/cloudtay/p-ripple-drive.git)
-- [Webman](https://github.com/cloudtay/p-ripple-drive.git)
-- [Laravel](https://github.com/cloudtay/p-ripple-drive.git)
-- [ThinkPHP](https://github.com/cloudtay/p-ripple-drive.git)
+- [Workerman集成方法](https://github.com/cloudtay/p-ripple-drive.git)
+- [Webman集成方法](https://github.com/cloudtay/p-ripple-drive.git)
+- [Laravel集成方法](https://github.com/cloudtay/p-ripple-drive.git)
+- [ThinkPHP集成方法](https://github.com/cloudtay/p-ripple-drive.git)
 
-## More
+## 更多
 
-PRipple's asynchrony follows the Promise specification, and IO operations rely on `Psc\Core\Stream\Stream` and are
-developed in accordance with `PSR-7`
-Standard, for in-depth understanding, please refer to interface definitions such as `StreamInterface`
-and `PromiseInterface`
-Ensure the originality of the support library as much as possible without excessive encapsulation to facilitate
-user-defined extensions
+PRipple的异步遵循Promise规范,IO操作依赖`Psc\Core\Stream\Stream`开发遵循`PSR-7`
+标准,深入了解请参考`StreamInterface`、`PromiseInterface`等接口定义
+尽可能保证支持库的原始性,不做过多封装,以便于用户自定义扩展
 
-## Postscript
+## 附言
 
-Developers are welcome to give it a try. I am soliciting more opinions and suggestions. You are welcome to submit a PR
-or Issue and we will deal with it as soon as possible<br>
-This project is in the alpha stage and may be unstable. Please be careful when using it in a production environment<br>
+欢迎各位开发者尝鲜,本人征集更多的意见和建议,欢迎提交PR或者Issue,我们会尽快处理<br>
+本项目处于alpha阶段,可能会有不稳定的地方,请谨慎在生产环境中使用<br>
 
-Contact information: jingnigg@gmail.com
+联系方式: jingnigg@gmail.com
 
-### About
+### 相关项目
 
 - RevoltPHP: [https://revolt.run/](https://revolt.run/)
 - Workerman/Webman: [https://www.workerman.net/](https://www.workerman.net/)
@@ -388,7 +378,7 @@ Contact information: jingnigg@gmail.com
 - PHP: [https://www.php.net/](https://www.php.net/)
 - JavaScript: [https://www.javascript.com/](https://www.javascript.com/)
 
-### Acknowledgments
+### 鸣谢
 
 - Jetbrains: [https://www.jetbrains.com/](https://www.jetbrains.com/)
 - OpenAI: [https://www.openai.com/](https://www.openai.com/)
