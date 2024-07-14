@@ -49,7 +49,6 @@ $context = stream_context_create([
 ]);
 
 $server = P\Net::Http()->server('http://127.0.0.1:8008', $context);
-
 $handler = function (Request $request, Response $response) {
     if ($request->getMethod() === 'POST') {
         $files = $request->files->get('file');
@@ -96,4 +95,6 @@ $handler = function (Request $request, Response $response) {
 };
 
 $server->onRequest = $handler;
+$server->listen();
+
 run();

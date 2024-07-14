@@ -37,7 +37,7 @@ namespace Psc\Store\IO;
 use Closure;
 use Psc\Core\Coroutine\Exception;
 use Psc\Core\Coroutine\Promise;
-use Psc\Core\ModuleAbstract;
+use Psc\Core\StoreAbstract;
 use Psc\Core\Stream\SocketStream;
 use Throwable;
 use function P\async;
@@ -45,12 +45,12 @@ use function P\await;
 use function P\delay;
 use function P\promise;
 
-class Socket extends ModuleAbstract
+class Socket extends StoreAbstract
 {
     /**
-     * @var ModuleAbstract
+     * @var StoreAbstract
      */
-    protected static ModuleAbstract $instance;
+    protected static StoreAbstract $instance;
 
     /**
      * @param string     $address

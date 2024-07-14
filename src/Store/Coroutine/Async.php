@@ -38,20 +38,21 @@ use Closure;
 use Fiber;
 use Psc\Core\Coroutine\Exception;
 use Psc\Core\Coroutine\Promise;
-use Psc\Core\ModuleAbstract;
-use Revolt\EventLoop;
+use Psc\Core\StoreAbstract;
 use Throwable;
 
-class Async extends ModuleAbstract
+class Async extends StoreAbstract
 {
     /**
-     * @var ModuleAbstract
+     * @var StoreAbstract
      */
-    protected static ModuleAbstract $instance;
+    protected static StoreAbstract $instance;
+
     /**
      * @var Promise[]
      */
-    private array $hash2promise = [];
+    private array $fiber2promise;
+
 
     /**
      * @param Promise $promise
@@ -61,6 +62,7 @@ class Async extends ModuleAbstract
     public function await(Promise $promise): mixed
     {
         $fiber = Fiber::getCurrent();
+
         if (!$fiber) {
             throw new Exception('The await function must be called in a coroutine.');
         }
@@ -73,27 +75,28 @@ class Async extends ModuleAbstract
             throw $promise->getResult();
         }
 
-        $currentPromise = $this->hash2promise[spl_object_hash($fiber)] ?? null;
-        $fiberEventLoop = EventLoop::getSuspension();
-
-        $promise->finally(function (mixed $result) use ($fiber, $promise, $currentPromise, $fiberEventLoop) {
-            if ($promise->getStatus() === Promise::REJECTED) {
-                $fiberEventLoop->throw($result);
-                return;
-            }
-
-            if ($promise->getStatus() === Promise::FULFILLED) {
+        \P\promise(function ($r, $d) use ($promise) {
+            $promise->then(fn($result) => $r($result));
+            $promise->except(fn($e) => $d($e));
+        })
+            ->then(function ($result) use ($fiber) {
                 try {
-                    $fiberEventLoop->resume($result);
-                    return;
+                    $fiber->resume($result);
                 } catch (Throwable $e) {
-                    $currentPromise?->reject($e);
-                    return;
+                    $promise = $this->fiber2promise[spl_object_hash($fiber)];
+                    $promise->onFiberException($e);
                 }
-            }
-        });
+            })
+            ->except(function ($e) use ($fiber) {
+                try {
+                    $fiber->throw($e);
+                } catch (Throwable $e) {
+                    $promise = $this->fiber2promise[spl_object_hash($fiber)];
+                    $promise->onFiberException($e);
+                }
+            });
 
-        return $fiberEventLoop->suspend();
+        return $fiber->suspend();
     }
 
     /**
@@ -104,11 +107,12 @@ class Async extends ModuleAbstract
     {
         $fiber = new Fiber($closure);
         return new Promise(function ($r, $d, $promise) use ($fiber) {
-            $hash                      = spl_object_hash($fiber);
-            $this->hash2promise[$hash] = $promise;
-            $promise->finally(function () use ($hash) {
-                unset($this->hash2promise[$hash]);
+            $this->fiber2promise[spl_object_hash($fiber)] = $promise;
+
+            $promise->finally(function () use ($fiber) {
+                unset($this->fiber2promise[spl_object_hash($fiber)]);
             });
+
             $fiber->start($r, $d);
         });
     }

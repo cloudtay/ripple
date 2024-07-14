@@ -1,6 +1,6 @@
-<?php declare(strict_types=1);
+<?php
 /*
- * Copyright (c) 2023-2024.
+ * Copyright (c) 2024.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -32,31 +32,89 @@
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-namespace Psc\Store\Net\WebSocket;
+namespace Psc\Store\System;
 
+use Closure;
+use Psc\Core\Coroutine\Promise;
 
-use Psc\Core\StoreAbstract;
-
-class WebSocket extends StoreAbstract
+readonly class Runtime
 {
     /**
-     * @var StoreAbstract
+     * @param int     $processId
+     * @param Promise $promise
      */
-    protected static StoreAbstract $instance;
-
-    /**
-     * @param string     $address
-     * @param int|float  $timeout
-     * @param mixed|null $context
-     * @return Connection
-     */
-    public function connect(string $address, int|float $timeout = 10, mixed $context = null): Connection
+    public function __construct(
+        private Promise $promise,
+        private int     $processId,
+    )
     {
-        return new Connection($address, $timeout, $context);
     }
 
-    public function server(string $address, mixed $context): void
+    /**
+     * @param bool $force
+     * @return void
+     */
+    public function stop(bool $force = false): void
     {
-        //TODO: Implement server() method.
+        $force
+            ? $this->kill()
+            : $this->signal(SIGTERM);
+    }
+
+    public function kill(): void
+    {
+        posix_kill($this->processId, SIGKILL);
+    }
+
+    /**
+     * @param int $signal
+     * @return void
+     */
+    public function signal(int $signal): void
+    {
+        posix_kill($this->processId, $signal);
+    }
+
+    /**
+     * @return Promise
+     */
+    public function getPromise(): Promise
+    {
+        return $this->promise;
+    }
+
+    /**
+     * @return int
+     */
+    public function getProcessId(): int
+    {
+        return $this->processId;
+    }
+
+    /**
+     * @param Closure $then
+     * @return Promise
+     */
+    public function then(Closure $then): Promise
+    {
+        return $this->promise->then($then);
+    }
+
+    /**
+     * @param Closure $catch
+     * @return Promise
+     */
+    public function except(Closure $catch): Promise
+    {
+        return $this->promise->except($catch);
+    }
+
+    /**
+     * @param Closure $finally
+     * @return Promise
+     */
+    public function finally(Closure $finally): Promise
+    {
+        return $this->promise->finally($finally);
     }
 }

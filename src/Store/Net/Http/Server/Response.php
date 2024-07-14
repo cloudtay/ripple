@@ -161,10 +161,6 @@ class Response extends \Symfony\Component\HttpFoundation\Response
      */
     private function done(): void
     {
-        if (
-            strtolower($this->headers->get('Connection')) !== 'keep-alive'
-        ) {
-            call_user_func($this->done);
-        }
+        call_user_func($this->done);
     }
 }

@@ -36,17 +36,17 @@ namespace Psc\Store\IO;
 
 use Closure;
 use Psc\Core\Coroutine\Promise;
-use Psc\Core\ModuleAbstract;
+use Psc\Core\StoreAbstract;
 use Psc\Core\Stream\Stream;
 use Psc\Std\Stream\Exception\Exception;
 use function P\promise;
 
-class File extends ModuleAbstract
+class File extends StoreAbstract
 {
     /**
-     * @var ModuleAbstract
+     * @var StoreAbstract
      */
-    protected static ModuleAbstract $instance;
+    protected static StoreAbstract $instance;
 
     /**
      * @param string $path

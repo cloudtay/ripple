@@ -34,16 +34,16 @@
 
 namespace Psc\Store\Net\Http;
 
-use Psc\Core\ModuleAbstract;
+use Psc\Core\StoreAbstract;
 use Psc\Plugins\Guzzle;
 use Psc\Store\Net\Http\Server\HttpServer;
 
-class Http extends ModuleAbstract
+class Http extends StoreAbstract
 {
     /**
-     * @var ModuleAbstract
+     * @var StoreAbstract
      */
-    protected static ModuleAbstract $instance;
+    protected static StoreAbstract $instance;
 
     /**
      * @return Guzzle

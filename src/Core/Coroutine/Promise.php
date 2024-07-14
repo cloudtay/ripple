@@ -101,7 +101,7 @@ class Promise
      * @return $this
      * @throws Throwable
      */
-    public function resolve(mixed $result): Promise
+    private function resolve(mixed $result): Promise
     {
         if ($this->status !== Promise::PENDING) {
             return $this;
@@ -125,7 +125,7 @@ class Promise
      * @return $this
      * @throws Throwable
      */
-    public function reject(Throwable $exception): Promise
+    private function reject(Throwable $exception): Promise
     {
         if ($this->status !== Promise::PENDING) {
             return $this;
@@ -160,6 +160,7 @@ class Promise
         } else {
             $this->onFulfilled[] = $onFulfilled;
         }
+
         return $this;
     }
 
@@ -169,7 +170,7 @@ class Promise
      */
     public function finally(Closure $onFinally): Promise
     {
-        if ($this->status === Promise::FULFILLED || $this->status === Promise::REJECTED) {
+        if ($this->status !== Promise::PENDING) {
             try {
                 call_user_func($onFinally, $this->result);
             } catch (Throwable $exception) {
@@ -180,6 +181,7 @@ class Promise
             $this->onFulfilled[] = $onFinally;
             $this->onRejected[]  = $onFinally;
         }
+
         return $this;
     }
 
@@ -226,5 +228,15 @@ class Promise
     public function getResult(): mixed
     {
         return $this->result;
+    }
+
+    /**
+     * @param Throwable $e
+     * @return void
+     * @throws Throwable
+     */
+    public function onFiberException(Throwable $e): void
+    {
+        $this->reject($e);
     }
 }

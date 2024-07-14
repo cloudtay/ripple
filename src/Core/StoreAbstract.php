@@ -32,12 +32,9 @@
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-namespace Psc\Store\Net\WebSocket;
+namespace Psc\Core;
 
-
-use Psc\Core\StoreAbstract;
-
-class WebSocket extends StoreAbstract
+abstract class StoreAbstract
 {
     /**
      * @var StoreAbstract
@@ -45,18 +42,13 @@ class WebSocket extends StoreAbstract
     protected static StoreAbstract $instance;
 
     /**
-     * @param string     $address
-     * @param int|float  $timeout
-     * @param mixed|null $context
-     * @return Connection
+     * @return static
      */
-    public function connect(string $address, int|float $timeout = 10, mixed $context = null): Connection
+    public static function getInstance(): static
     {
-        return new Connection($address, $timeout, $context);
-    }
-
-    public function server(string $address, mixed $context): void
-    {
-        //TODO: Implement server() method.
+        if (!isset(static::$instance)) {
+            static::$instance = new static();
+        }
+        return static::$instance;
     }
 }

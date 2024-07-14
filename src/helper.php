@@ -146,21 +146,6 @@ function onSignal(int $signal, Closure $closure): string
 }
 
 /**
- * @param Closure $closure
- * @return int
- */
-function fork(Closure $closure): int
-{
-    $processId = pcntl_fork();
-    if ($processId === 0) {
-        EventLoop::setDriver((new EventLoop\DriverFactory())->create());
-        $closure();
-        run();
-    }
-    return $processId;
-}
-
-/**
  * @return void
  */
 function tick(): void

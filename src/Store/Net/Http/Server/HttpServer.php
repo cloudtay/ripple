@@ -54,7 +54,8 @@ class HttpServer
      * 请求处理器
      * @var Closure
      */
-    public Closure $onRequest;
+    public Closure       $onRequest;
+    private SocketStream $server;
 
     /**
      * @param string     $address
@@ -84,44 +85,53 @@ class HttpServer
             /**
              * @var SocketStream $server
              */
-            $server = match ($scheme) {
+            $this->server = match ($scheme) {
                 'http' => await(IO::Socket()->streamSocketServer("tcp://{$host}:{$port}", $context)),
                 'https' => await(IO::Socket()->streamSocketServerSSL("ssl://{$host}:{$port}", $context)),
                 default => throw new RuntimeException('Address format error')
             };
 
-            $server->setBlocking(false);
-            $server->onReadable(function (SocketStream $stream) {
-                $client = $stream->accept();
-                $client->setBlocking(false);
+            $this->server->setOption(SOL_SOCKET, SO_REUSEADDR, 1);
+            $this->server->setOption(SOL_SOCKET, SO_REUSEPORT, 1);
+            $this->server->setBlocking(false);
+        });
+    }
 
-                /**
-                 * Debug: 低水位 & 缓冲区
-                 */
-                //$lowWaterMarkRecv = socket_get_option($clientSocket, SOL_SOCKET, SO_RCVLOWAT);
-                //$lowWaterMarkSend = socket_get_option($clientSocket, SOL_SOCKET, SO_SNDLOWAT);
-                //$recvBuffer       = socket_get_option($clientSocket, SOL_SOCKET, SO_RCVBUF);
-                //$sendBuffer       = socket_get_option($clientSocket, SOL_SOCKET, SO_SNDBUF);
-                //var_dump($lowWaterMarkRecv, $lowWaterMarkSend, $recvBuffer, $sendBuffer);
+    /**
+     * @return void
+     */
+    public function listen(): void
+    {
+        $this->server->onReadable(function (SocketStream $stream) {
+            $client = $stream->accept();
+            $client->setBlocking(false);
 
-                /**
-                 * 优化缓冲区: 256kb标准速率帧
-                 */
-                $client->setOption(SOL_SOCKET, SO_RCVBUF, 256000);
-                $client->setOption(SOL_SOCKET, SO_SNDBUF, 256000);
-                $client->setOption(SOL_SOCKET, SO_KEEPALIVE, 1);
+            /**
+             * Debug: 低水位 & 缓冲区
+             */
+            //$lowWaterMarkRecv = socket_get_option($clientSocket, SOL_SOCKET, SO_RCVLOWAT);
+            //$lowWaterMarkSend = socket_get_option($clientSocket, SOL_SOCKET, SO_SNDLOWAT);
+            //$recvBuffer       = socket_get_option($clientSocket, SOL_SOCKET, SO_RCVBUF);
+            //$sendBuffer       = socket_get_option($clientSocket, SOL_SOCKET, SO_SNDBUF);
+            //var_dump($lowWaterMarkRecv, $lowWaterMarkSend, $recvBuffer, $sendBuffer);
 
-                /**
-                 * 设置发送低水位防止充盈内存
-                 */
-                $client->setOption(SOL_SOCKET, SO_SNDLOWAT, 1024);
+            /**
+             * 优化缓冲区: 256kb标准速率帧
+             */
+            $client->setOption(SOL_SOCKET, SO_RCVBUF, 256000);
+            $client->setOption(SOL_SOCKET, SO_SNDBUF, 256000);
+            $client->setOption(SOL_SOCKET, SO_KEEPALIVE, 1);
 
-                /**
-                 * CPU亲密度: 弃用的
-                 */
-                //socket_set_option($clientSocket, SOL_SOCKET, SO_INCOMING_CPU, 1);
-                $this->factory($client)->run();
-            });
+            /**
+             * 设置发送低水位防止充盈内存
+             */
+            $client->setOption(SOL_SOCKET, SO_SNDLOWAT, 1024);
+
+            /**
+             * CPU亲密度: 弃用的
+             */
+            //socket_set_option($clientSocket, SOL_SOCKET, SO_INCOMING_CPU, 1);
+            $this->factory($client)->run();
         });
     }
 

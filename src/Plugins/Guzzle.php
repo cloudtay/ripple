@@ -38,17 +38,17 @@ use GuzzleHttp\Client;
 use GuzzleHttp\Handler\CurlMultiHandler;
 use GuzzleHttp\HandlerStack;
 use Psc\Core\Coroutine\Promise;
-use Psc\Core\ModuleAbstract;
+use Psc\Core\StoreAbstract;
 use function array_merge;
 use function P\promise;
 use function P\repeat;
 
-class Guzzle extends ModuleAbstract
+class Guzzle extends StoreAbstract
 {
     /**
-     * @var ModuleAbstract
+     * @var StoreAbstract
      */
-    protected static ModuleAbstract $instance;
+    protected static StoreAbstract $instance;
 
     /**
      * @var CurlMultiHandler

@@ -56,9 +56,9 @@ class SocketStream extends Stream
     /**
      * @return $this
      */
-    public function accept(): SocketStream
+    public function accept(int|float $timeout = 0): SocketStream
     {
-        $socket = stream_socket_accept($this->stream);
+        $socket = stream_socket_accept($this->stream, $timeout);
         if ($socket === false) {
             throw new RuntimeException('Failed to accept connection: ' . socket_strerror(socket_last_error($this->socket)));
         }
@@ -162,6 +162,7 @@ class SocketStream extends Stream
                 $this->write($string);
             }
         }
+
         return $length;
     }
 }

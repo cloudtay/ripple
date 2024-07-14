@@ -1,6 +1,6 @@
-<?php declare(strict_types=1);
+<?php
 /*
- * Copyright (c) 2023-2024.
+ * Copyright (c) 2024.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -32,31 +32,14 @@
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-namespace Psc\Store\Net\WebSocket;
+namespace P;
 
+use Psc\Store\System\Process;
 
-use Psc\Core\StoreAbstract;
-
-class WebSocket extends StoreAbstract
+class System
 {
-    /**
-     * @var StoreAbstract
-     */
-    protected static StoreAbstract $instance;
-
-    /**
-     * @param string     $address
-     * @param int|float  $timeout
-     * @param mixed|null $context
-     * @return Connection
-     */
-    public function connect(string $address, int|float $timeout = 10, mixed $context = null): Connection
+    public static function Process(): Process
     {
-        return new Connection($address, $timeout, $context);
-    }
-
-    public function server(string $address, mixed $context): void
-    {
-        //TODO: Implement server() method.
+        return Process::getInstance();
     }
 }

@@ -1,6 +1,6 @@
-<?php declare(strict_types=1);
+<?php
 /*
- * Copyright (c) 2023-2024.
+ * Copyright (c) 2024.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -32,23 +32,24 @@
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-namespace Psc\Core;
+namespace Psc\Store\System;
 
-abstract class ModuleAbstract
+use Closure;
+
+readonly class Task
 {
-    /**
-     * @var ModuleAbstract
-     */
-    protected static ModuleAbstract $instance;
+    public function __construct(
+        public Closure $closure,
+    )
+    {
+    }
 
     /**
-     * @return static
+     * @param ...$argv
+     * @return Runtime
      */
-    public static function getInstance(): static
+    public function run(...$argv): Runtime
     {
-        if (!isset(static::$instance)) {
-            static::$instance = new static();
-        }
-        return static::$instance;
+        return call_user_func($this->closure, ...$argv);
     }
 }
