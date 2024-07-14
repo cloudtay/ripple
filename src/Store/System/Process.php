@@ -36,6 +36,7 @@ namespace Psc\Store\System;
 
 use Closure;
 use Fiber;
+use JetBrains\PhpStorm\NoReturn;
 use Psc\Core\StoreAbstract;
 use Psc\Store\System\Exception\ProcessException;
 use Revolt\EventLoop;
@@ -53,6 +54,18 @@ class Process extends StoreAbstract
         onSignal(SIGCHLD, function () {
             $this->signalSIGCHLDHandler();
         });
+
+        onSignal(SIGTERM, function () {
+            $this->onQuitSignal(SIGTERM);
+        });
+
+        onSignal(SIGINT, function () {
+            $this->onQuitSignal(SIGINT);
+        });
+
+        onSignal(SIGQUIT, function () {
+            $this->onQuitSignal(SIGQUIT);
+        });
     }
 
     /**
@@ -64,6 +77,11 @@ class Process extends StoreAbstract
      * @var array
      */
     private array $process2promiseCallback = [];
+
+    /**
+     * @var Runtime[]
+     */
+    private array $process2runtime = [];
 
     /**
      * @param Closure $closure
@@ -96,10 +114,15 @@ class Process extends StoreAbstract
                 ];
             });
 
-            return new Runtime(
+
+            $runtime = new Runtime(
                 $promise,
                 $processId,
             );
+
+            $this->process2runtime[$processId] = $runtime;
+
+            return $runtime;
         });
     }
 
@@ -126,6 +149,28 @@ class Process extends StoreAbstract
             }
 
             unset($this->process2promiseCallback[$childrenId]);
+            unset($this->process2runtime[$childrenId]);
+        }
+    }
+
+    /**
+     * @param $signal
+     * @return void
+     */
+    #[NoReturn] public function onQuitSignal($signal): void
+    {
+        $this->destroy($signal);
+        exit;
+    }
+
+    /**
+     * @param int $signal
+     * @return void
+     */
+    private function destroy(int $signal = SIGTERM): void
+    {
+        foreach ($this->process2runtime as $runtime) {
+            $runtime->signal($signal);
         }
     }
 }

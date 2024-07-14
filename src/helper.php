@@ -41,6 +41,13 @@ use Psc\Core\Output;
 use Revolt\EventLoop;
 use Throwable;
 
+IO::Socket();
+IO::File();
+Net::Http();
+Net::WebSocket();
+System::Process();
+Coroutine::Async();
+
 /**
  * @param Promise $promise
  * @return mixed
@@ -105,6 +112,15 @@ function sleep(int|float $second): void
 function delay(int|float $second, Closure $closure): string
 {
     return EventLoop::delay($second, $closure);
+}
+
+/**
+ * @param Closure $closure
+ * @return void
+ */
+function defer(Closure $closure): void
+{
+    EventLoop::defer($closure);
 }
 
 /**
