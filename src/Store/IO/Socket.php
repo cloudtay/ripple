@@ -76,12 +76,12 @@ class Socket extends StoreAbstract
             $promise      = $this->streamEnableCrypto($streamSocket)->then($r)->except($d);
 
             if ($timeout > 0) {
-                delay($timeout, function () use ($promise, $streamSocket, $d) {
+                delay(function () use ($promise, $streamSocket, $d) {
                     if ($promise->getStatus() === Promise::PENDING) {
                         $streamSocket->close();
                         $d(new Exception('Connection timeout.'));
                     }
-                });
+                }, $timeout);
             }
         });
     }

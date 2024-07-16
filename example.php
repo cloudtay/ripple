@@ -88,9 +88,9 @@ $connection         = P\Net::Websocket()->connect('wss://127.0.0.1:8001/wss');
 $connection->onOpen = function (Connection $connection) {
     $connection->send('{"action":"sub","data":{"channel":"market:panel@8"}}');
 
-    $timerId = repeat(10, function () use ($connection) {
+    $timerId = repeat(function () use ($connection) {
         $connection->send('{"action":"ping","data":{}}');
-    });
+    }, 10);
 
     $connection->onClose = function (Connection $connection) use ($timerId) {
         P\cancel($timerId);

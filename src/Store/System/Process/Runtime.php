@@ -32,25 +32,90 @@
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-namespace Psc\Store\System;
+namespace Psc\Store\System\Process;
 
 use Closure;
-use function call_user_func;
+use Psc\Core\Coroutine\Promise;
+use function posix_kill;
 
-readonly class Task
+readonly class Runtime
 {
+    /**
+     * @param int     $processId
+     * @param Promise $promise
+     */
     public function __construct(
-        public Closure $closure,
+        private Promise $promise,
+        private int     $processId,
     )
     {
     }
 
     /**
-     * @param ...$argv
-     * @return Runtime
+     * @param bool $force
+     * @return void
      */
-    public function run(...$argv): Runtime
+    public function stop(bool $force = false): void
     {
-        return call_user_func($this->closure, ...$argv);
+        $force
+            ? $this->kill()
+            : $this->signal(SIGTERM);
+    }
+
+    public function kill(): void
+    {
+        posix_kill($this->processId, SIGKILL);
+    }
+
+    /**
+     * @param int $signal
+     * @return void
+     */
+    public function signal(int $signal): void
+    {
+        posix_kill($this->processId, $signal);
+    }
+
+    /**
+     * @return Promise
+     */
+    public function getPromise(): Promise
+    {
+        return $this->promise;
+    }
+
+    /**
+     * @return int
+     */
+    public function getProcessId(): int
+    {
+        return $this->processId;
+    }
+
+    /**
+     * @param Closure $then
+     * @return Promise
+     */
+    public function then(Closure $then): Promise
+    {
+        return $this->promise->then($then);
+    }
+
+    /**
+     * @param Closure $catch
+     * @return Promise
+     */
+    public function except(Closure $catch): Promise
+    {
+        return $this->promise->except($catch);
+    }
+
+    /**
+     * @param Closure $finally
+     * @return Promise
+     */
+    public function finally(Closure $finally): Promise
+    {
+        return $this->promise->finally($finally);
     }
 }

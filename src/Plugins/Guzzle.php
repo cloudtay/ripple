@@ -67,9 +67,9 @@ class Guzzle extends StoreAbstract
         $this->curlMultiHandler = new CurlMultiHandler;
         $this->handlerStack     = HandlerStack::create($this->curlMultiHandler);
 
-        repeat(0.1, function () {
+        repeat(function () {
             $this->curlMultiHandler->tick();
-        });
+        }, 0.1);
     }
 
     /**

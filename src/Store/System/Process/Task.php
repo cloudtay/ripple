@@ -32,26 +32,28 @@
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-namespace P;
+namespace Psc\Store\System\Process;
 
-use Psc\Store\System\Proc\Proc;
-use Psc\Store\System\Process\Process;
+use Closure;
+use function call_user_func;
 
-class System
+readonly class Task
 {
     /**
-     * @return Process
+     * @param Closure $closure
      */
-    public static function Process(): Process
+    public function __construct(
+        public Closure $closure,
+    )
     {
-        return Process::getInstance();
     }
 
     /**
-     * @return Proc
+     * @param ...$argv
+     * @return Runtime
      */
-    public static function Proc(): Proc
+    public function run(...$argv): Runtime
     {
-        return Proc::getInstance();
+        return call_user_func($this->closure, ...$argv);
     }
 }

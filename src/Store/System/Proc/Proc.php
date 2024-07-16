@@ -32,26 +32,36 @@
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-namespace P;
+namespace Psc\Store\System\Proc;
 
-use Psc\Store\System\Proc\Proc;
-use Psc\Store\System\Process\Process;
+use Psc\Core\StoreAbstract;
 
-class System
+class Proc extends StoreAbstract
 {
-    /**
-     * @return Process
-     */
-    public static function Process(): Process
-    {
-        return Process::getInstance();
-    }
+    protected static StoreAbstract $instance;
 
     /**
-     * @return Proc
+     * @param string $entrance
+     * @return Session|false
      */
-    public static function Proc(): Proc
+    public function open(string $entrance = '/bin/sh'): Session|false
     {
-        return Proc::getInstance();
+        $process = proc_open($entrance, array(
+            0 => ['pipe', 'r'],
+            1 => ['pipe', 'w'],
+            2 => ['pipe', 'w'],
+        ), $pipes);
+
+        if (is_resource($process)) {
+
+
+            return new Session(
+                $process,
+                $pipes[0],
+                $pipes[1],
+                $pipes[2],
+            );
+        }
+        return false;
     }
 }

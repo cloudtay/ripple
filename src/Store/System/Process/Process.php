@@ -32,10 +32,9 @@
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-namespace Psc\Store\System;
+namespace Psc\Store\System\Process;
 
 use Closure;
-use Fiber;
 use JetBrains\PhpStorm\NoReturn;
 use Psc\Core\StoreAbstract;
 use Psc\Store\System\Exception\ProcessException;
@@ -90,14 +89,9 @@ class Process extends StoreAbstract
     /**
      * @param Closure $closure
      * @return Task
-     * @throws ProcessException
      */
     public function task(Closure $closure): Task
     {
-        if (Fiber::getCurrent()) {
-            throw new ProcessException('Cannot create a new process in a fiber.');
-        }
-
         return new Task(function (...$args) use ($closure) {
             $processId = pcntl_fork();
 

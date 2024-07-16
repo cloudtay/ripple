@@ -86,16 +86,16 @@ function sleep(int|float $second): void
     if (Fiber::getCurrent()) {
         try {
             await(async(function ($r) use ($second) {
-                delay($second, function () use ($r) {
+                delay(function () use ($r) {
                     call_user_func($r);
-                });
+                }, $second);
             }));
         } catch (Throwable $e) {
             Output::exception($e);
         }
     } else {
         $suspension = EventLoop::getSuspension();
-        $callbackId = delay($second, fn() => $suspension->resume());
+        $callbackId = delay(fn() => $suspension->resume(), $second);
         try {
             $suspension->suspend();
         } finally {
@@ -105,11 +105,11 @@ function sleep(int|float $second): void
 }
 
 /**
+ * @param Closure $closure
  * @param int|float $second
- * @param Closure   $closure
  * @return string
  */
-function delay(int|float $second, Closure $closure): string
+function delay(Closure $closure, int|float $second): string
 {
     return EventLoop::delay($second, $closure);
 }
@@ -133,11 +133,11 @@ function cancel(string $id): void
 }
 
 /**
- * @param int|float             $second
  * @param Closure(Closure):void $closure
+ * @param int|float             $second
  * @return string
  */
-function repeat(int|float $second, Closure $closure): string
+function repeat(Closure $closure, int|float $second): string
 {
     return EventLoop::repeat($second, function ($cancelId) use ($closure) {
         call_user_func($closure, fn() => EventLoop::cancel($cancelId));
@@ -152,9 +152,9 @@ function repeat(int|float $second, Closure $closure): string
  */
 function onSignal(int $signal, Closure $closure): string
 {
-    return EventLoop::onSignal($signal, function (string $cancelId) use ($closure) {
+    return EventLoop::onSignal($signal, function (string $cancelId, int $signalCode) use ($closure) {
         try {
-            call_user_func($closure);
+            call_user_func($closure, $signalCode);
         } catch (Throwable $e) {
             Output::exception($e);
         }
