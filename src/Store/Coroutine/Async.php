@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 /*
  * Copyright (c) 2023-2024.
  *
@@ -40,8 +42,12 @@ use Psc\Core\Coroutine\Exception;
 use Psc\Core\Coroutine\Promise;
 use Psc\Core\StoreAbstract;
 use Throwable;
+
 use function spl_object_hash;
 
+/**
+ *
+ */
 class Async extends StoreAbstract
 {
     /**
@@ -77,8 +83,8 @@ class Async extends StoreAbstract
         }
 
         \P\promise(function ($r, $d) use ($promise) {
-            $promise->then(fn($result) => $r($result));
-            $promise->except(fn($e) => $d($e));
+            $promise->then(fn ($result) => $r($result));
+            $promise->except(fn ($e) => $d($e));
         })
             ->then(function ($result) use ($fiber) {
                 try {

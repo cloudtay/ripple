@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 /*
  * Copyright (c) 2024.
  *
@@ -36,8 +38,15 @@ namespace Psc\Store\System\Process;
 
 use Closure;
 use Psc\Core\Coroutine\Promise;
+
 use function posix_kill;
 
+use const SIGKILL;
+use const SIGTERM;
+
+/**
+ *
+ */
 readonly class Runtime
 {
     /**
@@ -47,8 +56,7 @@ readonly class Runtime
     public function __construct(
         private Promise $promise,
         private int     $processId,
-    )
-    {
+    ) {
     }
 
     /**

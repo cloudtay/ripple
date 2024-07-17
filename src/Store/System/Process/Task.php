@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 /*
  * Copyright (c) 2024.
  *
@@ -35,8 +37,12 @@
 namespace Psc\Store\System\Process;
 
 use Closure;
+
 use function call_user_func;
 
+/**
+ *
+ */
 readonly class Task
 {
     /**
@@ -44,8 +50,7 @@ readonly class Task
      */
     public function __construct(
         public Closure $closure,
-    )
-    {
+    ) {
     }
 
     /**

@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 /*
  * Copyright (c) 2024.
  *
@@ -48,7 +50,13 @@ use function stream_socket_accept;
 use function substr;
 use function sys_get_temp_dir;
 use function uniqid;
+use function unlink;
+use const SO_SNDLOWAT;
+use const SOL_SOCKET;
 
+/**
+ *
+ */
 class SocketStream extends Stream
 {
     public Socket $socket;

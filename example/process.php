@@ -1,7 +1,12 @@
 <?php
+
+use P\System;
+use function P\delay;
+use function P\run;
+
 include_once __DIR__ . '/../vendor/autoload.php';
 
-$session = \P\System::Proc()->open();
+$session = System::Proc()->open();
 
 $session->input('ls');
 
@@ -17,9 +22,9 @@ $session->onMessage = function ($output) {
     echo $output;
 };
 
-\P\delay(function () use ($session) {
+delay(function () use ($session) {
     $session->close();
 }, 3);
 
 
-\P\run();
+run();

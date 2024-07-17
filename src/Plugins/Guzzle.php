@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 /*
  * Copyright (c) 2023-2024.
  *
@@ -44,6 +46,9 @@ use function array_merge;
 use function P\promise;
 use function P\repeat;
 
+/**
+ *
+ */
 class Guzzle extends StoreAbstract
 {
     /**
@@ -64,7 +69,7 @@ class Guzzle extends StoreAbstract
 
     public function __construct()
     {
-        $this->curlMultiHandler = new CurlMultiHandler;
+        $this->curlMultiHandler = new CurlMultiHandler();
         $this->handlerStack     = HandlerStack::create($this->curlMultiHandler);
 
         repeat(function () {

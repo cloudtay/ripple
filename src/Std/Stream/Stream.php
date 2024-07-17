@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 /*
  * Copyright (c) 2023-2024.
  *
@@ -47,7 +49,11 @@ use function is_resource;
 use function rewind;
 use function stream_get_contents;
 use function stream_get_meta_data;
+use const SEEK_SET;
 
+/**
+ *
+ */
 class Stream implements StreamInterface
 {
     /**

@@ -3,3 +3,5 @@ p-ripple-core.iml
 
 /vendor/
 composer.lock
+
+.php-cs-fixer.cache

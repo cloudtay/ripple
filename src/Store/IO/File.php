@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 /*
  * Copyright (c) 2023-2024.
  *
@@ -39,8 +41,12 @@ use Psc\Core\Coroutine\Promise;
 use Psc\Core\StoreAbstract;
 use Psc\Core\Stream\Stream;
 use Psc\Std\Stream\Exception\Exception;
+use function fopen;
 use function P\promise;
 
+/**
+ *
+ */
 class File extends StoreAbstract
 {
     /**

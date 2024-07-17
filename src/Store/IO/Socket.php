@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 /*
  * Copyright (c) 2023-2024.
  *
@@ -49,7 +51,15 @@ use function stream_socket_accept;
 use function stream_socket_client;
 use function stream_socket_enable_crypto;
 use function stream_socket_server;
+use const STREAM_CLIENT_ASYNC_CONNECT;
+use const STREAM_CLIENT_CONNECT;
+use const STREAM_CRYPTO_METHOD_SSLv23_CLIENT;
+use const STREAM_SERVER_BIND;
+use const STREAM_SERVER_LISTEN;
 
+/**
+ *
+ */
 class Socket extends StoreAbstract
 {
     /**
@@ -206,7 +216,6 @@ class Socket extends StoreAbstract
             }
 
             $r(new SocketStream($server));
-            return;
         });
     }
 

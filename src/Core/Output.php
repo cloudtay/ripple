@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 /*
  * Copyright (c) 2023-2024.
  *
@@ -32,7 +34,6 @@
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-
 namespace Psc\Core;
 
 use Throwable;
@@ -42,6 +43,7 @@ use function get_class;
 use function implode;
 use function posix_getpid;
 use function posix_getppid;
+use const PHP_EOL;
 use const STDIN;
 
 /**

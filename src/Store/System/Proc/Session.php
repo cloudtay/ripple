@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 /*
  * Copyright (c) 2024.
  *
@@ -38,6 +40,13 @@ use Closure;
 use Psc\Core\Output;
 use Psc\Std\Stream\Exception\ConnectionException;
 
+use function call_user_func;
+use function is_resource;
+use function proc_close;
+
+/**
+ *
+ */
 class Session
 {
     private ProcStream $streamStdInput;
@@ -55,8 +64,7 @@ class Session
         mixed                  $streamStdInput,
         mixed                  $streamStdOutput,
         mixed                  $streamStdError,
-    )
-    {
+    ) {
         $this->streamStdInput  = new ProcStream($streamStdInput);
         $this->streamStdOutput = new ProcStream($streamStdOutput);
         $this->streamStdError  = new ProcStream($streamStdError);
@@ -64,9 +72,9 @@ class Session
         $this->streamStdOutput->setBlocking(false);
         $this->streamStdError->setBlocking(false);
 
-        $this->streamStdInput->onClose(fn() => $this->close());
-        $this->streamStdOutput->onClose(fn() => $this->close());
-        $this->streamStdError->onClose(fn() => $this->close());
+        $this->streamStdInput->onClose(fn () => $this->close());
+        $this->streamStdOutput->onClose(fn () => $this->close());
+        $this->streamStdError->onClose(fn () => $this->close());
 
         $this->streamStdOutput->onReadable(function () {
             $content = $this->streamStdOutput->read(1024);

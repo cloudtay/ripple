@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 /*
  * Copyright (c) 2023-2024.
  *
@@ -40,12 +42,15 @@ use Psc\Std\Stream\Exception\ConnectionException;
 use Revolt\EventLoop;
 use Throwable;
 use function array_search;
+use function call_user_func;
 use function call_user_func_array;
 use function is_resource;
 use function P\cancel;
 use function stream_set_blocking;
 
-
+/**
+ *
+ */
 class Stream extends \Psc\Std\Stream\Stream
 {
     /**

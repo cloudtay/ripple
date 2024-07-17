@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 /*
  * Copyright (c) 2023-2024.
  *
@@ -44,6 +46,7 @@ use Psc\Std\Stream\Exception\ConnectionException;
 use Psc\Store\Net\Exception\HandshakeException;
 use Random\RandomException;
 use Throwable;
+
 use function base64_encode;
 use function call_user_func;
 use function chr;
@@ -111,8 +114,8 @@ class Connection
     public function __construct(
         private readonly string    $address,
         private readonly int|float $timeout = 10,
-        private readonly mixed     $context = null)
-    {
+        private readonly mixed $context = null
+    ) {
         $this->promise = async(function () {
             try {
                 await($this->_handshake());
@@ -243,12 +246,11 @@ class Connection
                 default => throw new Exception('Unsupported scheme')
             };
 
-            $this->stream->onClose(fn() => $this->_close());
+            $this->stream->onClose(fn () => $this->_close());
             $this->stream->setBlocking(false);
 
             $key     = base64_encode(random_bytes(16));
-            $context = '';
-            $context .= "GET {$path} HTTP/1.1\r\n";
+            $context = "GET {$path} HTTP/1.1\r\n";
             $context .= "Host: {$hostPort}\r\n";
             $context .= "Upgrade: websocket\r\n";
             $context .= "Connection: Upgrade\r\n";

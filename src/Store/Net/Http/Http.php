@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 /*
  * Copyright (c) 2023-2024.
  *
@@ -38,6 +40,9 @@ use Psc\Core\StoreAbstract;
 use Psc\Plugins\Guzzle;
 use Psc\Store\Net\Http\Server\HttpServer;
 
+/**
+ *
+ */
 class Http extends StoreAbstract
 {
     /**

@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 /*
  * Copyright (c) 2024.
  *
@@ -39,14 +41,26 @@ use JetBrains\PhpStorm\NoReturn;
 use Psc\Core\StoreAbstract;
 use Psc\Store\System\Exception\ProcessException;
 use Revolt\EventLoop;
+
 use function call_user_func;
 use function P\onSignal;
 use function P\promise;
 use function P\run;
+use function pcntl_fork;
 use function pcntl_wait;
 use function pcntl_wexitstatus;
 use function pcntl_wifexited;
 
+use const SIGCHLD;
+use const SIGINT;
+use const SIGQUIT;
+use const SIGTERM;
+use const WNOHANG;
+use const WUNTRACED;
+
+/**
+ *
+ */
 class Process extends StoreAbstract
 {
     /**
@@ -97,7 +111,7 @@ class Process extends StoreAbstract
 
             if ($processId === 0) {
                 if (EventLoop::getDriver()->isRunning()) {
-                    EventLoop::defer(fn() => EventLoop::setDriver((new EventLoop\DriverFactory())->create()));
+                    EventLoop::defer(fn () => EventLoop::setDriver((new EventLoop\DriverFactory())->create()));
                 } else {
                     EventLoop::setDriver((new EventLoop\DriverFactory())->create());
                 }

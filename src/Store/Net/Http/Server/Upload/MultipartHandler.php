@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 /*
  * Copyright (c) 2023-2024.
  *
@@ -32,12 +34,12 @@
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-
 namespace Psc\Store\Net\Http\Server\Upload;
 
 use Closure;
 use Psc\Store\Net\Http\Server\Exception\FormatException;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
+
 use function array_pop;
 use function array_shift;
 use function call_user_func;
@@ -52,7 +54,6 @@ use function substr;
 use function sys_get_temp_dir;
 use function uniqid;
 
-
 /**
  * Http上传解析器
  */
@@ -61,22 +62,27 @@ class MultipartHandler
     private const int STATUS_WAIT = 0;
     private const int STATUS_TRAN = 1;
     private const int STATUS_DONE = 2;
+
     /**
      * @var Closure
      */
     public Closure $onFile;
+
     /**
      * @var array
      */
     private array $files = array();
+
     /**
      * @var mixed
      */
     private mixed $currentTransferFile;
+
     /**
      * @var int
      */
     private int $status = MultipartHandler::STATUS_WAIT;
+
     /**
      * @var string
      */
@@ -203,7 +209,8 @@ class MultipartHandler
 
             if (isset($this->onFile)) {
                 $fileInfo = array_pop($this->files);
-                call_user_func($this->onFile,
+                call_user_func(
+                    $this->onFile,
                     new UploadedFile(
                         $fileInfo['path'],
                         $fileInfo['fileName'],

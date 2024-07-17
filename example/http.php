@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 /*
  * Copyright (c) 2023-2024.
@@ -34,16 +36,17 @@
  */
 
 use P\IO;
-use Psc\Core\Output;
 use Psc\Store\Net\Http\Server\Request;
 use Psc\Store\Net\Http\Server\Response;
-use Psc\Store\System\Exception\ProcessException;
+
 use function P\await;
 use function P\run;
 
 include_once __DIR__ . '/../vendor/autoload.php';
 
-$context = stream_context_create([
+\error_reporting(\E_ERROR & \E_WARNING);
+
+$context = \stream_context_create([
     'socket' => [
         'so_reuseport' => true,
         'so_reuseaddr' => true,
@@ -62,46 +65,45 @@ $handler = function (Request $request, Response $response) {
             ];
         }
         $response->headers->set('Content-Type', 'application/json');
-        $response->setContent(json_encode($data));
+        $response->setContent(\json_encode($data));
         $response->respond();
     }
 
     if ($request->getMethod() === 'GET') {
         if ($request->getPathInfo() === '/') {
-            $response->setContent('Hello World!');
-            $response->respond();
-        }
+            $response->setContent(
+                await(\P\IO::File()->getContents(__FILE__))
+            );
 
-        if ($request->getPathInfo() === '/download') {
+        } elseif ($request->getPathInfo() === '/download') {
             $response->setContent(
                 IO::File()->open(__FILE__, 'r')
             );
-            $response->respond();
-        }
 
-        if ($request->getPathInfo() === '/upload') {
+        } elseif ($request->getPathInfo() === '/upload') {
             $template = '<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>Upload</title></head><body><form action="/upload" method="post" enctype="multipart/form-data"><input type="file" name="file"><button type="submit">Upload</button></form></body>';
             $response->setContent($template);
-            $response->respond();
-        }
 
-        if ($request->getPathInfo() === '/qq') {
+        } elseif ($request->getPathInfo() === '/qq') {
             $qq = await(P\Net::Http()->Guzzle()->getAsync(
                 'https://www.qq.com/'
             ));
 
             $response->setContent($qq->getBody()->getContents());
-            $response->respond();
+
+        } else {
+            $response->setStatusCode(404);
         }
+
+        $response->respond();
     }
 };
 
 $server->onRequest = $handler;
-try {
-    $task = P\System::Process()->task(fn() => $server->listen());
-} catch (ProcessException $e) {
-    Output::error($e->getMessage());
-    exit;
+$task = P\System::Process()->task(fn () => $server->listen());
+
+for ($i = 0; $i < 16; $i++) {
+    $task->run();
 }
-$task->run();
+
 run();

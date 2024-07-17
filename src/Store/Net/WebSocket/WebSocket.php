@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 /*
  * Copyright (c) 2023-2024.
  *
@@ -34,9 +36,11 @@
 
 namespace Psc\Store\Net\WebSocket;
 
-
 use Psc\Core\StoreAbstract;
 
+/**
+ *
+ */
 class WebSocket extends StoreAbstract
 {
     /**
@@ -55,6 +59,11 @@ class WebSocket extends StoreAbstract
         return new Connection($address, $timeout, $context);
     }
 
+    /**
+     * @param string $address
+     * @param mixed  $context
+     * @return void
+     */
     public function server(string $address, mixed $context): void
     {
         //TODO: Implement server() method.

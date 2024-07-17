@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 /*
  * Copyright (c) 2023-2024.
  *
@@ -34,7 +36,9 @@
 
 namespace Psc\Store\Net\Http\Server\Exception;
 
+/**
+ *
+ */
 class Exception extends \Exception
 {
-
 }

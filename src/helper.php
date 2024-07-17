@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 /*
  * Copyright (c) 2023-2024.
  *
@@ -41,12 +43,16 @@ use Psc\Core\Output;
 use Revolt\EventLoop;
 use Throwable;
 
-IO::Socket();
-IO::File();
-Net::Http();
-Net::WebSocket();
+use function call_user_func;
+use function usleep;
+
+//IO::Socket();
+//IO::File();
+//Net::Http();
+//Net::WebSocket();
+//Coroutine::Async();
+
 System::Process();
-Coroutine::Async();
 
 /**
  * @param Promise $promise
@@ -95,7 +101,7 @@ function sleep(int|float $second): void
         }
     } else {
         $suspension = EventLoop::getSuspension();
-        $callbackId = delay(fn() => $suspension->resume(), $second);
+        $callbackId = delay(fn () => $suspension->resume(), $second);
         try {
             $suspension->suspend();
         } finally {
@@ -140,7 +146,7 @@ function cancel(string $id): void
 function repeat(Closure $closure, int|float $second): string
 {
     return EventLoop::repeat($second, function ($cancelId) use ($closure) {
-        call_user_func($closure, fn() => EventLoop::cancel($cancelId));
+        call_user_func($closure, fn () => EventLoop::cancel($cancelId));
     });
 }
 

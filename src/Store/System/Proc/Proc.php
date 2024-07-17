@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 /*
  * Copyright (c) 2024.
  *
@@ -35,7 +37,12 @@
 namespace Psc\Store\System\Proc;
 
 use Psc\Core\StoreAbstract;
+use function is_resource;
+use function proc_open;
 
+/**
+ *
+ */
 class Proc extends StoreAbstract
 {
     protected static StoreAbstract $instance;
@@ -53,8 +60,6 @@ class Proc extends StoreAbstract
         ), $pipes);
 
         if (is_resource($process)) {
-
-
             return new Session(
                 $process,
                 $pipes[0],

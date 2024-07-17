@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 /*
  * Copyright (c) 2024.
  *
@@ -37,6 +39,9 @@ namespace P;
 use Psc\Store\System\Proc\Proc;
 use Psc\Store\System\Process\Process;
 
+/**
+ *
+ */
 class System
 {
     /**

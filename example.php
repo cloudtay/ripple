@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 /*
  * Copyright (c) 2023-2024.
@@ -55,9 +57,9 @@ P\Net::Http()->Guzzle()->getAsync('https://www.baidu.com/404');
 // TODO: 异步发起100个请求,方式1
 for ($i = 0; $i < 100; $i++) {
     P\Net::Http()->Guzzle()->getAsync('https://www.baidu.com/')->then(function (Response $response) {
-        echo "[async] Response status code: {$response->getStatusCode()}" . PHP_EOL;
+        echo "[async] Response status code: {$response->getStatusCode()}" . \PHP_EOL;
     })->except(function (Exception $e) {
-        echo "[async] Exception: {$e->getMessage()}" . PHP_EOL;
+        echo "[async] Exception: {$e->getMessage()}" . \PHP_EOL;
     });
 }
 
@@ -66,9 +68,9 @@ for ($i = 0; $i < 100; $i++) {
     async(function () {
         try {
             $response = await(P\Net::Http()->Guzzle()->getAsync('https://www.baidu.com/'));
-            echo "[await] Response status code: {$response->getStatusCode()}" . PHP_EOL;
+            echo "[await] Response status code: {$response->getStatusCode()}" . \PHP_EOL;
         } catch (Throwable $exception) {
-            echo "[await] Exception: {$exception->getMessage()}" . PHP_EOL;
+            echo "[await] Exception: {$exception->getMessage()}" . \PHP_EOL;
         }
     });
 }
@@ -79,8 +81,8 @@ async(function () {
         P\IO::File()->getContents(__FILE__)
     );
 
-    $hash = hash('sha256', $fileContent);
-    echo "[await] File content hash: {$hash}" . PHP_EOL;
+    $hash = \hash('sha256', $fileContent);
+    echo "[await] File content hash: {$hash}" . \PHP_EOL;
 });
 
 // TODO: WebSocket 链接例子

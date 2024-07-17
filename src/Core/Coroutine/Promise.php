@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 /*
  * Copyright (c) 2023-2024.
  *
@@ -37,9 +39,14 @@ namespace Psc\Core\Coroutine;
 use Closure;
 use Psc\Core\Output;
 use Throwable;
+
 use function call_user_func;
 use function call_user_func_array;
+use function count;
 
+/**
+ *
+ */
 class Promise
 {
     public const string   PENDING   = 'pending';   // 悬空
@@ -82,8 +89,8 @@ class Promise
     {
         try {
             call_user_func_array($closure, [
-                fn(mixed $result = null) => $this->resolve($this->result = $result),
-                fn(mixed $result = null) => $this->reject($this->result = $result),
+                fn (mixed $result = null) => $this->resolve($this->result = $result),
+                fn (mixed $result = null) => $this->reject($this->result = $result),
                 $this
             ]);
         } catch (Throwable $exception) {
@@ -135,6 +142,7 @@ class Promise
 
         if (count($this->onRejected) === 0) {
             Output::error($exception->getMessage());
+            return $this;
         }
 
         foreach ($this->onRejected as $onRejected) {

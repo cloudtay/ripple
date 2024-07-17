@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 /*
  * Copyright (c) 2023-2024.
  *
@@ -38,10 +40,12 @@ use Closure;
 use P\IO;
 use Psc\Core\Stream\SocketStream;
 use Psc\Std\Stream\Exception\RuntimeException;
+use Psc\Store\Net\Exception\ConnectionException;
 use Psc\Store\Net\Http\Server\Exception\FormatException;
 use Psc\Store\Net\Http\Server\Upload\MultipartHandler;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Throwable;
+
 use function call_user_func;
 use function call_user_func_array;
 use function count;
@@ -56,10 +60,21 @@ use function preg_match;
 use function str_contains;
 use function str_replace;
 use function strlen;
+use function strpos;
 use function strtok;
 use function strtolower;
 use function strtoupper;
 use function substr;
+
+use const PHP_URL_PATH;
+use const SO_KEEPALIVE;
+use const SO_RCVBUF;
+use const SO_REUSEADDR;
+use const SO_REUSEPORT;
+use const SO_SNDBUF;
+use const SOL_SOCKET;
+use const SOL_TCP;
+use const TCP_NODELAY;
 
 /**
  * Http服务类
@@ -109,6 +124,7 @@ class HttpServer
 
             $this->server->setOption(SOL_SOCKET, SO_REUSEADDR, 1);
             $this->server->setOption(SOL_SOCKET, SO_REUSEPORT, 1);
+            $this->server->setOption(SOL_SOCKET, SO_KEEPALIVE, 1);
             $this->server->setBlocking(false);
         });
     }
@@ -141,7 +157,7 @@ class HttpServer
              */
             $client->setOption(SOL_SOCKET, SO_RCVBUF, 256000);
             $client->setOption(SOL_SOCKET, SO_SNDBUF, 256000);
-            //$client->setOption(SOL_SOCKET, SO_KEEPALIVE, 1);
+            $client->setOption(SOL_TCP, TCP_NODELAY, 1);
 
             /**
              * 设置发送低水位防止充盈内存
@@ -164,7 +180,7 @@ class HttpServer
      */
     private function factory(SocketStream $stream): object
     {
-        return new class ($stream, fn(Request $request, Response $response) => $this->onRequest($request, $response)) {
+        return new class ($stream, fn (Request $request, Response $response) => $this->onRequest($request, $response)) {
             private int                   $step;
             private array                 $query;
             private array                 $request;
@@ -210,11 +226,16 @@ class HttpServer
             public function run(): void
             {
                 $this->stream->onReadable(function (SocketStream $stream, Closure $cancel) {
-                    $context = $stream->read(8192);
-                    if ($context === '') {
+                    try {
+                        $context = $stream->read(8192);
+                        if ($context === '') {
+                            throw new ConnectionException();
+                        }
+                    } catch (Throwable) {
                         $stream->close();
                         return;
                     }
+
 
                     $this->buffer .= $context;
 
@@ -291,7 +312,7 @@ class HttpServer
                                     } else {
                                         $this->step          = 3;
                                         $this->requestUpload = new MultipartHandler($matches[1]);
-                                        $stream->onClose(fn() => $this->requestUpload?->disconnect());
+                                        $stream->onClose(fn () => $this->requestUpload?->disconnect());
                                         $this->requestUpload->onFile = function (UploadedFile $file, string $name) {
                                             $this->files[$name][] = $file;
                                             if ($this->bodyLength === intval($this->server['HTTP_CONTENT_LENGTH'])) {
@@ -385,7 +406,8 @@ class HttpServer
                         );
 
                         $keepAlive = $symfonyRequest->headers->has('Connection')
-                                     && strtolower($symfonyRequest->headers->get('Connection')) === 'keep-alive';
+                                     &&
+                                     strtolower($symfonyRequest->headers->get('Connection')) === 'keep-alive';
 
                         $symfonyResponse = new Response($this->stream, function () use ($keepAlive) {
                             $keepAlive ? $this->reset() : $this->stream->close();
@@ -403,13 +425,28 @@ class HttpServer
                             /**
                              * 报文格式非法
                              */
-                            $stream->write("HTTP/1.1 400 Bad Request\r\n\r\n");
+                            try {
+                                $stream->write("HTTP/1.1 400 Bad Request\r\n\r\n");
+                            } catch (Throwable) {
+                            }
+                            $stream->close();
+                        } catch (ConnectionException) {
                             $stream->close();
                         } catch (Throwable $e) {
                             /**
                              * 服务内部逻辑错误
                              */
-                            $stream->write($e->getMessage());
+                            $contentLength = strlen($message = $e->getMessage());
+                            try {
+                                $stream->write(
+                                    "HTTP/1.1 500 Internal Server Error\r\n" .
+                                    "Content-Type: text/plain\r\n" .
+                                    "Content-Length: {$contentLength}\r\n" .
+                                    "\r\n" .
+                                    $message
+                                );
+                            } catch (Throwable) {
+                            }
                             $stream->close();
                         }
                     }
