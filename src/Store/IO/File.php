@@ -38,11 +38,17 @@ namespace Psc\Store\IO;
 
 use Closure;
 use Psc\Core\Coroutine\Promise;
+use Psc\Core\Output;
 use Psc\Core\StoreAbstract;
 use Psc\Core\Stream\Stream;
 use Psc\Std\Stream\Exception\Exception;
+use SplFileInfo;
+use Throwable;
+
 use function fopen;
+use function P\cancel;
 use function P\promise;
+use function P\repeat;
 
 /**
  *
@@ -96,5 +102,134 @@ class File extends StoreAbstract
     public function open(string $path, string $mode): Stream
     {
         return new Stream(fopen($path, $mode));
+    }
+
+
+    /**
+     * @param string $path
+     * @return object
+     */
+    public function watch(string $path): object
+    {
+        return new class ($path) {
+            public Closure $onNewFile;
+            public Closure $onChangeFile;
+            public Closure $onRemoveFile;
+
+            private array $files = [];
+
+            /**
+             * @param string $path
+             */
+            public function __construct(private readonly string $path)
+            {
+                $this->tree($this->path);
+            }
+
+            /**
+             * @param string $path
+             * @return void
+             */
+            private function tree(string $path): void
+            {
+                foreach (scandir($path) as $file) {
+                    if ($file === '.' || $file === '..') {
+                        continue;
+                    }
+
+                    $fullPath = "{$path}/{$file}";
+
+                    if (is_dir($fullPath)) {
+                        $this->tree($fullPath);
+                    } else {
+
+                        if (!isset($this->files[$fullPath])) {
+                            $this->onNewFile(new SplFileInfo($fullPath));
+                        } else {
+                            $info = new SplFileInfo($fullPath);
+                            if ($this->files[$fullPath] !== $info->getMTime()) {
+                                $this->onChangeFile($info);
+                            }
+                        }
+                    }
+                }
+            }
+
+            /**
+             * @param SplFileInfo $info
+             * @return void
+             */
+            private function onNewFile(SplFileInfo $info): void
+            {
+                $this->files[$info->getPathname()] = $info->getMTime();
+                if (isset($this->onNewFile)) {
+                    try {
+                        call_user_func($this->onNewFile, $info->getPathname());
+                    } catch (Throwable $e) {
+                        Output::error($e->getMessage());
+                    }
+                }
+            }
+
+            /**
+             * @param SplFileInfo $info
+             * @return void
+             */
+            private function onChangeFile(SplFileInfo $info): void
+            {
+                $this->files[$info->getPathname()] = $info->getMTime();
+                if (isset($this->onChangeFile)) {
+                    try {
+                        call_user_func($this->onChangeFile, $info->getPathname());
+                    } catch (Throwable $e) {
+                        Output::error($e->getMessage());
+                    }
+                }
+            }
+
+            private string $timer1;
+            private string $timer2;
+
+            /**
+             * @return void
+             */
+            public function listen(): void
+            {
+                $this->timer1 = repeat(function () {
+                    $this->tree($this->path);
+                }, 1);
+
+                $this->timer2 = repeat(function () {
+                    foreach ($this->files as $file => $mtime) {
+                        if (!file_exists($file)) {
+                            unset($this->files[$file]);
+                            if (isset($this->onRemoveFile)) {
+                                try {
+                                    call_user_func($this->onRemoveFile, $file);
+                                } catch (Throwable $e) {
+                                    Output::error($e->getMessage());
+                                }
+                            }
+                        }
+                    }
+                }, 1);
+            }
+
+            /**
+             * @return void
+             */
+            public function stop(): void
+            {
+                if (isset($this->timer1)) {
+                    cancel($this->timer1);
+                }
+
+                if (isset($this->timer2)) {
+                    cancel($this->timer2);
+                }
+
+                $this->files = [];
+            }
+        };
     }
 }

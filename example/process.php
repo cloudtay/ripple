@@ -1,30 +1,22 @@
 <?php
 
-use P\System;
-use function P\delay;
 use function P\run;
 
 include_once __DIR__ . '/../vendor/autoload.php';
 
-$session = System::Proc()->open();
-
-$session->input('ls');
-
-$session->onClose = function () {
-    echo 'done.';
+$o = P\IO::File()->watch(__DIR__);
+$o->onNewFile = function (string $path) {
+    echo "New file: $path\n";
 };
 
-$session->onErrorMessage = function ($output) {
-    echo $output;
+$o->onChangeFile = function (string $path) {
+    echo "File changed: $path\n";
 };
 
-$session->onMessage = function ($output) {
-    echo $output;
+$o->onRemoveFile = function (string $path) {
+    echo "File removed: $path\n";
 };
 
-delay(function () use ($session) {
-    $session->close();
-}, 3);
-
+$o->listen();
 
 run();

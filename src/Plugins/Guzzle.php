@@ -40,8 +40,10 @@ use Closure;
 use GuzzleHttp\Client;
 use GuzzleHttp\Handler\CurlMultiHandler;
 use GuzzleHttp\HandlerStack;
+use GuzzleHttp\Promise\Utils;
 use Psc\Core\Coroutine\Promise;
 use Psc\Core\StoreAbstract;
+
 use function array_merge;
 use function P\promise;
 use function P\repeat;
@@ -72,8 +74,11 @@ class Guzzle extends StoreAbstract
         $this->curlMultiHandler = new CurlMultiHandler();
         $this->handlerStack     = HandlerStack::create($this->curlMultiHandler);
 
-        repeat(function () {
+        repeat(function (Closure $cancel) {
             $this->curlMultiHandler->tick();
+            if(Utils::queue()->isEmpty()) {
+                $cancel();
+            }
         }, 0.1);
     }
 
