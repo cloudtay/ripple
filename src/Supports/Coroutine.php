@@ -36,7 +36,7 @@ declare(strict_types=1);
 
 namespace P;
 
-use Psc\Store\Coroutine\Async;
+use Psc\Library\Coroutine\Async;
 
 /**
  *

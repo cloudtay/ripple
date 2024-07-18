@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 /*
- * Copyright (c) 2023-2024.
+ * Copyright (c) 2024.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -34,29 +34,13 @@ declare(strict_types=1);
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-namespace P;
+namespace Psc\Library\System\Proc;
 
-use Psc\Library\Net\Http\Http;
-use Psc\Library\Net\WebSocket\WebSocket;
+use Psc\Core\Stream\Stream;
 
 /**
  *
  */
-class Net
+class ProcStream extends Stream
 {
-    /**
-     * @return Http
-     */
-    public static function Http(): Http
-    {
-        return Http::getInstance();
-    }
-
-    /**
-     * @return WebSocket
-     */
-    public static function WebSocket(): WebSocket
-    {
-        return WebSocket::getInstance();
-    }
 }

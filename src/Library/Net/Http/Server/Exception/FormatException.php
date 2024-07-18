@@ -34,29 +34,11 @@ declare(strict_types=1);
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-namespace P;
-
-use Psc\Library\Net\Http\Http;
-use Psc\Library\Net\WebSocket\WebSocket;
+namespace Psc\Library\Net\Http\Server\Exception;
 
 /**
  *
  */
-class Net
+class FormatException extends Exception
 {
-    /**
-     * @return Http
-     */
-    public static function Http(): Http
-    {
-        return Http::getInstance();
-    }
-
-    /**
-     * @return WebSocket
-     */
-    public static function WebSocket(): WebSocket
-    {
-        return WebSocket::getInstance();
-    }
 }

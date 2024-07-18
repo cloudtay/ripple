@@ -46,12 +46,6 @@ use Throwable;
 use function call_user_func;
 use function usleep;
 
-//IO::Socket();
-//IO::File();
-//Net::Http();
-//Net::WebSocket();
-//Coroutine::Async();
-
 System::Process();
 
 /**
@@ -111,7 +105,7 @@ function sleep(int|float $second): void
 }
 
 /**
- * @param Closure $closure
+ * @param Closure   $closure
  * @param int|float $second
  * @return string
  */
@@ -165,6 +159,15 @@ function onSignal(int $signal, Closure $closure): string
             Output::exception($e);
         }
     });
+}
+
+/**
+ * @param Closure $closure
+ * @return void
+ */
+function onFork(Closure $closure): void
+{
+    System::Process()->onFork($closure);
 }
 
 /**

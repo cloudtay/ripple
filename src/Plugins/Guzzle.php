@@ -76,7 +76,7 @@ class Guzzle extends StoreAbstract
 
         repeat(function (Closure $cancel) {
             $this->curlMultiHandler->tick();
-            if(Utils::queue()->isEmpty()) {
+            if (Utils::queue()->isEmpty()) {
                 $cancel();
             }
         }, 0.1);

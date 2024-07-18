@@ -3,9 +3,14 @@
 use PhpCsFixer\Config;
 use PhpCsFixer\Finder;
 
-$finder = Finder::create()->in(__DIR__)->name('*.php')->notName('*.blade.php');
+$finder = Finder::create()->in(__DIR__)
+    ->name('*.php')
+    ->notName('*.blade.php');
 
 $config = new Config();
+
+$config->setFinder($finder);
+$config->setRiskyAllowed(true);
 
 return $config->setRules([
     '@PSR12'                     => true,
@@ -24,6 +29,5 @@ return $config->setRules([
         'import_constants' => true,
         'import_functions' => true,
     ],
-
-
-])->setFinder($finder);
+    'declare_strict_types' => true,
+]);

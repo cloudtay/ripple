@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 /*
- * Copyright (c) 2023-2024.
+ * Copyright (c) 2024.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -34,29 +34,31 @@ declare(strict_types=1);
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-namespace P;
+namespace Psc\Library\System\Process;
 
-use Psc\Library\Net\Http\Http;
-use Psc\Library\Net\WebSocket\WebSocket;
+use Closure;
+
+use function call_user_func;
 
 /**
  *
  */
-class Net
+readonly class Task
 {
     /**
-     * @return Http
+     * @param Closure $closure
      */
-    public static function Http(): Http
-    {
-        return Http::getInstance();
+    public function __construct(
+        public Closure $closure,
+    ) {
     }
 
     /**
-     * @return WebSocket
+     * @param ...$argv
+     * @return Runtime
      */
-    public static function WebSocket(): WebSocket
+    public function run(...$argv): Runtime
     {
-        return WebSocket::getInstance();
+        return call_user_func($this->closure, ...$argv);
     }
 }

@@ -1,6 +1,6 @@
 {
   "name": "cloudtay/p-ripple-core",
-  "version": "0.2.84",
+  "version": "0.2.87",
   "license": "MIT",
   "autoload": {
     "psr-4": {
@@ -32,6 +32,6 @@
     "phpunit/phpunit": "^11.2",
     "ext-event": "*",
     "ext-ev": "*",
-    "friendsofphp/php-cs-fixer": "^3.59"
+    "friendsofphp/php-cs-fixer": "*"
   }
 }

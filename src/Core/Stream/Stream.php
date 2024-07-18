@@ -41,6 +41,7 @@ use Psc\Core\Output;
 use Psc\Std\Stream\Exception\ConnectionException;
 use Revolt\EventLoop;
 use Throwable;
+
 use function array_search;
 use function call_user_func;
 use function call_user_func_array;
@@ -121,6 +122,22 @@ class Stream extends \Psc\Std\Stream\Stream
     }
 
     /**
+     * @return void
+     */
+    public function close(): void
+    {
+        if (is_resource($this->stream) === false) {
+            return;
+        }
+
+        parent::close();
+
+        foreach ($this->onCloseCallbacks as $callback) {
+            call_user_func($callback);
+        }
+    }
+
+    /**
      * @param Closure $closure
      * @return string
      */
@@ -146,22 +163,6 @@ class Stream extends \Psc\Std\Stream\Stream
             }
         });
         return $eventId;
-    }
-
-    /**
-     * @return void
-     */
-    public function close(): void
-    {
-        if (is_resource($this->stream) === false) {
-            return;
-        }
-
-        parent::close();
-
-        foreach ($this->onCloseCallbacks as $callback) {
-            call_user_func($callback);
-        }
     }
 
     /**

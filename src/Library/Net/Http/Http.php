@@ -34,29 +34,37 @@ declare(strict_types=1);
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-namespace P;
+namespace Psc\Library\Net\Http;
 
-use Psc\Library\Net\Http\Http;
-use Psc\Library\Net\WebSocket\WebSocket;
+use Psc\Core\StoreAbstract;
+use Psc\Library\Net\Http\Server\HttpServer;
+use Psc\Plugins\Guzzle;
 
 /**
  *
  */
-class Net
+class Http extends StoreAbstract
 {
     /**
-     * @return Http
+     * @var StoreAbstract
      */
-    public static function Http(): Http
+    protected static StoreAbstract $instance;
+
+    /**
+     * @return Guzzle
+     */
+    public function Guzzle(): Guzzle
     {
-        return Http::getInstance();
+        return Guzzle::getInstance();
     }
 
     /**
-     * @return WebSocket
+     * @param string $address
+     * @param mixed  $context
+     * @return HttpServer
      */
-    public static function WebSocket(): WebSocket
+    public function server(string $address, mixed $context = null): HttpServer
     {
-        return WebSocket::getInstance();
+        return new HttpServer($address, $context);
     }
 }

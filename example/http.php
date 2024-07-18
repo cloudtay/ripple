@@ -36,15 +36,16 @@ declare(strict_types=1);
  */
 
 use P\IO;
-use Psc\Store\Net\Http\Server\Request;
-use Psc\Store\Net\Http\Server\Response;
+use Psc\Library\Net\Http\Server\Request;
+use Psc\Library\Net\Http\Server\Response;
+use Psc\Library\System\Process\Task;
 
 use function P\await;
 use function P\run;
 
 include_once __DIR__ . '/../vendor/autoload.php';
 
-\error_reporting(\E_ERROR & \E_WARNING);
+//\error_reporting(\E_ERROR & \E_WARNING);
 
 $context = \stream_context_create([
     'socket' => [
@@ -53,8 +54,8 @@ $context = \stream_context_create([
     ],
 ]);
 
-$server = P\Net::Http()->server('http://127.0.0.1:8008', $context);
-$handler = function (Request $request, Response $response) {
+$server            = P\Net::Http()->server('http://127.0.0.1:8008', $context);
+$handler           = function (Request $request, Response $response) {
     if ($request->getMethod() === 'POST') {
         $files = $request->files->get('file');
         $data  = [];
@@ -72,7 +73,7 @@ $handler = function (Request $request, Response $response) {
     if ($request->getMethod() === 'GET') {
         if ($request->getPathInfo() === '/') {
             $response->setContent(
-                await(\P\IO::File()->getContents(__FILE__))
+                await(IO::File()->getContents(__FILE__))
             );
 
         } elseif ($request->getPathInfo() === '/download') {
@@ -98,12 +99,39 @@ $handler = function (Request $request, Response $response) {
         $response->respond();
     }
 };
-
 $server->onRequest = $handler;
-$task = P\System::Process()->task(fn () => $server->listen());
 
-for ($i = 0; $i < 16; $i++) {
-    $task->run();
+$runtimes = [];
+
+function guard(Task $task, array &$runtimes): void
+{
+    $runtime = $task->run(); // Start the task
+    $runtime->finally(function () use ($task, $runtime, &$runtimes) {
+        unset($runtimes[\spl_object_hash($runtime)]);
+        \guard($task, $runtimes);
+    });
+
+    $runtimes[\spl_object_hash($runtime)] = $runtime;
 }
 
+function reload(array $runtimes): void
+{
+    while ($runtime = \array_shift($runtimes)) {
+        $runtime->stop();
+    }
+}
+
+$task = P\System::Process()->task(fn () => $server->listen());
+
+for ($i = 0; $i < 1; $i++) {
+    \guard($task, $runtimes);
+}
+
+$monitor           = P\IO::File()->watch(__DIR__);
+$monitor->onModify = fn () => \reload($runtimes);
+$monitor->onRemove = fn () => \reload($runtimes);
+$monitor->onTouch  = fn () => \reload($runtimes);
+
 run();
+
+// Compare this snippet from src/Store/IO/FIle/Monitor.php:

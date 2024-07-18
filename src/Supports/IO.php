@@ -36,8 +36,8 @@ declare(strict_types=1);
 
 namespace P;
 
-use Psc\Store\IO\File;
-use Psc\Store\IO\Socket;
+use Psc\Library\IO\FIle\File;
+use Psc\Library\IO\Socket\Socket;
 
 /**
  *

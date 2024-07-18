@@ -40,6 +40,7 @@ use P\IO;
 use Psc\Std\Stream\Exception\ConnectionException;
 use RuntimeException;
 use Socket;
+
 use function file_exists;
 use function socket_get_option;
 use function socket_import_stream;
@@ -51,6 +52,7 @@ use function substr;
 use function sys_get_temp_dir;
 use function uniqid;
 use function unlink;
+
 use const SO_SNDLOWAT;
 use const SOL_SOCKET;
 
@@ -60,6 +62,18 @@ use const SOL_SOCKET;
 class SocketStream extends Stream
 {
     public Socket $socket;
+    /**
+     * @var bool
+     */
+    private bool $blocking = false;
+    /**
+     * @var Stream|null
+     */
+    private Stream|null $storageCacheWrite = null;
+    /**
+     * @var Stream|null
+     */
+    private Stream|null $storageCacheRead = null;
 
     /**
      * @param mixed $resource
@@ -95,35 +109,6 @@ class SocketStream extends Stream
             throw new RuntimeException('Failed to set socket option: ' . socket_strerror(socket_last_error($this->socket)));
         }
     }
-
-    /**
-     * @param int $level
-     * @param int $option
-     * @return array|int
-     */
-    public function getOption(int $level, int $option): array|int
-    {
-        $option = socket_get_option($this->socket, $level, $option);
-        if ($option === false) {
-            throw new RuntimeException('Failed to get socket option: ' . socket_strerror(socket_last_error($this->socket)));
-        }
-        return $option;
-    }
-
-    /**
-     * @var bool
-     */
-    private bool $blocking = false;
-
-    /**
-     * @var Stream|null
-     */
-    private Stream|null $storageCacheWrite = null;
-
-    /**
-     * @var Stream|null
-     */
-    private Stream|null $storageCacheRead = null;
 
     /**
      * @param string $string
@@ -182,5 +167,19 @@ class SocketStream extends Stream
         }
 
         return $length;
+    }
+
+    /**
+     * @param int $level
+     * @param int $option
+     * @return array|int
+     */
+    public function getOption(int $level, int $option): array|int
+    {
+        $option = socket_get_option($this->socket, $level, $option);
+        if ($option === false) {
+            throw new RuntimeException('Failed to get socket option: ' . socket_strerror(socket_last_error($this->socket)));
+        }
+        return $option;
     }
 }

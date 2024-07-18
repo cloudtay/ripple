@@ -37,12 +37,14 @@ declare(strict_types=1);
 namespace Psc\Core;
 
 use Throwable;
+
 use function explode;
 use function fwrite;
 use function get_class;
 use function implode;
 use function posix_getpid;
 use function posix_getppid;
+
 use const PHP_EOL;
 use const STDIN;
 

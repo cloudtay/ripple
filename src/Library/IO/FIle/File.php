@@ -34,29 +34,94 @@ declare(strict_types=1);
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-namespace P;
+namespace Psc\Library\IO\FIle;
 
-use Psc\Library\Net\Http\Http;
-use Psc\Library\Net\WebSocket\WebSocket;
+use Closure;
+use Psc\Core\Coroutine\Promise;
+use Psc\Core\StoreAbstract;
+use Psc\Core\Stream\Stream;
+use Psc\Std\Stream\Exception\Exception;
+
+use function array_shift;
+use function fopen;
+use function P\promise;
 
 /**
  *
  */
-class Net
+class File extends StoreAbstract
 {
     /**
-     * @return Http
+     * @var StoreAbstract
      */
-    public static function Http(): Http
+    protected static StoreAbstract $instance;
+
+    /**
+     * @param string $path
+     * @return Promise
+     */
+    public function getContents(string $path): Promise
     {
-        return Http::getInstance();
+        return promise(function (Closure $r, Closure $d) use ($path) {
+            if (!$resource = fopen($path, 'r')) {
+                $d(new Exception('Failed to open file: ' . $path));
+                return;
+            }
+
+            $stream = new Stream($resource);
+            $stream->setBlocking(false);
+            $content = '';
+
+            $stream->onReadable(function (Stream $stream) use ($r, $d, &$content) {
+                $fragment = $stream->read(8192);
+                if ($fragment === '') {
+                    $stream->close();
+                    $r($content);
+                    return;
+                }
+
+                $content .= $fragment;
+
+                if ($stream->eof()) {
+                    $stream->close();
+                    $r($content);
+                }
+            });
+        });
     }
 
     /**
-     * @return WebSocket
+     * @param string $path
+     * @param string $mode
+     * @return Stream
      */
-    public static function WebSocket(): WebSocket
+    public function open(string $path, string $mode): Stream
     {
-        return WebSocket::getInstance();
+        return new Stream(fopen($path, $mode));
+    }
+
+    /**
+     * @param string $path
+     * @return Monitor
+     */
+    public function watch(string $path): Monitor
+    {
+        $this->monitors[] = $monitor = new Monitor($path);
+        return $monitor;
+    }
+
+    /**
+     * @var Monitor[]
+     */
+    private array $monitors = [];
+
+    /**
+     * @return void
+     */
+    public function noticeFork(): void
+    {
+        while ($monitor = array_shift($this->monitors)) {
+            $monitor->stop();
+        }
     }
 }

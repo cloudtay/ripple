@@ -34,29 +34,38 @@ declare(strict_types=1);
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-namespace P;
+namespace Psc\Library\Net\WebSocket;
 
-use Psc\Library\Net\Http\Http;
-use Psc\Library\Net\WebSocket\WebSocket;
+use Psc\Core\StoreAbstract;
 
 /**
  *
  */
-class Net
+class WebSocket extends StoreAbstract
 {
     /**
-     * @return Http
+     * @var StoreAbstract
      */
-    public static function Http(): Http
+    protected static StoreAbstract $instance;
+
+    /**
+     * @param string     $address
+     * @param int|float  $timeout
+     * @param mixed|null $context
+     * @return Connection
+     */
+    public function connect(string $address, int|float $timeout = 10, mixed $context = null): Connection
     {
-        return Http::getInstance();
+        return new Connection($address, $timeout, $context);
     }
 
     /**
-     * @return WebSocket
+     * @param string $address
+     * @param mixed  $context
+     * @return void
      */
-    public static function WebSocket(): WebSocket
+    public function server(string $address, mixed $context): void
     {
-        return WebSocket::getInstance();
+        //TODO: Implement server() method.
     }
 }

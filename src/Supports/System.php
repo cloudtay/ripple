@@ -36,8 +36,8 @@ declare(strict_types=1);
 
 namespace P;
 
-use Psc\Store\System\Proc\Proc;
-use Psc\Store\System\Process\Process;
+use Psc\Library\System\Proc\Proc;
+use Psc\Library\System\Process\Process;
 
 /**
  *
