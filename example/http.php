@@ -39,7 +39,6 @@ use P\IO;
 use Psc\Library\Net\Http\Server\Request;
 use Psc\Library\Net\Http\Server\Response;
 use Psc\Library\System\Process\Task;
-
 use function P\await;
 use function P\run;
 
@@ -110,7 +109,6 @@ function guard(Task $task, array &$runtimes): void
         unset($runtimes[\spl_object_hash($runtime)]);
         \guard($task, $runtimes);
     });
-
     $runtimes[\spl_object_hash($runtime)] = $runtime;
 }
 

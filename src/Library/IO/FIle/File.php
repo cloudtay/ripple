@@ -101,12 +101,27 @@ class File extends StoreAbstract
     }
 
     /**
-     * @param string $path
+     * @param string       $path
+     * @param array|string $extensions
+     * @param bool         $tree
+     * @param bool         $withDirectory
+     * @param int|float    $frequency
      * @return Monitor
      */
-    public function watch(string $path): Monitor
-    {
-        $this->monitors[] = $monitor = new Monitor($path);
+    public function watch(
+        string       $path,
+        array|string $extensions = '*',
+        bool         $tree = true,
+        bool         $withDirectory = false,
+        int|float    $frequency = 1
+    ): Monitor {
+        $this->monitors[] = $monitor = new Monitor(
+            $path,
+            $extensions,
+            $tree,
+            $withDirectory,
+            $frequency,
+        );
         return $monitor;
     }
 

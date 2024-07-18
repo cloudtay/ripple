@@ -39,15 +39,13 @@ namespace Psc\Library\System\Proc;
 use Closure;
 use Psc\Core\Output;
 use Psc\Std\Stream\Exception\ConnectionException;
-
 use Throwable;
 
 use function call_user_func;
 use function is_resource;
+use function posix_kill;
 use function proc_close;
 use function proc_get_status;
-use function pcntl_kill;
-use function posix_kill;
 
 /**
  *

@@ -37,9 +37,7 @@ declare(strict_types=1);
 namespace P;
 
 use Closure;
-use Fiber;
 use Psc\Core\Coroutine\Promise;
-use Psc\Core\Output;
 use Revolt\EventLoop;
 use Throwable;
 
@@ -83,25 +81,9 @@ function promise(Closure $closure): Promise
  */
 function sleep(int|float $second): void
 {
-    if (Fiber::getCurrent()) {
-        try {
-            await(async(function ($r) use ($second) {
-                delay(function () use ($r) {
-                    call_user_func($r);
-                }, $second);
-            }));
-        } catch (Throwable $e) {
-            Output::exception($e);
-        }
-    } else {
-        $suspension = EventLoop::getSuspension();
-        $callbackId = delay(fn () => $suspension->resume(), $second);
-        try {
-            $suspension->suspend();
-        } finally {
-            cancel($callbackId);
-        }
-    }
+    $suspension = EventLoop::getSuspension();
+    delay(fn () => $suspension->resume(), $second);
+    $suspension->suspend();
 }
 
 /**
@@ -147,17 +129,12 @@ function repeat(Closure $closure, int|float $second): string
 /**
  * @param int     $signal
  * @param Closure $closure
- * @return string
- * @throws EventLoop\UnsupportedFeatureException
+ * @return void
  */
-function onSignal(int $signal, Closure $closure): string
+function onSignal(int $signal, Closure $closure): void
 {
-    return EventLoop::onSignal($signal, function (string $cancelId, int $signalCode) use ($closure) {
-        try {
-            call_user_func($closure, $signalCode);
-        } catch (Throwable $e) {
-            Output::exception($e);
-        }
+    pcntl_signal($signal, function () use ($closure) {
+        call_user_func($closure);
     });
 }
 
@@ -184,7 +161,7 @@ function tick(): void
  */
 function run(int $microseconds = 100000): void
 {
-    while (true) {
+    while (1) {
         tick();
         usleep($microseconds);
     }

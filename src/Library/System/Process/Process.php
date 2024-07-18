@@ -51,6 +51,7 @@ use function call_user_func;
 use function P\cancel;
 use function P\onSignal;
 use function P\promise;
+use function P\repeat;
 use function pcntl_fork;
 use function pcntl_wait;
 use function pcntl_wexitstatus;
@@ -99,10 +100,11 @@ class Process extends StoreAbstract
     }
 
     /**
-     * @throws EventLoop\UnsupportedFeatureException
      */
     private function registerSignalHandler(): void
     {
+        pcntl_async_signals(true);
+
         onSignal(SIGCHLD, function () {
             $this->signalSIGCHLDHandler();
         });
@@ -118,33 +120,59 @@ class Process extends StoreAbstract
         onSignal(SIGQUIT, function () {
             $this->onQuitSignal(SIGQUIT);
         });
+
+        repeat(function () {
+            foreach ($this->process2runtime as $key => $p) {
+                if ($childrenId = pcntl_waitpid($key, $status, WNOHANG)) {
+                    $this->onProcessExit($childrenId, $status);
+                }
+            }
+
+            pcntl_signal_dispatch();
+        }, 1);
     }
+
 
     /**
      * @return void
      */
     private function signalSIGCHLDHandler(): void
     {
-        while ($childrenId = pcntl_wait(
-            $status,
-            WNOHANG | WUNTRACED
-        )) {
-            $exit            = pcntl_wifexited($status) ? pcntl_wexitstatus($status) : -1;
-            $promiseCallback = $this->process2promiseCallback[$childrenId] ?? null;
+        while (1) {
+            $childrenId = pcntl_wait(
+                $status,
+                WNOHANG | WUNTRACED
+            );
 
-            if (!$promiseCallback) {
-                return;
+            if ($childrenId <= 0) {
+                break;
             }
 
-            if ($exit === -1) {
-                call_user_func($promiseCallback['reject'], new ProcessException('The process is abnormal.', $exit));
-            } else {
-                call_user_func($promiseCallback['resolve'], $exit);
-            }
-
-            unset($this->process2promiseCallback[$childrenId]);
-            unset($this->process2runtime[$childrenId]);
+            $this->onProcessExit($childrenId, $status);
         }
+    }
+
+    /**
+     * @param int $processId
+     * @param int $status
+     * @return void
+     */
+    private function onProcessExit(int $processId, int $status): void
+    {
+        $exit            = pcntl_wifexited($status) ? pcntl_wexitstatus($status) : -1;
+        $promiseCallback = $this->process2promiseCallback[$processId] ?? null;
+        if (!$promiseCallback) {
+            return;
+        }
+
+        if ($exit === -1) {
+            call_user_func($promiseCallback['reject'], new ProcessException('The process is abnormal.', $exit));
+        } else {
+            call_user_func($promiseCallback['resolve'], $exit);
+        }
+
+        unset($this->process2promiseCallback[$processId]);
+        unset($this->process2runtime[$processId]);
     }
 
     /**
@@ -184,6 +212,7 @@ class Process extends StoreAbstract
     public function noticeFork(): void
     {
         $this->resetDriver();
+
         $this->registerSignalHandler();
 
         File::getInstance()->noticeFork();
@@ -205,12 +234,8 @@ class Process extends StoreAbstract
      */
     public function resetDriver(): void
     {
-        if (EventLoop::getDriver()->isRunning()) {
-            foreach (EventLoop::getIdentifiers() as $identifier) {
-                cancel($identifier);
-            }
-        } else {
-            EventLoop::setDriver((new EventLoop\DriverFactory())->create());
+        foreach (EventLoop::getIdentifiers() as $identifier) {
+            cancel($identifier);
         }
     }
 
