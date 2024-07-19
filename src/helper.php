@@ -1,6 +1,4 @@
-<?php
-
-declare(strict_types=1);
+<?php declare(strict_types=1);
 /*
  * Copyright (c) 2023-2024.
  *
@@ -39,6 +37,7 @@ namespace P;
 use Closure;
 use Psc\Core\Coroutine\Promise;
 use Revolt\EventLoop;
+use Revolt\EventLoop\UnsupportedFeatureException;
 use Throwable;
 
 use function call_user_func;
@@ -129,11 +128,12 @@ function repeat(Closure $closure, int|float $second): string
 /**
  * @param int     $signal
  * @param Closure $closure
- * @return void
+ * @return string
+ * @throws UnsupportedFeatureException
  */
-function onSignal(int $signal, Closure $closure): void
+function onSignal(int $signal, Closure $closure): string
 {
-    pcntl_signal($signal, function () use ($closure) {
+    return EventLoop::onSignal($signal, function () use ($closure) {
         call_user_func($closure);
     });
 }
@@ -148,21 +148,13 @@ function onFork(Closure $closure): void
 }
 
 /**
- * @return void
- */
-function tick(): void
-{
-    EventLoop::run();
-}
-
-/**
  * @param int $microseconds
  * @return void
  */
 function run(int $microseconds = 100000): void
 {
-    while (1) {
-        tick();
+    while (true) {
+        EventLoop::run();
         usleep($microseconds);
     }
 }

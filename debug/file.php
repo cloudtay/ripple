@@ -1,4 +1,7 @@
 <?php
+
+declare(strict_types=1);
+
 /*
  * Copyright (c) 2023-2024.
  *
@@ -32,36 +35,28 @@
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-use PhpCsFixer\Config;
-use PhpCsFixer\Finder;
+use Psc\Library\System\Process\Process;
+use function P\run;
 
-$finder = Finder::create()->in(__DIR__)
-    ->name('*.php')
-    ->notName('*.blade.php');
+include_once __DIR__ . '/../vendor/autoload.php';
 
-$config = new Config();
+//$monitor = IO::File()->watch(__DIR__);
+//
+//$monitor->onTouch = function (string $file) {
+//    \var_dump(\posix_getpid());
+//    Output::warning("File touched: {$file}");
+//};
+//
+//$monitor->onModify = function (string $file) {
+//    Output::warning("File modified: {$file}");
+//};
+//$monitor->onRemove = function (string $file) {
+//    Output::warning("File removed: {$file}");
+//};
 
-$config->setFinder($finder);
-$config->setRiskyAllowed(true);
+$task = Process::getInstance()->task(function () {
+});
 
-return $config->setRules([
-    '@PSR12'                       => true,
-    'native_function_invocation'   => [
-        'include' => ['@all'],
-        'scope'   => 'all',
-        'strict'  => true,
-    ],
-    'native_constant_invocation'   => [
-        'include' => ['@all'],
-        'scope'   => 'all',
-        'strict'  => true,
-    ],
-    'global_namespace_import'      => [
-        'import_classes'   => true,
-        'import_constants' => true,
-        'import_functions' => true,
-    ],
-    'declare_strict_types'         => true,
-    'linebreak_after_opening_tag'  => false,
-    'blank_line_after_opening_tag' => false,
-]);
+$task->run();
+
+run();

@@ -1,4 +1,5 @@
-<?php
+<?php declare(strict_types=1);
+
 /*
  * Copyright (c) 2023-2024.
  *
@@ -32,36 +33,48 @@
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-use PhpCsFixer\Config;
-use PhpCsFixer\Finder;
+use function P\onFork;
+use function P\repeat;
+use function P\run;
 
-$finder = Finder::create()->in(__DIR__)
-    ->name('*.php')
-    ->notName('*.blade.php');
+include_once __DIR__ . '/../vendor/autoload.php';
 
-$config = new Config();
+$session                 = P\System::Proc()->open(\PHP_BINARY);
+$session->onMessage      = function ($data) {
+    echo $data;
+};
+$session->onErrorMessage = function ($data) {
+    echo $data;
+};
+$session->onClose        = function () {
+    echo 'Session closed.';
+};
 
-$config->setFinder($finder);
-$config->setRiskyAllowed(true);
+$session->input("<?php");
+$session->inputEot();
 
-return $config->setRules([
-    '@PSR12'                       => true,
-    'native_function_invocation'   => [
-        'include' => ['@all'],
-        'scope'   => 'all',
-        'strict'  => true,
-    ],
-    'native_constant_invocation'   => [
-        'include' => ['@all'],
-        'scope'   => 'all',
-        'strict'  => true,
-    ],
-    'global_namespace_import'      => [
-        'import_classes'   => true,
-        'import_constants' => true,
-        'import_functions' => true,
-    ],
-    'declare_strict_types'         => true,
-    'linebreak_after_opening_tag'  => false,
-    'blank_line_after_opening_tag' => false,
-]);
+\P\sleep(1);
+
+echo 'start';
+
+onFork(function () {
+    var_dump('ofk');
+});
+
+repeat(function () {
+    echo 'repeat';
+}, 1);
+
+$task = P\System::Process()->task(function () {
+    \P\sleep(3);
+    echo 'end';
+    exit;
+});
+
+for ($i = 0; $i < 1; $i++) {
+    $task->run()->finally(function () {
+        \var_dump('end');
+    });
+}
+
+run();

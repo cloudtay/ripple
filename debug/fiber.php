@@ -1,6 +1,4 @@
-<?php
-
-declare(strict_types=1);
+<?php declare(strict_types=1);
 
 /*
  * Copyright (c) 2023-2024.
@@ -35,31 +33,20 @@ declare(strict_types=1);
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-use Psc\Library\Net\WebSocket\Connection;
-
-use function P\repeat;
+use function P\async;
+use function P\await;
+use function P\run;
 
 include_once __DIR__ . '/../vendor/autoload.php';
 
-$connection         = P\Net::Websocket()->connect('wss://127.0.0.1:8001/wss');
-$connection->onOpen = function () use (&$connection) {
-    $connection->send('{"action":"sub","data":{"channel":"market:panel@8"}}');
+$a = async(function ($r, $d) {
+    \P\sleep(3);
+    $r(1);
+});
 
-    $timerId = repeat(function () use ($connection) {
-        $connection->send('{"action":"ping","data":{}}');
-    }, 10);
+async(function () use ($a) {
+    $result = await($a);
+    \var_dump($result);
+});
 
-    $connection->onClose = function (Connection $connection) use ($timerId) {
-        P\cancel($timerId);
-    };
-
-    $connection->onMessage = function (string $message, int $opcode, Connection $connection) {
-        echo "receive: $message\n";
-    };
-};
-
-$connection->onError = function (Throwable $throwable) {
-    echo "error: {$throwable->getMessage()}\n";
-};
-
-P\run();
+run();

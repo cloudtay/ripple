@@ -1,6 +1,4 @@
-<?php
-
-declare(strict_types=1);
+<?php declare(strict_types=1);
 /*
  * Copyright (c) 2023-2024.
  *
@@ -112,9 +110,9 @@ class Async extends StoreAbstract
      */
     public function async(Closure $closure): Promise
     {
-        $fiber = new Fiber($closure);
+        return new Promise(function (Closure $r, Closure $d, Promise $promise) use ($closure) {
+            $fiber = new Fiber($closure);
 
-        return new Promise(function (Closure $r, Closure $d, Promise $promise) use ($fiber) {
             $this->fiber2promise[spl_object_hash($fiber)] = $promise;
 
             $promise->finally(function () use ($fiber) {
@@ -122,7 +120,6 @@ class Async extends StoreAbstract
             });
 
             $fiber->start($r, $d);
-
             //            try {
             //                $result = $fiber->start($r, $d);
             //

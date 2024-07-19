@@ -1,6 +1,4 @@
-<?php
-
-declare(strict_types=1);
+<?php declare(strict_types=1);
 
 /*
  * Copyright (c) 2023-2024.
@@ -35,60 +33,14 @@ declare(strict_types=1);
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-use GuzzleHttp\Psr7\Response;
 use Psc\Library\Net\WebSocket\Connection;
 
-use function P\async;
-use function P\await;
 use function P\repeat;
-use function P\run;
 
-include_once __DIR__ . '/vendor/autoload.php';
+include_once __DIR__ . '/../vendor/autoload.php';
 
-# 支持库使用例子
-P\IO::File();
-P\IO::File()->getContents(__FILE__);
-P\IO::Socket()->streamSocketClient('tcp://www.baidu.com:80');
-P\IO::Socket()->streamSocketClientSSL('tcp://www.baidu.com:443');
-P\Net::Http();
-P\Net::Http()->Guzzle();
-P\Net::Http()->Guzzle()->getAsync('https://www.baidu.com/404');
-
-# 效果展示
-// TODO: 异步发起100个请求,方式1
-for ($i = 0; $i < 100; $i++) {
-    P\Net::Http()->Guzzle()->getAsync('https://www.baidu.com/')->then(function (Response $response) {
-        echo "[async] Response status code: {$response->getStatusCode()}" . \PHP_EOL;
-    })->except(function (Exception $e) {
-        echo "[async] Exception: {$e->getMessage()}" . \PHP_EOL;
-    });
-}
-
-// TODO: 异步发起100个请求,方式2
-for ($i = 0; $i < 100; $i++) {
-    async(function () {
-        try {
-            $response = await(P\Net::Http()->Guzzle()->getAsync('https://www.baidu.com/'));
-            echo "[await] Response status code: {$response->getStatusCode()}" . \PHP_EOL;
-        } catch (Throwable $exception) {
-            echo "[await] Exception: {$exception->getMessage()}" . \PHP_EOL;
-        }
-    });
-}
-
-// TODO: 异步读取文件内容
-async(function () {
-    $fileContent = await(
-        P\IO::File()->getContents(__FILE__)
-    );
-
-    $hash = \hash('sha256', $fileContent);
-    echo "[await] File content hash: {$hash}" . \PHP_EOL;
-});
-
-// TODO: WebSocket 链接例子
 $connection         = P\Net::Websocket()->connect('wss://127.0.0.1:8001/wss');
-$connection->onOpen = function (Connection $connection) {
+$connection->onOpen = function () use (&$connection) {
     $connection->send('{"action":"sub","data":{"channel":"market:panel@8"}}');
 
     $timerId = repeat(function () use ($connection) {
@@ -108,4 +60,4 @@ $connection->onError = function (Throwable $throwable) {
     echo "error: {$throwable->getMessage()}\n";
 };
 
-run();
+P\run();

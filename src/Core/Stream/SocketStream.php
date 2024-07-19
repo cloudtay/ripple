@@ -1,8 +1,6 @@
-<?php
-
-declare(strict_types=1);
+<?php declare(strict_types=1);
 /*
- * Copyright (c) 2024.
+ * Copyright (c) 2023-2024.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -146,6 +144,7 @@ class SocketStream extends Stream
                         $this->storageCacheWrite = null;
                         $this->storageCacheRead  = null;
                         $cancel();
+                        return;
                     }
 
                     $string = $this->storageCacheRead->read(

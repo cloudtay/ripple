@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 /*
- * Copyright (c) 2024.
+ * Copyright (c) 2023-2024.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -45,23 +45,20 @@ use Psc\Library\System\Exception\ProcessException;
 use Revolt\EventLoop;
 use Revolt\EventLoop\UnsupportedFeatureException;
 use Throwable;
-
 use function array_pop;
 use function call_user_func;
 use function P\cancel;
-use function P\onSignal;
 use function P\promise;
 use function P\repeat;
+use function P\run;
 use function pcntl_fork;
 use function pcntl_wait;
+use function pcntl_waitpid;
 use function pcntl_wexitstatus;
 use function pcntl_wifexited;
 use function posix_getpid;
 use function posix_getppid;
-
-use const SIGCHLD;
-use const SIGINT;
-use const SIGQUIT;
+use const SIGKILL;
 use const SIGTERM;
 use const WNOHANG;
 use const WUNTRACED;
@@ -92,43 +89,44 @@ class Process extends StoreAbstract
     private array $onFork = [];
 
     /**
-     * @throws EventLoop\UnsupportedFeatureException
      */
     public function __construct()
     {
         $this->registerSignalHandler();
     }
 
+    public function __destruct()
+    {
+        $this->destroy();
+    }
+
     /**
+     * @return void
+     * @throws UnsupportedFeatureException
      */
     private function registerSignalHandler(): void
     {
-        pcntl_async_signals(true);
+        //        onSignal(SIGCHLD, function () {
+        //            $this->signalSIGCHLDHandler();
+        //        });
 
-        onSignal(SIGCHLD, function () {
-            $this->signalSIGCHLDHandler();
-        });
-
-        onSignal(SIGTERM, function () {
-            $this->onQuitSignal(SIGTERM);
-        });
-
-        onSignal(SIGINT, function () {
-            $this->onQuitSignal(SIGINT);
-        });
-
-        onSignal(SIGQUIT, function () {
-            $this->onQuitSignal(SIGQUIT);
-        });
-
+        //        onSignal(SIGTERM, function () {
+        //            $this->onQuitSignal(SIGTERM);
+        //        });
+        //
+        //        onSignal(SIGINT, function () {
+        //            $this->onQuitSignal(SIGINT);
+        //        });
+        //
+        //        onSignal(SIGQUIT, function () {
+        //            $this->onQuitSignal(SIGQUIT);
+        //        });
         repeat(function () {
             foreach ($this->process2runtime as $key => $p) {
                 if ($childrenId = pcntl_waitpid($key, $status, WNOHANG)) {
                     $this->onProcessExit($childrenId, $status);
                 }
             }
-
-            pcntl_signal_dispatch();
         }, 1);
     }
 
@@ -139,10 +137,7 @@ class Process extends StoreAbstract
     private function signalSIGCHLDHandler(): void
     {
         while (1) {
-            $childrenId = pcntl_wait(
-                $status,
-                WNOHANG | WUNTRACED
-            );
+            $childrenId = pcntl_wait($status, WNOHANG | WUNTRACED);
 
             if ($childrenId <= 0) {
                 break;
@@ -182,7 +177,7 @@ class Process extends StoreAbstract
     #[NoReturn] public function onQuitSignal($signal): void
     {
         $this->destroy($signal);
-        exit;
+        exit(0);
     }
 
     /**
@@ -192,7 +187,7 @@ class Process extends StoreAbstract
     private function destroy(int $signal = SIGTERM): void
     {
         foreach ($this->process2runtime as $runtime) {
-            $runtime->signal($signal);
+            $runtime->signal(SIGKILL);
         }
     }
 
@@ -212,9 +207,7 @@ class Process extends StoreAbstract
     public function noticeFork(): void
     {
         $this->resetDriver();
-
         $this->registerSignalHandler();
-
         File::getInstance()->noticeFork();
 
         while ($closure = array_pop($this->onFork)) {
@@ -279,10 +272,19 @@ class Process extends StoreAbstract
     {
         return new Task(function (...$args) use ($closure) {
             $processId = $this->fork();
-
             if ($processId === 0) {
-                call_user_func($closure, ...$args);
-                EventLoop::getSuspension()->suspend();
+                if (EventLoop::getDriver()->isRunning()) {
+                    call_user_func($closure, ...$args);
+                    //TODO: goto loop
+                    EventLoop::getSuspension()->suspend();
+                } else {
+                    EventLoop::setDriver(
+                        (new EventLoop\DriverFactory())->create()
+                    );
+                    call_user_func($closure, ...$args);
+                    run();
+                    exit(0);
+                }
             }
 
             $promise = promise(function ($r, $d) use ($processId) {

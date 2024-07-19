@@ -43,8 +43,9 @@ use GuzzleHttp\HandlerStack;
 use GuzzleHttp\Promise\Utils;
 use Psc\Core\Coroutine\Promise;
 use Psc\Core\StoreAbstract;
-
 use function array_merge;
+use function P\cancel;
+use function P\onFork;
 use function P\promise;
 use function P\repeat;
 
@@ -68,18 +69,42 @@ class Guzzle extends StoreAbstract
      */
     private HandlerStack $handlerStack;
 
+    /**
+     * @var string|null
+     */
+    private string|null $timerFast = null;
 
+    /**
+     * @var string
+     */
+    private string $timerSlow;
+
+    /**
+     *
+     */
     public function __construct()
+    {
+        $this->install();
+        onFork(fn () => $this->install());
+    }
+
+    /**
+     * @return void
+     */
+    private function install(): void
     {
         $this->curlMultiHandler = new CurlMultiHandler();
         $this->handlerStack     = HandlerStack::create($this->curlMultiHandler);
-
-        repeat(function (Closure $cancel) {
-            $this->curlMultiHandler->tick();
-            if (Utils::queue()->isEmpty()) {
-                $cancel();
+        $this->timerSlow        = repeat(function () {
+            if ($this->timerFast && Utils::queue()->isEmpty()) {
+                cancel($this->timerFast);
+                $this->timerFast = null;
+            } elseif ($this->timerFast === null) {
+                $this->timerFast = repeat(function () {
+                    $this->curlMultiHandler->tick();
+                }, 0.1);
             }
-        }, 0.1);
+        }, 1);
     }
 
     /**

@@ -1,7 +1,4 @@
-<?php
-
-declare(strict_types=1);
-
+<?php declare(strict_types=1);
 /*
  * Copyright (c) 2023-2024.
  *
@@ -39,6 +36,7 @@ use P\IO;
 use Psc\Library\Net\Http\Server\Request;
 use Psc\Library\Net\Http\Server\Response;
 use Psc\Library\System\Process\Task;
+
 use function P\await;
 use function P\run;
 
