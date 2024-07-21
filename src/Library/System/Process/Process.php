@@ -48,6 +48,7 @@ use Throwable;
 use function array_pop;
 use function call_user_func;
 use function P\cancel;
+use function P\defer;
 use function P\promise;
 use function P\repeat;
 use function P\run;
@@ -89,15 +90,17 @@ class Process extends StoreAbstract
     private array $onFork = [];
 
     /**
+     * @throws UnsupportedFeatureException
      */
     public function __construct()
     {
         $this->registerSignalHandler();
     }
 
-    public function __destruct()
+    #[NoReturn] public function __destruct()
     {
         $this->destroy();
+        exit(0);
     }
 
     /**
@@ -106,21 +109,11 @@ class Process extends StoreAbstract
      */
     private function registerSignalHandler(): void
     {
-        //        onSignal(SIGCHLD, function () {
-        //            $this->signalSIGCHLDHandler();
-        //        });
+        $this->onSignal(SIGCHLD, fn () => $this->signalSIGCHLDHandler());
+        $this->onSignal(SIGTERM, fn () => $this->onQuitSignal(SIGTERM));
+        $this->onSignal(SIGINT, fn () => $this->onQuitSignal(SIGINT));
+        $this->onSignal(SIGQUIT, fn () => $this->onQuitSignal(SIGQUIT));
 
-        //        onSignal(SIGTERM, function () {
-        //            $this->onQuitSignal(SIGTERM);
-        //        });
-        //
-        //        onSignal(SIGINT, function () {
-        //            $this->onQuitSignal(SIGINT);
-        //        });
-        //
-        //        onSignal(SIGQUIT, function () {
-        //            $this->onQuitSignal(SIGQUIT);
-        //        });
         repeat(function () {
             foreach ($this->process2runtime as $key => $p) {
                 if ($childrenId = pcntl_waitpid($key, $status, WNOHANG)) {
@@ -177,7 +170,10 @@ class Process extends StoreAbstract
     #[NoReturn] public function onQuitSignal($signal): void
     {
         $this->destroy($signal);
-        exit(0);
+        defer(function () {
+            EventLoop::getDriver()->stop();
+            exit(0);
+        });
     }
 
     /**
@@ -302,5 +298,40 @@ class Process extends StoreAbstract
             $this->process2runtime[$processId] = $runtime;
             return $runtime;
         });
+    }
+
+    /**
+     * @var array
+     */
+    private array $signal2Handler = [];
+
+    /**
+     * @param int     $signalCode
+     * @param Closure $handler
+     * @return void
+     * @throws UnsupportedFeatureException
+     */
+    public function onSignal(int $signalCode, Closure $handler): void
+    {
+        if (!isset($this->signal2Handler[$signalCode])) {
+            $this->signal2Handler[$signalCode] = [];
+
+            EventLoop::onSignal($signalCode, function () use ($signalCode) {
+                $this->signalHandler($signalCode);
+            });
+        }
+
+        array_unshift($this->signal2Handler[$signalCode], $handler);
+    }
+
+    /**
+     * @param int $signalCode
+     * @return void
+     */
+    public function signalHandler(int $signalCode): void
+    {
+        foreach ($this->signal2Handler[$signalCode] as $handler) {
+            $handler($signalCode);
+        }
     }
 }

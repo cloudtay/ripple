@@ -39,11 +39,8 @@ use Psc\Core\Coroutine\Promise;
 use Revolt\EventLoop;
 use Revolt\EventLoop\UnsupportedFeatureException;
 use Throwable;
-
 use function call_user_func;
 use function usleep;
-
-System::Process();
 
 /**
  * @param Promise $promise
@@ -128,14 +125,12 @@ function repeat(Closure $closure, int|float $second): string
 /**
  * @param int     $signal
  * @param Closure $closure
- * @return string
+ * @return void
  * @throws UnsupportedFeatureException
  */
-function onSignal(int $signal, Closure $closure): string
+function onSignal(int $signal, Closure $closure): void
 {
-    return EventLoop::onSignal($signal, function () use ($closure) {
-        call_user_func($closure);
-    });
+    System::Process()->onSignal($signal, $closure);
 }
 
 /**
