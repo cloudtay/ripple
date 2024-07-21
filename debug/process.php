@@ -33,48 +33,20 @@
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-use function P\onFork;
-use function P\repeat;
 use function P\run;
 
 include_once __DIR__ . '/../vendor/autoload.php';
 
-$session                 = P\System::Proc()->open(\PHP_BINARY);
-$session->onMessage      = function ($data) {
-    echo $data;
-};
-$session->onErrorMessage = function ($data) {
-    echo $data;
-};
-$session->onClose        = function () {
-    echo 'Session closed.';
-};
-
-$session->input("<?php");
-$session->inputEot();
-
-\P\sleep(1);
-
-echo 'start';
-
-onFork(function () {
-    var_dump('ofk');
-});
-
-repeat(function () {
-    echo 'repeat';
+\P\repeat(function () {
+    \var_dump(\posix_getpid());
 }, 1);
 
-$task = P\System::Process()->task(function () {
-    \P\sleep(3);
-    echo 'end';
-    exit;
-});
-
-for ($i = 0; $i < 1; $i++) {
-    $task->run()->finally(function () {
-        \var_dump('end');
+\P\defer(function () {
+    $task = P\System::Process()->task(function () {
+        \var_dump(\posix_getpid());
     });
-}
+
+    $task->run();
+});
 
 run();

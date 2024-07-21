@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 /*
  * Copyright (c) 2023-2024.
  *
@@ -39,6 +41,7 @@ use Psc\Core\Coroutine\Promise;
 use Revolt\EventLoop;
 use Revolt\EventLoop\UnsupportedFeatureException;
 use Throwable;
+
 use function call_user_func;
 use function usleep;
 
@@ -148,7 +151,25 @@ function onFork(Closure $closure): void
  */
 function run(int $microseconds = 100000): void
 {
-    while (true) {
+    //预加载阶段进入loop,凡跳出P_RIPPLE_MAIN者声明预加载完毕
+    $_SERVER['P_RIPPLE_MAIN'] = EventLoop::getSuspension();
+    $id                       = repeat(fn () => null, 1);
+    $reinstall                = $_SERVER['P_RIPPLE_MAIN']->suspend();
+
+    cancel($id);
+
+    EventLoop::getDriver()->stop();
+    EventLoop::getDriver()->run();
+    EventLoop::setDriver(
+        (new EventLoop\DriverFactory())->create()
+    );
+
+    if ($reinstall) {
+        $reinstall();
+    }
+
+    //loop
+    while (1) {
         EventLoop::run();
         usleep($microseconds);
     }

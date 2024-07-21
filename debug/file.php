@@ -36,6 +36,7 @@ declare(strict_types=1);
  */
 
 use Psc\Library\System\Process\Process;
+
 use function P\run;
 
 include_once __DIR__ . '/../vendor/autoload.php';

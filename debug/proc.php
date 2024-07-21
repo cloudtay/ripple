@@ -47,7 +47,7 @@ $session->onClose = function () {
     echo 'Session closed.';
 };
 
-$session->input(file_get_contents(__DIR__ . '/proc_handle.php'));
+$session->input(\file_get_contents(__DIR__ . '/proc_handle.php'));
 $session->inputEot();
 
 

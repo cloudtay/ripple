@@ -45,9 +45,10 @@ use Psc\Library\System\Exception\ProcessException;
 use Revolt\EventLoop;
 use Revolt\EventLoop\UnsupportedFeatureException;
 use Throwable;
+use Fiber;
+
 use function array_pop;
 use function call_user_func;
-use function P\cancel;
 use function P\defer;
 use function P\promise;
 use function P\repeat;
@@ -59,10 +60,15 @@ use function pcntl_wexitstatus;
 use function pcntl_wifexited;
 use function posix_getpid;
 use function posix_getppid;
+use function array_unshift;
+
 use const SIGKILL;
 use const SIGTERM;
 use const WNOHANG;
 use const WUNTRACED;
+use const SIGCHLD;
+use const SIGINT;
+use const SIGQUIT;
 
 /**
  *
@@ -198,12 +204,12 @@ class Process extends StoreAbstract
 
     /**
      * @return void
-     * @throws UnsupportedFeatureException
+     * @throws UnsupportedFeatureException|Throwable
      */
     public function noticeFork(): void
     {
-        $this->resetDriver();
         $this->registerSignalHandler();
+
         File::getInstance()->noticeFork();
 
         while ($closure = array_pop($this->onFork)) {
@@ -216,32 +222,6 @@ class Process extends StoreAbstract
 
         $this->process2promiseCallback = [];
         $this->process2runtime         = [];
-    }
-
-    /**
-     * @return void
-     */
-    public function resetDriver(): void
-    {
-        foreach (EventLoop::getIdentifiers() as $identifier) {
-            cancel($identifier);
-        }
-    }
-
-    /**
-     * @return int
-     * @throws ProcessException|UnsupportedFeatureException
-     */
-    public function fork(): int
-    {
-        $processId = pcntl_fork();
-        if ($processId === -1) {
-            throw new ProcessException('Fork failed.');
-        }
-        if ($processId === 0) {
-            $this->noticeFork();
-        }
-        return $processId;
     }
 
     /**
@@ -267,20 +247,36 @@ class Process extends StoreAbstract
     public function task(Closure $closure): Task
     {
         return new Task(function (...$args) use ($closure) {
-            $processId = $this->fork();
+            $processId = pcntl_fork();
+
+            if ($processId === -1) {
+                throw new ProcessException('Fork failed.');
+            }
+
             if ($processId === 0) {
-                if (EventLoop::getDriver()->isRunning()) {
-                    call_user_func($closure, ...$args);
-                    //TODO: goto loop
-                    EventLoop::getSuspension()->suspend();
-                } else {
+                if (!EventLoop::getDriver()->isRunning()) {
                     EventLoop::setDriver(
                         (new EventLoop\DriverFactory())->create()
                     );
+
+                    $this->noticeFork();
+
                     call_user_func($closure, ...$args);
+
                     run();
-                    exit(0);
                 }
+
+                //reset drive
+                $_SERVER['P_RIPPLE_MAIN']->resume(function () use ($closure, $args) {
+                    //reload process event
+                    $this->noticeFork();
+
+                    //call user function
+                    call_user_func($closure, ...$args);
+                });
+
+                //jump out to loop
+                Fiber::suspend();
             }
 
             $promise = promise(function ($r, $d) use ($processId) {
