@@ -49,7 +49,6 @@ use Throwable;
 use function array_pop;
 use function array_unshift;
 use function call_user_func;
-use function P\defer;
 use function P\promise;
 use function P\repeat;
 use function P\run;
@@ -169,10 +168,6 @@ class Process extends StoreAbstract
     #[NoReturn] public function onQuitSignal($signal): void
     {
         $this->destroy($signal);
-        defer(function () {
-            EventLoop::getDriver()->stop();
-            exit(0);
-        });
     }
 
     /**

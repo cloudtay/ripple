@@ -48,6 +48,7 @@ use Throwable;
 
 use function call_user_func;
 use function count;
+use function P\defer;
 
 class Kernel
 {
@@ -207,7 +208,8 @@ class Kernel
         $this->handleOnMain(function () use ($configure) {
             $originDriver = EventLoop::getDriver();
             $originDriver->stop();
-            $originDriver->run();
+
+            @$originDriver->run();
 
             EventLoop::setDriver(
                 (new EventLoop\DriverFactory())->create()
@@ -237,6 +239,9 @@ class Kernel
      */
     #[NoReturn] public function __destruct()
     {
-        exit(0);
+        defer(function () {
+            EventLoop::getDriver()->stop();
+            exit(0);
+        });
     }
 }

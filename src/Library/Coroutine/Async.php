@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 /*
  * Copyright (c) 2023-2024.
  *
@@ -120,17 +122,20 @@ class Async extends StoreAbstract
             });
 
             $fiber->start($r, $d);
-            //            try {
-            //                $result = $fiber->start($r, $d);
-            //
-            //                if($promise->getStatus() === Promise::PENDING) {
-            //                    $r($result);
-            //                }
-            //            } catch (Throwable $e) {
-            //                if($promise->getStatus() === Promise::PENDING) {
-            //                    $d($e);
-            //                }
-            //            }
+
+            if (!$fiber->isRunning()) {
+                try {
+                    $result = $fiber->getReturn();
+
+                    if ($promise->getStatus() === Promise::PENDING) {
+                        $r($result);
+                    }
+                } catch (Throwable $e) {
+                    if ($promise->getStatus() === Promise::PENDING) {
+                        $d($e);
+                    }
+                }
+            }
         });
     }
 

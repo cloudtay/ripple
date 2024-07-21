@@ -43,6 +43,7 @@ use GuzzleHttp\HandlerStack;
 use GuzzleHttp\Promise\Utils;
 use Psc\Core\Coroutine\Promise;
 use Psc\Core\StoreAbstract;
+
 use function array_merge;
 use function P\cancel;
 use function P\onFork;
