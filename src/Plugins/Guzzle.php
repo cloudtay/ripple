@@ -43,7 +43,6 @@ use GuzzleHttp\HandlerStack;
 use GuzzleHttp\Promise\Utils;
 use Psc\Core\Coroutine\Promise;
 use Psc\Core\StoreAbstract;
-
 use function array_merge;
 use function P\cancel;
 use function P\onFork;
@@ -71,11 +70,13 @@ class Guzzle extends StoreAbstract
     private HandlerStack $handlerStack;
 
     /**
+     * 快转齿轮
      * @var string|null
      */
     private string|null $timerFast = null;
 
     /**
+     * 慢转齿轮
      * @var string
      */
     private string $timerSlow;

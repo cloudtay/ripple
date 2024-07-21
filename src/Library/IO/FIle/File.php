@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 /*
  * Copyright (c) 2023-2024.
  *
@@ -42,6 +44,7 @@ use Psc\Std\Stream\Exception\Exception;
 
 use function array_shift;
 use function fopen;
+use function P\onFork;
 use function P\promise;
 
 /**
@@ -129,12 +132,14 @@ class File extends StoreAbstract
     private array $monitors = [];
 
     /**
-     * @return void
+     *
      */
-    public function noticeFork(): void
+    public function __construct()
     {
-        while ($monitor = array_shift($this->monitors)) {
-            $monitor->stop();
-        }
+        onFork(function () {
+            while ($monitor = array_shift($this->monitors)) {
+                $monitor->stop();
+            }
+        });
     }
 }

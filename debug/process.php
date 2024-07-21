@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 /*
  * Copyright (c) 2023-2024.
@@ -33,20 +35,4 @@
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-use function P\run;
-
 include_once __DIR__ . '/../vendor/autoload.php';
-
-\P\repeat(function () {
-    \var_dump(\posix_getpid());
-}, 1);
-
-\P\defer(function () {
-    $task = P\System::Process()->task(function () {
-        \var_dump(\posix_getpid());
-    });
-
-    $task->run();
-});
-
-run();

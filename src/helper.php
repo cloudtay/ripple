@@ -38,12 +38,10 @@ namespace P;
 
 use Closure;
 use Psc\Core\Coroutine\Promise;
+use Psc\Kernel;
 use Revolt\EventLoop;
 use Revolt\EventLoop\UnsupportedFeatureException;
 use Throwable;
-
-use function call_user_func;
-use function usleep;
 
 /**
  * @param Promise $promise
@@ -52,7 +50,7 @@ use function usleep;
  */
 function await(Promise $promise): mixed
 {
-    return Coroutine::Async()->await($promise);
+    return Kernel::getInstance()->await($promise);
 }
 
 /**
@@ -62,7 +60,7 @@ function await(Promise $promise): mixed
  */
 function async(Closure $closure): Promise
 {
-    return Coroutine::Async()->async($closure);
+    return Kernel::getInstance()->async($closure);
 }
 
 /**
@@ -71,7 +69,7 @@ function async(Closure $closure): Promise
  */
 function promise(Closure $closure): Promise
 {
-    return new Promise($closure);
+    return Kernel::getInstance()->promise($closure);
 }
 
 /**
@@ -81,7 +79,7 @@ function promise(Closure $closure): Promise
 function sleep(int|float $second): void
 {
     $suspension = EventLoop::getSuspension();
-    delay(fn () => $suspension->resume(), $second);
+    Kernel::getInstance()->delay(fn () => $suspension->resume(), $second);
     $suspension->suspend();
 }
 
@@ -92,7 +90,7 @@ function sleep(int|float $second): void
  */
 function delay(Closure $closure, int|float $second): string
 {
-    return EventLoop::delay($second, $closure);
+    return Kernel::getInstance()->delay($closure, $second);
 }
 
 /**
@@ -101,7 +99,7 @@ function delay(Closure $closure, int|float $second): string
  */
 function defer(Closure $closure): void
 {
-    EventLoop::defer($closure);
+    Kernel::getInstance()->defer($closure);
 }
 
 /**
@@ -110,7 +108,7 @@ function defer(Closure $closure): void
  */
 function cancel(string $id): void
 {
-    EventLoop::cancel($id);
+    Kernel::getInstance()->cancel($id);
 }
 
 /**
@@ -120,9 +118,7 @@ function cancel(string $id): void
  */
 function repeat(Closure $closure, int|float $second): string
 {
-    return EventLoop::repeat($second, function ($cancelId) use ($closure) {
-        call_user_func($closure, fn () => EventLoop::cancel($cancelId));
-    });
+    return Kernel::getInstance()->repeat($closure, $second);
 }
 
 /**
@@ -133,7 +129,7 @@ function repeat(Closure $closure, int|float $second): string
  */
 function onSignal(int $signal, Closure $closure): void
 {
-    System::Process()->onSignal($signal, $closure);
+    Kernel::getInstance()->onSignal($signal, $closure);
 }
 
 /**
@@ -142,7 +138,7 @@ function onSignal(int $signal, Closure $closure): void
  */
 function onFork(Closure $closure): void
 {
-    System::Process()->onFork($closure);
+    Kernel::getInstance()->onFork($closure);
 }
 
 /**
@@ -151,26 +147,5 @@ function onFork(Closure $closure): void
  */
 function run(int $microseconds = 100000): void
 {
-    //预加载阶段进入loop,凡跳出P_RIPPLE_MAIN者声明预加载完毕
-    $_SERVER['P_RIPPLE_MAIN'] = EventLoop::getSuspension();
-    $id                       = repeat(fn () => null, 1);
-    $reinstall                = $_SERVER['P_RIPPLE_MAIN']->suspend();
-
-    cancel($id);
-
-    EventLoop::getDriver()->stop();
-    EventLoop::getDriver()->run();
-    EventLoop::setDriver(
-        (new EventLoop\DriverFactory())->create()
-    );
-
-    if ($reinstall) {
-        $reinstall();
-    }
-
-    //loop
-    while (1) {
-        EventLoop::run();
-        usleep($microseconds);
-    }
+    Kernel::getInstance()->run();
 }

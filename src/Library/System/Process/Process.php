@@ -40,14 +40,14 @@ use Closure;
 use JetBrains\PhpStorm\NoReturn;
 use Psc\Core\Output;
 use Psc\Core\StoreAbstract;
-use Psc\Library\IO\FIle\File;
+use Psc\Kernel;
 use Psc\Library\System\Exception\ProcessException;
 use Revolt\EventLoop;
 use Revolt\EventLoop\UnsupportedFeatureException;
 use Throwable;
-use Fiber;
 
 use function array_pop;
+use function array_unshift;
 use function call_user_func;
 use function P\defer;
 use function P\promise;
@@ -60,15 +60,14 @@ use function pcntl_wexitstatus;
 use function pcntl_wifexited;
 use function posix_getpid;
 use function posix_getppid;
-use function array_unshift;
 
+use const SIGCHLD;
+use const SIGINT;
 use const SIGKILL;
+use const SIGQUIT;
 use const SIGTERM;
 use const WNOHANG;
 use const WUNTRACED;
-use const SIGCHLD;
-use const SIGINT;
-use const SIGQUIT;
 
 /**
  *
@@ -101,12 +100,6 @@ class Process extends StoreAbstract
     public function __construct()
     {
         $this->registerSignalHandler();
-    }
-
-    #[NoReturn] public function __destruct()
-    {
-        $this->destroy();
-        exit(0);
     }
 
     /**
@@ -210,8 +203,6 @@ class Process extends StoreAbstract
     {
         $this->registerSignalHandler();
 
-        File::getInstance()->noticeFork();
-
         while ($closure = array_pop($this->onFork)) {
             try {
                 $closure();
@@ -266,17 +257,13 @@ class Process extends StoreAbstract
                     run();
                 }
 
-                //reset drive
-                $_SERVER['P_RIPPLE_MAIN']->resume(function () use ($closure, $args) {
+                Kernel::getInstance()->reinstall(function () use ($closure, $args) {
                     //reload process event
                     $this->noticeFork();
 
                     //call user function
                     call_user_func($closure, ...$args);
-                });
-
-                //jump out to loop
-                Fiber::suspend();
+                }, true);
             }
 
             $promise = promise(function ($r, $d) use ($processId) {
