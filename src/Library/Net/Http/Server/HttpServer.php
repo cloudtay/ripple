@@ -43,7 +43,6 @@ use Psc\Library\Net\Http\Server\Upload\MultipartHandler;
 use Psc\Std\Stream\Exception\RuntimeException;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Throwable;
-
 use function call_user_func;
 use function call_user_func_array;
 use function count;
@@ -63,7 +62,6 @@ use function strtok;
 use function strtolower;
 use function strtoupper;
 use function substr;
-
 use const PHP_URL_PATH;
 use const SO_KEEPALIVE;
 use const SO_RCVBUF;
@@ -106,7 +104,7 @@ class HttpServer
             $tcpAddressExploded = explode(':', $tcpAddress);
             $host               = $tcpAddressExploded[0];
             $port               = $tcpAddressExploded[1] ?? match ($scheme) {
-                'http' => 80,
+                'http'  => 80,
                 'https' => 443,
                 default => throw new RuntimeException('Address format error')
             };
@@ -115,7 +113,7 @@ class HttpServer
              * @var SocketStream $server
              */
             $this->server = match ($scheme) {
-                'http' => await(IO::Socket()->streamSocketServer("tcp://{$host}:{$port}", $context)),
+                'http'  => await(IO::Socket()->streamSocketServer("tcp://{$host}:{$port}", $context)),
                 'https' => await(IO::Socket()->streamSocketServerSSL("ssl://{$host}:{$port}", $context)),
                 default => throw new RuntimeException('Address format error')
             };
@@ -378,7 +376,7 @@ class HttpServer
                             $cookie = explode('; ', $cookie);
                             foreach ($cookie as $item) {
                                 $item                    = explode('=', $item);
-                                $this->cookies[$item[0]] = $item[1];
+                                $this->cookies[$item[0]] = rawurldecode($item[1]);
                             }
                         }
 
@@ -391,6 +389,20 @@ class HttpServer
                             } else {
                                 parse_str($this->content, $this->request);
                             }
+                        }
+
+                        /**
+                         * 解析用户IP信息
+                         */
+
+                        $address = $this->stream->getAddress();
+                        $host    = $this->stream->getHost();
+                        $port    = $this->stream->getPort();
+
+                        $this->server['REMOTE_ADDR'] = $host;
+                        $this->server['REMOTE_PORT'] = $port;
+                        if ($xForwardedProto = $this->server['HTTP_X_FORWARDED_PROTO'] ?? null) {
+                            $this->server['HTTPS'] = $xForwardedProto === 'https' ? 'on' : 'off';
                         }
 
                         $symfonyRequest = new Request(

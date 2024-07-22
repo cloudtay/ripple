@@ -1,4 +1,5 @@
 <?php declare(strict_types=1);
+
 /*
  * Copyright (c) 2023-2024.
  *
@@ -35,7 +36,6 @@
 use P\IO;
 use Psc\Library\Net\Http\Server\Request;
 use Psc\Library\Net\Http\Server\Response;
-use Psc\Library\System\Process\Task;
 
 use function P\await;
 use function P\run;
@@ -51,8 +51,9 @@ $context = \stream_context_create([
     ],
 ]);
 
-$server            = P\Net::Http()->server('http://127.0.0.1:8008', $context);
-$handler           = function (Request $request, Response $response) {
+
+$server  = P\Net::Http()->server('http://127.0.0.1:8008', $context);
+$handler = function (Request $request, Response $response) {
     if ($request->getMethod() === 'POST') {
         $files = $request->files->get('file');
         $data  = [];
@@ -96,38 +97,7 @@ $handler           = function (Request $request, Response $response) {
         $response->respond();
     }
 };
-$server->onRequest = $handler;
-
-$runtimes = [];
-
-function guard(Task $task, array &$runtimes): void
-{
-    $runtime = $task->run(); // Start the task
-    $runtime->finally(function () use ($task, $runtime, &$runtimes) {
-        unset($runtimes[\spl_object_hash($runtime)]);
-        \guard($task, $runtimes);
-    });
-    $runtimes[\spl_object_hash($runtime)] = $runtime;
-}
-
-function reload(array $runtimes): void
-{
-    while ($runtime = \array_shift($runtimes)) {
-        $runtime->stop();
-    }
-}
-
-$task = P\System::Process()->task(fn () => $server->listen());
-
-for ($i = 0; $i < 1; $i++) {
-    \guard($task, $runtimes);
-}
-
-$monitor           = P\IO::File()->watch(__DIR__);
-$monitor->onModify = fn () => \reload($runtimes);
-$monitor->onRemove = fn () => \reload($runtimes);
-$monitor->onTouch  = fn () => \reload($runtimes);
-
 run();
+
 
 // Compare this snippet from src/Store/IO/FIle/Monitor.php:

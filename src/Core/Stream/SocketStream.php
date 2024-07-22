@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 /*
  * Copyright (c) 2023-2024.
  *
@@ -51,6 +53,10 @@ use function sys_get_temp_dir;
 use function uniqid;
 use function unlink;
 
+use function explode;
+use function intval;
+use function stream_socket_get_name;
+
 use const SO_SNDLOWAT;
 use const SOL_SOCKET;
 
@@ -74,13 +80,45 @@ class SocketStream extends Stream
     private Stream|null $storageCacheRead = null;
 
     /**
-     * @param mixed $resource
+     * @var string|null
      */
-    public function __construct(mixed $resource)
+    private string|null $address;
+
+    /**
+     * @var string|null
+     */
+    private string|null $host;
+
+    /**
+     * @var int|null
+     */
+    private int|null $port;
+
+    /**
+     * @param mixed       $resource
+     * @param string|null $peerName
+     */
+    public function __construct(mixed $resource, string|null $peerName = null)
     {
         parent::__construct($resource);
 
         $this->socket = socket_import_stream($this->stream);
+
+        if (!$peerName) {
+            $peerName = stream_socket_get_name($this->stream, true);
+        }
+
+        if ($peerName === false) {
+            $peerName = null;
+        }
+
+        $this->address = $peerName;
+
+        if ($this->address) {
+            $exploded   = explode(':', $this->address);
+            $this->host = $exploded[0];
+            $this->port = intval($exploded[1] ?? 0);
+        }
     }
 
     /**
@@ -88,11 +126,11 @@ class SocketStream extends Stream
      */
     public function accept(int|float $timeout = 0): SocketStream
     {
-        $socket = stream_socket_accept($this->stream, $timeout);
+        $socket = stream_socket_accept($this->stream, $timeout, $peerName);
         if ($socket === false) {
             throw new RuntimeException('Failed to accept connection: ' . socket_strerror(socket_last_error($this->socket)));
         }
-        return new static($socket);
+        return new static($socket, $peerName);
     }
 
     /**
@@ -180,5 +218,29 @@ class SocketStream extends Stream
             throw new RuntimeException('Failed to get socket option: ' . socket_strerror(socket_last_error($this->socket)));
         }
         return $option;
+    }
+
+    /**
+     * @return string
+     */
+    public function getAddress(): string
+    {
+        return $this->address;
+    }
+
+    /**
+     * @return string
+     */
+    public function getHost(): string
+    {
+        return $this->host;
+    }
+
+    /**
+     * @return int
+     */
+    public function getPort(): int
+    {
+        return $this->port;
     }
 }

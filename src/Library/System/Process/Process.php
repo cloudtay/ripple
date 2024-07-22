@@ -168,6 +168,7 @@ class Process extends StoreAbstract
     #[NoReturn] public function onQuitSignal($signal): void
     {
         $this->destroy($signal);
+        exit(0);
     }
 
     /**
