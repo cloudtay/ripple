@@ -88,7 +88,7 @@ class Guzzle extends StoreAbstract
     public function __construct()
     {
         $this->install();
-        onFork(fn () => $this->install());
+        $this->registerOnFork();
     }
 
     /**
@@ -202,6 +202,17 @@ class Guzzle extends StoreAbstract
     {
         return promise(function (Closure $r, Closure $d) use ($uri, $options) {
             $this->client()->patchAsync($uri, $options)->then($r, $d);
+        });
+    }
+
+    /**
+     * @return void
+     */
+    private function registerOnFork(): void
+    {
+        onFork(function () {
+            $this->install();
+            $this->registerOnFork();
         });
     }
 }

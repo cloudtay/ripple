@@ -42,6 +42,7 @@ use Psc\Core\Coroutine\Exception;
 use Psc\Core\Coroutine\Promise;
 use Psc\Core\StoreAbstract;
 use Throwable;
+
 use function P\onFork;
 use function spl_object_hash;
 
@@ -144,8 +145,17 @@ class Async extends StoreAbstract
      */
     public function __construct()
     {
+        $this->registerOnFork();
+    }
+
+    /**
+     * @return void
+     */
+    private function registerOnFork(): void
+    {
         onFork(function () {
             $this->fiber2promise = [];
+            $this->registerOnFork();
         });
     }
 }

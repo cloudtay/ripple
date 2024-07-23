@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 /*
  * Copyright (c) 2023-2024.
  *
@@ -153,8 +155,9 @@ class Monitor
                         continue;
                     }
                 }
+            } else {
+                continue;
             }
-
             $this->foundFile($fileInfo);
         }
     }

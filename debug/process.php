@@ -36,3 +36,34 @@ declare(strict_types=1);
  */
 
 include_once __DIR__ . '/../vendor/autoload.php';
+
+$task = \P\System::Process()->task(function () {
+    while (1) {
+        \sleep(1);
+        \var_dump(\posix_getpid());
+    }
+});
+
+$runtime = $task->run();
+
+\P\delay(function () use ($task, &$runtime) {
+    $runtime->stop();
+}, 3);
+
+\P\delay(function () use ($task, &$runtime) {
+    $runtime = $task->run();
+}, 5);
+
+\P\delay(function () use ($task, &$runtime) {
+    $runtime->stop();
+}, 7);
+
+\P\delay(function () use ($task, &$runtime) {
+    $runtime = $task->run();
+}, 9);
+
+\P\delay(function () use ($task, &$runtime) {
+    $runtime->stop();
+}, 11);
+
+\P\run();

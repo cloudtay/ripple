@@ -1,6 +1,4 @@
-<?php
-
-declare(strict_types=1);
+<?php declare(strict_types=1);
 /*
  * Copyright (c) 2023-2024.
  *
@@ -136,10 +134,19 @@ class File extends StoreAbstract
      */
     public function __construct()
     {
+        $this->registerOnFork();
+    }
+
+    /**
+     * @return void
+     */
+    private function registerOnFork(): void
+    {
         onFork(function () {
             while ($monitor = array_shift($this->monitors)) {
                 $monitor->stop();
             }
+            $this->registerOnFork();
         });
     }
 }

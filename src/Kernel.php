@@ -1,6 +1,4 @@
-<?php
-
-declare(strict_types=1);
+<?php declare(strict_types=1);
 /*
  * Copyright (c) 2023-2024.
  *
@@ -38,7 +36,6 @@ namespace Psc;
 
 use Closure;
 use Fiber;
-use JetBrains\PhpStorm\NoReturn;
 use P\Coroutine;
 use P\System;
 use Psc\Core\Coroutine\Promise;
@@ -48,7 +45,6 @@ use Throwable;
 
 use function call_user_func;
 use function count;
-use function P\defer;
 
 class Kernel
 {
@@ -232,16 +228,5 @@ class Kernel
     public function handleOnMain(Closure $closure): void
     {
         $this->mainSuspension->resume($closure);
-    }
-
-    /**
-     *
-     */
-    #[NoReturn] public function __destruct()
-    {
-        defer(function () {
-            EventLoop::getDriver()->stop();
-            exit(0);
-        });
     }
 }

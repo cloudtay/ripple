@@ -37,7 +37,6 @@ declare(strict_types=1);
 namespace Psc\Library\System\Process;
 
 use Closure;
-use JetBrains\PhpStorm\NoReturn;
 use Psc\Core\Output;
 use Psc\Core\StoreAbstract;
 use Psc\Kernel;
@@ -50,21 +49,16 @@ use function array_pop;
 use function array_unshift;
 use function call_user_func;
 use function P\promise;
-use function P\repeat;
 use function P\run;
 use function pcntl_fork;
 use function pcntl_wait;
-use function pcntl_waitpid;
 use function pcntl_wexitstatus;
 use function pcntl_wifexited;
 use function posix_getpid;
 use function posix_getppid;
 
 use const SIGCHLD;
-use const SIGINT;
 use const SIGKILL;
-use const SIGQUIT;
-use const SIGTERM;
 use const WNOHANG;
 use const WUNTRACED;
 
@@ -102,23 +96,20 @@ class Process extends StoreAbstract
     }
 
     /**
+     *
+     */
+    public function __destruct()
+    {
+        $this->destroy();
+    }
+
+    /**
      * @return void
      * @throws UnsupportedFeatureException
      */
     private function registerSignalHandler(): void
     {
         $this->onSignal(SIGCHLD, fn () => $this->signalSIGCHLDHandler());
-        $this->onSignal(SIGTERM, fn () => $this->onQuitSignal(SIGTERM));
-        $this->onSignal(SIGINT, fn () => $this->onQuitSignal(SIGINT));
-        $this->onSignal(SIGQUIT, fn () => $this->onQuitSignal(SIGQUIT));
-
-        repeat(function () {
-            foreach ($this->process2runtime as $key => $p) {
-                if ($childrenId = pcntl_waitpid($key, $status, WNOHANG)) {
-                    $this->onProcessExit($childrenId, $status);
-                }
-            }
-        }, 1);
     }
 
 
@@ -162,20 +153,9 @@ class Process extends StoreAbstract
     }
 
     /**
-     * @param $signal
      * @return void
      */
-    #[NoReturn] public function onQuitSignal($signal): void
-    {
-        $this->destroy($signal);
-        exit(0);
-    }
-
-    /**
-     * @param int $signal
-     * @return void
-     */
-    private function destroy(int $signal = SIGTERM): void
+    private function destroy(): void
     {
         foreach ($this->process2runtime as $runtime) {
             $runtime->signal(SIGKILL);
@@ -197,10 +177,13 @@ class Process extends StoreAbstract
      */
     public function noticeFork(): void
     {
+        $this->signal2EventId = [];
+
         $this->registerSignalHandler();
 
-        while ($closure = array_pop($this->onFork)) {
+        foreach ($this->onFork as $key => $closure) {
             try {
+                unset($this->onFork[$key]);
                 $closure();
             } catch (Throwable $e) {
                 Output::error($e->getMessage());
@@ -249,13 +232,14 @@ class Process extends StoreAbstract
                     $this->noticeFork();
 
                     call_user_func($closure, ...$args);
-
                     run();
                 }
 
                 Kernel::getInstance()->reinstall(function () use ($closure, $args) {
+
                     //reload process event
                     $this->noticeFork();
+
 
                     //call user function
                     call_user_func($closure, ...$args);
@@ -285,6 +269,11 @@ class Process extends StoreAbstract
     private array $signal2Handler = [];
 
     /**
+     * @var array
+     */
+    private array $signal2EventId = [];
+
+    /**
      * @param int     $signalCode
      * @param Closure $handler
      * @return void
@@ -294,8 +283,10 @@ class Process extends StoreAbstract
     {
         if (!isset($this->signal2Handler[$signalCode])) {
             $this->signal2Handler[$signalCode] = [];
+        }
 
-            EventLoop::onSignal($signalCode, function () use ($signalCode) {
+        if (!isset($this->signal2EventId[$signalCode])) {
+            $this->signal2EventId[$signalCode] = EventLoop::onSignal($signalCode, function () use ($signalCode) {
                 $this->signalHandler($signalCode);
             });
         }
