@@ -176,25 +176,28 @@ class Kernel
     public EventLoop\Suspension $mainSuspension;
 
     /**
-     * @param int $microseconds
      * @return void
      */
-    public function run(int $microseconds = 100000): void
+    public function run(): void
     {
         //loop
         while (1) {
-            //预加载阶段进入loop,凡跳出者声明预加载完毕
+            //the preloading phase enters the loop, and anyone who jumps out declares that preloading is complete.
             $this->mainSuspension = EventLoop::getSuspension();
 
-            if (count(EventLoop::getIdentifiers()) === 0) {
-                //无事可做
+            if (count($this->getIdentities()) === 0) {
+                //nothing to do
                 break;
             }
 
-            $reinstall = $this->mainSuspension->suspend();
-
-            if ($reinstall) {
-                $reinstall();
+            try {
+                $callInMainStack = $this->mainSuspension->suspend();
+                if ($callInMainStack) {
+                    $callInMainStack();
+                }
+            } catch (Throwable) {
+                //nothing to do
+                break;
             }
         }
     }
@@ -207,11 +210,12 @@ class Kernel
      */
     public function reinstall(Closure|null $configure = null, bool $jumpMain = false): void
     {
-        $this->handleOnMain(function () use ($configure) {
+        $this->callInMainStack(function () use ($configure) {
+            $this->cancelAll();
+
             $originDriver = EventLoop::getDriver();
             $originDriver->stop();
-
-            @$originDriver->run();
+            $originDriver->run();
 
             EventLoop::setDriver(
                 (new EventLoop\DriverFactory())->create()
@@ -231,8 +235,34 @@ class Kernel
      * @param Closure $closure
      * @return void
      */
-    public function handleOnMain(Closure $closure): void
+    public function callInMainStack(Closure $closure): void
     {
         $this->mainSuspension->resume($closure);
+    }
+
+    /**
+     * @return void
+     */
+    public function stop(): void
+    {
+        EventLoop::getDriver()->stop();
+    }
+
+    /**
+     * @return void
+     */
+    public function cancelAll(): void
+    {
+        foreach ($this->getIdentities() as $identifier) {
+            $this->cancel($identifier);
+        }
+    }
+
+    /**
+     * @return array
+     */
+    public function getIdentities(): array
+    {
+        return EventLoop::getIdentifiers();
     }
 }

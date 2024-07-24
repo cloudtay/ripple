@@ -123,20 +123,6 @@ class Async extends StoreAbstract
             });
 
             $fiber->start($r, $d);
-
-            if (!$fiber->isRunning()) {
-                try {
-                    $result = $fiber->getReturn();
-
-                    if ($promise->getStatus() === Promise::PENDING) {
-                        $r($result);
-                    }
-                } catch (Throwable $e) {
-                    if ($promise->getStatus() === Promise::PENDING) {
-                        $d($e);
-                    }
-                }
-            }
         });
     }
 

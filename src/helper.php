@@ -112,6 +112,24 @@ function cancel(string $id): void
 }
 
 /**
+ * @return void
+ */
+function cancelAll(): void
+{
+    foreach (getIdentities() as $identity) {
+        cancel($identity);
+    }
+}
+
+/**
+ * @return array
+ */
+function getIdentities(): array
+{
+    return Kernel::getInstance()->getIdentities();
+}
+
+/**
  * @param Closure(Closure):void $closure
  * @param int|float             $second
  * @return string
@@ -142,10 +160,28 @@ function onFork(Closure $closure): void
 }
 
 /**
- * @param int $microseconds
+ * @param Closure|null $closure
+ * @param bool|null    $jumpMain
+ * @return void
+ * @throws Throwable
+ */
+function reinstall(Closure|null $closure, bool|null $jumpMain = null): void
+{
+    Kernel::getInstance()->reinstall($closure, $jumpMain);
+}
+
+/**
  * @return void
  */
-function run(int $microseconds = 100000): void
+function run(): void
 {
     Kernel::getInstance()->run();
+}
+
+/**
+ * @return void
+ */
+function stop(): void
+{
+    Kernel::getInstance()->stop();
 }

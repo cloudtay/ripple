@@ -78,9 +78,9 @@ class Guzzle extends StoreAbstract
 
     /**
      * 慢转齿轮
-     * @var string
+     * @var string|null
      */
-    private string $timerSlow;
+    private string|null $timerSlow = null;
 
     /**
      *
@@ -94,20 +94,45 @@ class Guzzle extends StoreAbstract
     /**
      * @return void
      */
+    private function registerOnFork(): void
+    {
+        onFork(function () {
+            $this->install();
+            $this->registerOnFork();
+        });
+    }
+
+    /**
+     * @return void
+     */
     private function install(): void
     {
         $this->curlMultiHandler = new CurlMultiHandler();
         $this->handlerStack     = HandlerStack::create($this->curlMultiHandler);
-        $this->timerSlow        = repeat(function () {
-            if ($this->timerFast && Utils::queue()->isEmpty()) {
+        $this->registerTimer();
+    }
+
+    /**
+     * @return void
+     */
+    private function registerTimer(): void
+    {
+        $this->timerFast = repeat(function () {
+            $this->curlMultiHandler->tick();
+
+            if (Utils::queue()->isEmpty()) {
                 cancel($this->timerFast);
                 $this->timerFast = null;
-            } elseif ($this->timerFast === null) {
-                $this->timerFast = repeat(function () {
+                $this->timerSlow = repeat(function () {
                     $this->curlMultiHandler->tick();
-                }, 0.1);
+                    if (!Utils::queue()->isEmpty()) {
+                        cancel($this->timerSlow);
+                        $this->timerSlow = null;
+                        $this->registerTimer();
+                    }
+                }, 1);
             }
-        }, 1);
+        }, 0.1);
     }
 
     /**
@@ -202,17 +227,6 @@ class Guzzle extends StoreAbstract
     {
         return promise(function (Closure $r, Closure $d) use ($uri, $options) {
             $this->client()->patchAsync($uri, $options)->then($r, $d);
-        });
-    }
-
-    /**
-     * @return void
-     */
-    private function registerOnFork(): void
-    {
-        onFork(function () {
-            $this->install();
-            $this->registerOnFork();
         });
     }
 }

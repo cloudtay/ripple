@@ -1,5 +1,6 @@
-<?php declare(strict_types=1);
+<?php
 
+declare(strict_types=1);
 /*
  * Copyright (c) 2023-2024.
  *
@@ -33,20 +34,68 @@
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
+namespace Tests;
+
+use GuzzleHttp\Psr7\Response;
+use P\Net;
+use PHPUnit\Framework\TestCase;
+use Throwable;
+
+use function hash;
 use function P\async;
 use function P\await;
 use function P\run;
+use function P\stop;
+use function uniqid;
 
-include_once __DIR__ . '/../vendor/autoload.php';
+class HttpTest extends TestCase
+{
+    /**
+     * @return
+     */
+    public function test_httpServerGet(): void
+    {
+        $answer = hash('sha256', uniqid());
 
-$a = async(function ($r, $d) {
-    \P\sleep(3);
-    $r(1);
-});
+        async(function () use ($answer) {
+            try {
+                /**
+                 * @var Response $response
+                 */
+                $response = await(Net::Http()->Guzzle()->getAsync('http://127.0.0.1:8008/', [
+                    'query' => [
+                        'hash' => $answer,
+                    ]
+                ]));
+                $this->assertEquals($answer, $response->getBody()->getContents());
+            } catch (Throwable $exception) {
+                $this->fail($exception->getMessage());
+            } finally {
+                stop();
+            }
+        });
 
-async(function () use ($a) {
-    $result = await($a);
-    \var_dump($result);
-});
+        run();
+    }
 
-run();
+    public function test_httpServerPost(): void
+    {
+        $answer = hash('sha256', uniqid());
+
+        Net::Http()->Guzzle()->postAsync('http://127.0.0.1:8008/', [
+            'body'    => $answer,
+            'timeout' => 5,
+        ])
+            ->then(function (Response $response) use ($answer) {
+                $this->assertEquals($answer, $response->getBody()->getContents());
+            })
+            ->except(function (Throwable $throwable) {
+                $this->fail($throwable->getMessage());
+            })
+            ->finally(function () {
+                stop();
+            });
+
+        run();
+    }
+}

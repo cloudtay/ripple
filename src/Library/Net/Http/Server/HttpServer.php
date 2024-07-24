@@ -55,6 +55,7 @@ use function P\await;
 use function parse_str;
 use function parse_url;
 use function preg_match;
+use function rawurldecode;
 use function str_contains;
 use function str_replace;
 use function strlen;
@@ -63,7 +64,6 @@ use function strtok;
 use function strtolower;
 use function strtoupper;
 use function substr;
-use function rawurldecode;
 
 use const PHP_URL_PATH;
 use const SO_KEEPALIVE;
@@ -107,7 +107,7 @@ class HttpServer
             $tcpAddressExploded = explode(':', $tcpAddress);
             $host               = $tcpAddressExploded[0];
             $port               = $tcpAddressExploded[1] ?? match ($scheme) {
-                'http'  => 80,
+                'http' => 80,
                 'https' => 443,
                 default => throw new RuntimeException('Address format error')
             };
@@ -116,7 +116,7 @@ class HttpServer
              * @var SocketStream $server
              */
             $this->server = match ($scheme) {
-                'http'  => await(IO::Socket()->streamSocketServer("tcp://{$host}:{$port}", $context)),
+                'http' => await(IO::Socket()->streamSocketServer("tcp://{$host}:{$port}", $context)),
                 'https' => await(IO::Socket()->streamSocketServerSSL("ssl://{$host}:{$port}", $context)),
                 default => throw new RuntimeException('Address format error')
             };
@@ -293,11 +293,9 @@ class HttpServer
                             if ($method === 'GET') {
                                 $this->bodyLength = 0;
                                 $this->step       = 2;
-                            }
-
-                            if ($method === 'POST') {
+                            } elseif ($method === 'POST') {
                                 if (!$contentType = $this->server['HTTP_CONTENT_TYPE'] ?? null) {
-                                    throw new RuntimeException('Content-Type is not set');
+                                    $contentType = '';
                                 }
 
                                 if (!isset($this->server['HTTP_CONTENT_LENGTH'])) {
@@ -322,7 +320,7 @@ class HttpServer
 
                                         try {
                                             $this->requestUpload->push($this->content);
-                                        } catch (Throwable $e) {
+                                        } catch (Throwable) {
                                             $this->stream->close();
                                             return;
                                         }
@@ -335,7 +333,10 @@ class HttpServer
                                 } elseif ($this->bodyLength > intval($this->server['HTTP_CONTENT_LENGTH'])) {
                                     throw new RuntimeException('Content-Length is not match');
                                 }
+                            } elseif ($method === 'OPTIONS') {
+                                $this->step = 2;
                             }
+
                             $this->buffer = '';
                         }
                     }
@@ -361,7 +362,7 @@ class HttpServer
                         try {
                             $this->requestUpload->push($this->buffer);
                             $this->buffer = '';
-                        } catch (Throwable $e) {
+                        } catch (Throwable) {
                             $this->stream->close();
                             return;
                         }
@@ -387,7 +388,7 @@ class HttpServer
                          * 解析body
                          */
                         if ($this->server['REQUEST_METHOD'] === 'POST') {
-                            if (str_contains($this->server['HTTP_CONTENT_TYPE'], 'application/json')) {
+                            if (str_contains($this->server['HTTP_CONTENT_TYPE'] ?? '', 'application/json')) {
                                 $this->request = json_decode($this->content, true);
                             } else {
                                 parse_str($this->content, $this->request);
@@ -423,7 +424,10 @@ class HttpServer
                                      strtolower($symfonyRequest->headers->get('Connection')) === 'keep-alive';
 
                         $symfonyResponse = new Response($this->stream, function () use ($keepAlive) {
-                            $keepAlive ? $this->reset() : $this->stream->close();
+                            if (!$keepAlive) {
+                                $this->stream->close();
+                            }
+                            $this->reset();
                         });
 
                         try {

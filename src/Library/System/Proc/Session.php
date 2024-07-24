@@ -144,7 +144,7 @@ class Session
      */
     public function input(string $content): bool
     {
-        return $this->write("{$content}\r\n");
+        return $this->write("{$content}\n");
     }
 
     /**

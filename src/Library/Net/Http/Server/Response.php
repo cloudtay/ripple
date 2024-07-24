@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 /*
  * Copyright (c) 2023-2024.
  *
@@ -156,9 +158,7 @@ class Response extends \Symfony\Component\HttpFoundation\Response
         if (is_string($this->body)) {
             $this->stream->write($this->body);
             $this->done();
-        }
-
-        if ($this->body instanceof Stream) {
+        } elseif ($this->body instanceof Stream) {
             $this->body->onReadable(function () {
                 $this->stream->write($this->body->read(8192));
                 if ($this->body->eof()) {
@@ -166,6 +166,8 @@ class Response extends \Symfony\Component\HttpFoundation\Response
                     $this->done();
                 }
             });
+        } else {
+            $this->done();
         }
 
         return $this;
