@@ -54,7 +54,7 @@ class PDrive
     public function execute(): void
     {
         $monitor = IO::File()->watch(__DIR__, 'php');
-        $pid = \posix_getpid();
+        $pid     = \posix_getpid();
 
         $monitor->onTouch = function (string $file) use ($pid) {
             Output::warning("File touched: {$file}");

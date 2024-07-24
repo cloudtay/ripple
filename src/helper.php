@@ -124,12 +124,12 @@ function repeat(Closure $closure, int|float $second): string
 /**
  * @param int     $signal
  * @param Closure $closure
- * @return void
+ * @return string
  * @throws UnsupportedFeatureException
  */
-function onSignal(int $signal, Closure $closure): void
+function onSignal(int $signal, Closure $closure): string
 {
-    Kernel::getInstance()->onSignal($signal, $closure);
+    return Kernel::getInstance()->onSignal($signal, $closure);
 }
 
 /**

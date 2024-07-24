@@ -45,7 +45,6 @@ use Revolt\EventLoop;
 use Revolt\EventLoop\UnsupportedFeatureException;
 use Throwable;
 
-use function array_pop;
 use function array_unshift;
 use function call_user_func;
 use function P\promise;
@@ -276,10 +275,10 @@ class Process extends StoreAbstract
     /**
      * @param int     $signalCode
      * @param Closure $handler
-     * @return void
+     * @return string
      * @throws UnsupportedFeatureException
      */
-    public function onSignal(int $signalCode, Closure $handler): void
+    public function onSignal(int $signalCode, Closure $handler): string
     {
         if (!isset($this->signal2Handler[$signalCode])) {
             $this->signal2Handler[$signalCode] = [];
@@ -292,6 +291,7 @@ class Process extends StoreAbstract
         }
 
         array_unshift($this->signal2Handler[$signalCode], $handler);
+        return $this->signal2EventId[$signalCode];
     }
 
     /**
@@ -302,6 +302,21 @@ class Process extends StoreAbstract
     {
         foreach ($this->signal2Handler[$signalCode] as $handler) {
             $handler($signalCode);
+        }
+    }
+
+    /**
+     * @param string $id
+     * @return void
+     */
+    public function cancelSignalEvent(string $id): void
+    {
+        foreach ($this->signal2EventId as $signalCode => $eventId) {
+            if ($eventId === $id) {
+                unset($this->signal2EventId[$signalCode]);
+                unset($this->signal2Handler[$signalCode]);
+                break;
+            }
         }
     }
 }

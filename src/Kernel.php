@@ -39,7 +39,9 @@ use Fiber;
 use P\Coroutine;
 use P\System;
 use Psc\Core\Coroutine\Promise;
+use Psc\Library\System\Process\Process;
 use Revolt\EventLoop;
+use Revolt\EventLoop\CallbackType;
 use Revolt\EventLoop\UnsupportedFeatureException;
 use Throwable;
 
@@ -129,6 +131,10 @@ class Kernel
      */
     public function cancel(string $id): void
     {
+        if (EventLoop::getType($id) === CallbackType::Signal) {
+            Process::getInstance()->cancelSignalEvent($id);
+        }
+
         EventLoop::cancel($id);
     }
 
@@ -147,12 +153,12 @@ class Kernel
     /**
      * @param int     $signal
      * @param Closure $closure
-     * @return void
+     * @return string
      * @throws UnsupportedFeatureException
      */
-    public function onSignal(int $signal, Closure $closure): void
+    public function onSignal(int $signal, Closure $closure): string
     {
-        System::Process()->onSignal($signal, $closure);
+        return System::Process()->onSignal($signal, $closure);
     }
 
     /**
