@@ -59,17 +59,17 @@ class Stream implements StreamInterface
     /**
      * @var resource
      */
-    public mixed $stream;
+    public readonly mixed $stream;
 
     /**
      * @var int $id
      */
-    public int $id;
+    public readonly int $id;
 
     /**
      * @var array $meta
      */
-    public array $meta;
+    public readonly array $meta;
 
     /**
      * Stream constructor.

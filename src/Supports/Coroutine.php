@@ -34,7 +34,7 @@
 
 namespace P;
 
-use Psc\Library\Coroutine\Async;
+use Psc\Library\Coroutine\Coroutine as CoroutineLibrary;
 
 /**
  *
@@ -42,10 +42,10 @@ use Psc\Library\Coroutine\Async;
 class Coroutine
 {
     /**
-     * @return Async
+     * @return CoroutineLibrary
      */
-    public static function Async(): Async
+    public static function Async(): CoroutineLibrary
     {
-        return Async::getInstance();
+        return CoroutineLibrary::getInstance();
     }
 }

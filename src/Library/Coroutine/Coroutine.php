@@ -49,7 +49,7 @@ use function spl_object_hash;
 /**
  *
  */
-class Async extends StoreAbstract
+class Coroutine extends StoreAbstract
 {
     /**
      * @var StoreAbstract
@@ -69,9 +69,7 @@ class Async extends StoreAbstract
      */
     public function await(Promise $promise): mixed
     {
-        $fiber = Fiber::getCurrent();
-
-        if (!$fiber) {
+        if (!$fiber = Fiber::getCurrent()) {
             throw new Exception('The await function must be called in a coroutine.');
         }
 
@@ -123,15 +121,12 @@ class Async extends StoreAbstract
             });
 
             $fiber->start($r, $d);
-        });
-    }
 
-    /**
-     *
-     */
-    public function __construct()
-    {
-        $this->registerOnFork();
+            if($fiber->isTerminated()) {
+                $result = $fiber->getReturn();
+                $r($result);
+            }
+        });
     }
 
     /**
@@ -143,5 +138,13 @@ class Async extends StoreAbstract
             $this->fiber2promise = [];
             $this->registerOnFork();
         });
+    }
+
+    /**
+     *
+     */
+    public function __construct()
+    {
+        $this->registerOnFork();
     }
 }

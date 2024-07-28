@@ -8,7 +8,7 @@ use Psc\Library\Net\Http\Server\Response;
 use function P\repeat;
 use function P\run;
 
-include __DIR__ . '/vendor/autoload.php';
+include __DIR__ . '/../vendor/autoload.php';
 
 $context = \stream_context_create([
     'socket' => [

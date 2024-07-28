@@ -35,6 +35,8 @@
 namespace Psc\Library\Net\WebSocket;
 
 use Psc\Core\StoreAbstract;
+use Psc\Library\Net\WebSocket\Client\Connection;
+use Psc\Library\Net\WebSocket\Server\Server;
 
 /**
  *
@@ -60,10 +62,10 @@ class WebSocket extends StoreAbstract
     /**
      * @param string $address
      * @param mixed  $context
-     * @return void
+     * @return Server
      */
-    public function server(string $address, mixed $context): void
+    public function server(string $address, mixed $context): Server
     {
-        //TODO: Implement server() method.
+        return new Server($address, $context);
     }
 }

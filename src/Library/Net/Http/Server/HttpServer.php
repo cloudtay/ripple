@@ -48,6 +48,7 @@ use function call_user_func;
 use function call_user_func_array;
 use function count;
 use function explode;
+use function in_array;
 use function intval;
 use function json_decode;
 use function P\async;
@@ -179,7 +180,7 @@ class HttpServer
      */
     private function factory(SocketStream $stream): object
     {
-        return new class ($stream, fn (Request $request, Response $response) => $this->onRequest($request, $response)) {
+        return new class ($stream, fn (Request $request, Response $response) => $this->_onRequest($request, $response)) {
             private int                   $step;
             private array                 $query;
             private array                 $request;
@@ -204,7 +205,7 @@ class HttpServer
             /**
              * @return void
              */
-            public function reset(): void
+            private function reset(): void
             {
                 $this->step          = 0;
                 $this->query         = [];
@@ -333,7 +334,7 @@ class HttpServer
                                 } elseif ($this->bodyLength > intval($this->server['HTTP_CONTENT_LENGTH'])) {
                                     throw new RuntimeException('Content-Length is not match');
                                 }
-                            } elseif ($method === 'OPTIONS') {
+                            } elseif(in_array($method, ['PUT', 'DELETE','PATCH','OPTIONS','HEAD','TRACE','CONNECT'])) {
                                 $this->step = 2;
                             }
 
@@ -430,6 +431,8 @@ class HttpServer
                             $this->reset();
                         });
 
+                        $symfonyResponse->headers->set('Server', 'PServer');
+
                         try {
                             if ($keepAlive) {
                                 $symfonyResponse->headers->set('Connection', 'keep-alive');
@@ -477,7 +480,7 @@ class HttpServer
      * @param Response $response
      * @return void
      */
-    private function onRequest(Request $request, Response $response): void
+    private function _onRequest(Request $request, Response $response): void
     {
         if (isset($this->onRequest)) {
             call_user_func_array($this->onRequest, [
@@ -485,5 +488,14 @@ class HttpServer
                 $response
             ]);
         }
+    }
+
+    /**
+     * @param Closure $onRequest
+     * @return void
+     */
+    public function onRequest(Closure $onRequest): void
+    {
+        $this->onRequest = $onRequest;
     }
 }
