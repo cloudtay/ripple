@@ -42,7 +42,7 @@ use Psc\Std\Stream\Exception\Exception;
 
 use function array_shift;
 use function fopen;
-use function P\onFork;
+use function P\registerForkHandler;
 use function P\promise;
 
 /**
@@ -142,7 +142,7 @@ class File extends StoreAbstract
      */
     private function registerOnFork(): void
     {
-        onFork(function () {
+        registerForkHandler(function () {
             while ($monitor = array_shift($this->monitors)) {
                 $monitor->stop();
             }

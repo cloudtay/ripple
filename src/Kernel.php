@@ -39,9 +39,7 @@ use Fiber;
 use P\Coroutine;
 use P\System;
 use Psc\Core\Coroutine\Promise;
-use Psc\Library\System\Process\Process;
 use Revolt\EventLoop;
-use Revolt\EventLoop\CallbackType;
 use Revolt\EventLoop\UnsupportedFeatureException;
 use Throwable;
 
@@ -131,10 +129,6 @@ class Kernel
      */
     public function cancel(string $id): void
     {
-        if (EventLoop::getType($id) === CallbackType::Signal) {
-            Process::getInstance()->cancelSignalEvent($id);
-        }
-
         EventLoop::cancel($id);
     }
 
@@ -163,11 +157,20 @@ class Kernel
 
     /**
      * @param Closure $closure
+     * @return int
+     */
+    public function registerForkHandler(Closure $closure): int
+    {
+        return System::Process()->registerForkHandler($closure);
+    }
+
+    /**
+     * @param int $index
      * @return void
      */
-    public function onFork(Closure $closure): void
+    public function cancelForkHandler(int $index): void
     {
-        System::Process()->onFork($closure);
+        System::Process()->cancelForkHandler($index);
     }
 
     /**
@@ -210,24 +213,16 @@ class Kernel
      */
     public function reinstall(Closure|null $configure = null, bool $jumpMain = false): void
     {
-        $this->callInMainStack(function () use ($configure) {
-            $this->cancelAll();
+        if (!isset($this->mainSuspension)) {
+            $this->reset($configure);
+        } else {
+            $this->callInMainStack(function () use ($configure) {
+                $this->reset($configure);
+            });
 
-            $originDriver = EventLoop::getDriver();
-            $originDriver->stop();
-            $originDriver->run();
-
-            EventLoop::setDriver(
-                (new EventLoop\DriverFactory())->create()
-            );
-
-            if ($configure) {
-                $configure();
+            if ($jumpMain) {
+                Fiber::suspend();
             }
-        });
-
-        if ($jumpMain) {
-            Fiber::suspend();
         }
     }
 
@@ -264,5 +259,26 @@ class Kernel
     public function getIdentities(): array
     {
         return EventLoop::getIdentifiers();
+    }
+
+    /**
+     * @param Closure|null $configure
+     * @return void
+     */
+    private function reset(Closure|null $configure = null): void
+    {
+        $this->cancelAll();
+
+        $originDriver = EventLoop::getDriver();
+        $originDriver->stop();
+        $originDriver->run();
+
+        EventLoop::setDriver(
+            (new EventLoop\DriverFactory())->create()
+        );
+
+        if ($configure) {
+            $configure();
+        }
     }
 }

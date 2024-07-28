@@ -39,15 +39,14 @@ namespace Psc\Library\System\Process;
 use Closure;
 use Psc\Core\Output;
 use Psc\Core\StoreAbstract;
-use Psc\Kernel;
 use Psc\Library\System\Exception\ProcessException;
 use Revolt\EventLoop;
 use Revolt\EventLoop\UnsupportedFeatureException;
 use Throwable;
 
-use function array_unshift;
 use function call_user_func;
 use function P\promise;
+use function P\reinstall;
 use function P\run;
 use function pcntl_fork;
 use function pcntl_wait;
@@ -162,12 +161,27 @@ class Process extends StoreAbstract
     }
 
     /**
+     * @var int
+     */
+    private int $index = 0;
+
+    /**
      * @param Closure $closure
+     * @return int
+     */
+    public function registerForkHandler(Closure $closure): int
+    {
+        $this->onFork[$this->index] = $closure;
+        return $this->index++;
+    }
+
+    /**
+     * @param int $index
      * @return void
      */
-    public function onFork(Closure $closure): void
+    public function cancelForkHandler(int $index): void
     {
-        $this->onFork[] = $closure;
+        unset($this->onFork[$index]);
     }
 
     /**
@@ -176,8 +190,6 @@ class Process extends StoreAbstract
      */
     public function noticeFork(): void
     {
-        $this->signal2EventId = [];
-
         $this->registerSignalHandler();
 
         foreach ($this->onFork as $key => $closure) {
@@ -234,11 +246,9 @@ class Process extends StoreAbstract
                     run();
                 }
 
-                Kernel::getInstance()->reinstall(function () use ($closure, $args) {
-
+                reinstall(function () use ($closure, $args) {
                     //reload process event
                     $this->noticeFork();
-
 
                     //call user function
                     call_user_func($closure, ...$args);
@@ -263,16 +273,6 @@ class Process extends StoreAbstract
     }
 
     /**
-     * @var array
-     */
-    private array $signal2Handler = [];
-
-    /**
-     * @var array
-     */
-    private array $signal2EventId = [];
-
-    /**
      * @param int     $signalCode
      * @param Closure $handler
      * @return string
@@ -280,43 +280,6 @@ class Process extends StoreAbstract
      */
     public function onSignal(int $signalCode, Closure $handler): string
     {
-        if (!isset($this->signal2Handler[$signalCode])) {
-            $this->signal2Handler[$signalCode] = [];
-        }
-
-        if (!isset($this->signal2EventId[$signalCode])) {
-            $this->signal2EventId[$signalCode] = EventLoop::onSignal($signalCode, function () use ($signalCode) {
-                $this->signalHandler($signalCode);
-            });
-        }
-
-        array_unshift($this->signal2Handler[$signalCode], $handler);
-        return $this->signal2EventId[$signalCode];
-    }
-
-    /**
-     * @param int $signalCode
-     * @return void
-     */
-    public function signalHandler(int $signalCode): void
-    {
-        foreach ($this->signal2Handler[$signalCode] as $handler) {
-            $handler($signalCode);
-        }
-    }
-
-    /**
-     * @param string $id
-     * @return void
-     */
-    public function cancelSignalEvent(string $id): void
-    {
-        foreach ($this->signal2EventId as $signalCode => $eventId) {
-            if ($eventId === $id) {
-                unset($this->signal2EventId[$signalCode]);
-                unset($this->signal2Handler[$signalCode]);
-                break;
-            }
-        }
+        return EventLoop::onSignal($signalCode, $handler);
     }
 }

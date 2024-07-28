@@ -41,12 +41,13 @@ use GuzzleHttp\Client;
 use GuzzleHttp\Handler\CurlMultiHandler;
 use GuzzleHttp\HandlerStack;
 use GuzzleHttp\Promise\Utils;
+use GuzzleHttp\Psr7\Response;
 use Psc\Core\Coroutine\Promise;
 use Psc\Core\StoreAbstract;
 
 use function array_merge;
 use function P\cancel;
-use function P\onFork;
+use function P\registerForkHandler;
 use function P\promise;
 use function P\repeat;
 
@@ -96,7 +97,7 @@ class Guzzle extends StoreAbstract
      */
     private function registerOnFork(): void
     {
-        onFork(function () {
+        registerForkHandler(function () {
             $this->install();
             $this->registerOnFork();
         });
@@ -139,7 +140,7 @@ class Guzzle extends StoreAbstract
      * @param string $method
      * @param string $uri
      * @param array  $options
-     * @return Promise
+     * @return Promise<Response>
      */
     public function requestAsync(string $method, string $uri, array $options = []): Promise
     {
@@ -161,7 +162,7 @@ class Guzzle extends StoreAbstract
     /**
      * @param string $uri
      * @param array  $options
-     * @return Promise
+     * @return Promise<Response>
      */
     public function getAsync(string $uri, array $options = []): Promise
     {
@@ -173,7 +174,7 @@ class Guzzle extends StoreAbstract
     /**
      * @param string $uri
      * @param array  $options
-     * @return Promise
+     * @return Promise<Response>
      */
     public function postAsync(string $uri, array $options = []): Promise
     {
@@ -185,7 +186,7 @@ class Guzzle extends StoreAbstract
     /**
      * @param string $uri
      * @param array  $options
-     * @return Promise
+     * @return Promise<Response>
      */
     public function putAsync(string $uri, array $options = []): Promise
     {
@@ -197,7 +198,7 @@ class Guzzle extends StoreAbstract
     /**
      * @param string $uri
      * @param array  $options
-     * @return Promise
+     * @return Promise<Response>
      */
     public function deleteAsync(string $uri, array $options = []): Promise
     {
@@ -209,7 +210,7 @@ class Guzzle extends StoreAbstract
     /**
      * @param string $uri
      * @param array  $options
-     * @return Promise
+     * @return Promise<Response>
      */
     public function headAsync(string $uri, array $options = []): Promise
     {
@@ -221,7 +222,7 @@ class Guzzle extends StoreAbstract
     /**
      * @param string $uri
      * @param array  $options
-     * @return Promise
+     * @return Promise<Response>
      */
     public function patchAsync(string $uri, array $options = []): Promise
     {

@@ -152,13 +152,21 @@ function onSignal(int $signal, Closure $closure): string
 
 /**
  * @param Closure $closure
- * @return void
+ * @return int
  */
-function onFork(Closure $closure): void
+function registerForkHandler(Closure $closure): int
 {
-    Kernel::getInstance()->onFork($closure);
+    return Kernel::getInstance()->registerForkHandler($closure);
 }
 
+/**
+ * @param int $index
+ * @return void
+ */
+function cancelForkHandler(int $index): void
+{
+    Kernel::getInstance()->cancelForkHandler($index);
+}
 /**
  * @param Closure|null $closure
  * @param bool|null    $jumpMain

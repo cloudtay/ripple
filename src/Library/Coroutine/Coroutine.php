@@ -39,11 +39,12 @@ namespace Psc\Library\Coroutine;
 use Closure;
 use Fiber;
 use Psc\Core\Coroutine\Exception;
-use Psc\Core\Coroutine\Promise;
 use Psc\Core\StoreAbstract;
+use Revolt\EventLoop;
 use Throwable;
 
-use function P\onFork;
+use function P\registerForkHandler;
+use function P\promise;
 use function spl_object_hash;
 
 /**
@@ -67,21 +68,21 @@ class Coroutine extends StoreAbstract
      * @return mixed
      * @throws Throwable
      */
-    public function await(Promise $promise): mixed
+    public function await(\Psc\Core\Coroutine\Promise $promise): mixed
     {
-        if (!$fiber = Fiber::getCurrent()) {
+        if (!$fiber = EventLoop::getSuspension()) {
             throw new Exception('The await function must be called in a coroutine.');
         }
 
-        if ($promise->getStatus() === Promise::FULFILLED) {
+        if ($promise->getStatus() === \Psc\Core\Coroutine\Promise::FULFILLED) {
             return $promise->getResult();
         }
 
-        if ($promise->getStatus() === Promise::REJECTED) {
+        if ($promise->getStatus() === \Psc\Core\Coroutine\Promise::REJECTED) {
             throw $promise->getResult();
         }
 
-        \P\promise(function ($r, $d) use ($promise) {
+        promise(function ($r, $d) use ($promise) {
             $promise->then(fn ($result) => $r($result));
             $promise->except(fn ($e) => $d($e));
         })
@@ -111,22 +112,7 @@ class Coroutine extends StoreAbstract
      */
     public function async(Closure $closure): Promise
     {
-        return new Promise(function (Closure $r, Closure $d, Promise $promise) use ($closure) {
-            $fiber = new Fiber($closure);
-
-            $this->fiber2promise[spl_object_hash($fiber)] = $promise;
-
-            $promise->finally(function () use ($fiber) {
-                unset($this->fiber2promise[spl_object_hash($fiber)]);
-            });
-
-            $fiber->start($r, $d);
-
-            if($fiber->isTerminated()) {
-                $result = $fiber->getReturn();
-                $r($result);
-            }
-        });
+        return new Promise($closure);
     }
 
     /**
@@ -134,7 +120,7 @@ class Coroutine extends StoreAbstract
      */
     private function registerOnFork(): void
     {
-        onFork(function () {
+        registerForkHandler(function () {
             $this->fiber2promise = [];
             $this->registerOnFork();
         });
