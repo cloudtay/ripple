@@ -37,6 +37,8 @@ namespace Psc\Library\System\Process;
 use Closure;
 use Psc\Core\Coroutine\Promise;
 
+use Revolt\EventLoop;
+
 use function posix_kill;
 
 use const SIGKILL;
@@ -123,5 +125,14 @@ readonly class Runtime
     public function finally(Closure $finally): Promise
     {
         return $this->promise->finally($finally);
+    }
+
+    public function await(): void
+    {
+        $suspend = EventLoop::getSuspension();
+        $this->finally(function () use ($suspend) {
+            $suspend->resume();
+        });
+        $suspend->suspend();
     }
 }
