@@ -57,9 +57,9 @@ use function uniqid;
  */
 class MultipartHandler
 {
-    private const int STATUS_WAIT = 0;
-    private const int STATUS_TRAN = 1;
-    private const int STATUS_DONE = 2;
+    private const STATUS_WAIT = 0;
+    private const STATUS_TRAN = 1;
+    private const STATUS_DONE = 2;
 
     /**
      * @var Closure

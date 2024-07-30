@@ -35,7 +35,6 @@
 namespace Psc\Library\Coroutine;
 
 use Closure;
-use Fiber;
 use Psc\Core\Coroutine\Exception;
 use Psc\Core\LibraryAbstract;
 use Revolt\EventLoop;

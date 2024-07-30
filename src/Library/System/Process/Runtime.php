@@ -47,15 +47,15 @@ use const SIGTERM;
 /**
  *
  */
-readonly class Runtime
+class Runtime
 {
     /**
      * @param int     $processId
      * @param Promise $promise
      */
     public function __construct(
-        private Promise $promise,
-        private int     $processId,
+        private readonly Promise $promise,
+        private readonly int     $processId,
     ) {
     }
 

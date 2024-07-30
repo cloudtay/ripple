@@ -47,9 +47,9 @@ use function count;
  */
 class Promise
 {
-    public const string   PENDING   = 'pending';   // 悬空
-    public const string   FULFILLED = 'fulfilled'; // 已完成
-    public const string   REJECTED  = 'rejected';  // 已拒绝
+    public const PENDING   = 'pending';   // 悬空
+    public const FULFILLED = 'fulfilled'; // 已完成
+    public const REJECTED  = 'rejected';  // 已拒绝
 
     /**
      * @var mixed

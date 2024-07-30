@@ -42,7 +42,6 @@ use Psc\Core\Output;
 use Psc\Core\Stream\Stream;
 use Psc\Library\Net\Exception\HandshakeException;
 use Psc\Std\Stream\Exception\ConnectionException;
-use Random\RandomException;
 use Throwable;
 
 use function base64_encode;
@@ -370,8 +369,7 @@ class Connection
     /**
      * @param string $data
      * @return void
-     * @throws ConnectionException
-     * @throws RandomException
+     * @throws ConnectionException|Throwable
      */
     public function send(string $data): void
     {

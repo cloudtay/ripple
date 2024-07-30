@@ -18,12 +18,12 @@ class Zx7e
     /**
      *
      */
-    private const int FRAME_HEADER = 0x7E;
+    private const FRAME_HEADER = 0x7E;
 
     /**
      *
      */
-    private const int FRAME_FOOTER = 0x7E;
+    private const FRAME_FOOTER = 0x7E;
 
     /**
      * @var string

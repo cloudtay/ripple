@@ -60,7 +60,7 @@ class Handshake
      * @param Connection $client
      * @return bool
      */
-    public const array NEED_HEAD = [
+    public const NEED_HEAD = [
         'Host'                  => true,
         'Upgrade'               => true,
         'Connection'            => true,

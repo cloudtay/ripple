@@ -41,13 +41,13 @@ use function call_user_func;
 /**
  *
  */
-readonly class Task
+class Task
 {
     /**
      * @param Closure $closure
      */
     public function __construct(
-        public Closure $closure,
+        public readonly Closure $closure,
     ) {
     }
 
