@@ -1,6 +1,6 @@
 {
   "name": "cloudtay/p-ripple-core",
-  "version": "0.2.96",
+  "version": "v0.2.96",
   "license": "MIT",
   "autoload": {
     "psr-4": {
@@ -28,7 +28,6 @@
     "ext-sockets": "*",
     "ext-pcntl": "*",
     "ext-openssl": "*",
-
     "revolt/event-loop": "^1.0",
     "symfony/http-foundation": "*",
     "guzzlehttp/guzzle": "*",
