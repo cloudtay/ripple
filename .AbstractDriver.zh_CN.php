@@ -1,6 +1,4 @@
-<?php
-
-declare(strict_types=1);
+<?php declare(strict_types=1);
 
 use Revolt\EventLoop\CallbackType;
 use Revolt\EventLoop\Driver;

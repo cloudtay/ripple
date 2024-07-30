@@ -1,6 +1,4 @@
-<?php
-
-declare(strict_types=1);
+<?php declare(strict_types=1);
 /*
  * Copyright (c) 2023-2024.
  *
@@ -39,7 +37,7 @@ namespace Psc\Library\Coroutine;
 use Closure;
 use Fiber;
 use Psc\Core\Coroutine\Exception;
-use Psc\Core\StoreAbstract;
+use Psc\Core\LibraryAbstract;
 use Revolt\EventLoop;
 use Throwable;
 
@@ -50,12 +48,12 @@ use function spl_object_hash;
 /**
  *
  */
-class Coroutine extends StoreAbstract
+class Coroutine extends LibraryAbstract
 {
     /**
-     * @var StoreAbstract
+     * @var LibraryAbstract
      */
-    protected static StoreAbstract $instance;
+    protected static LibraryAbstract $instance;
 
     /**
      * @var Promise[]

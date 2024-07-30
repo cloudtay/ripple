@@ -37,12 +37,12 @@ namespace Psc\Core;
 /**
  *
  */
-abstract class StoreAbstract
+abstract class LibraryAbstract
 {
     /**
-     * @var StoreAbstract
+     * @var LibraryAbstract
      */
-    protected static StoreAbstract $instance;
+    protected static LibraryAbstract $instance;
 
     /**
      * @return static

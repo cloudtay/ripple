@@ -70,6 +70,7 @@ readonly class Runtime
             : $this->signal(SIGTERM);
     }
 
+    /*** @return void */
     public function kill(): void
     {
         posix_kill($this->processId, SIGKILL);
@@ -92,9 +93,7 @@ readonly class Runtime
         return $this->promise;
     }
 
-    /**
-     * @return int
-     */
+    /*** @return int */
     public function getProcessId(): int
     {
         return $this->processId;
@@ -127,6 +126,7 @@ readonly class Runtime
         return $this->promise->finally($finally);
     }
 
+    /*** @return void */
     public function await(): void
     {
         $suspend = EventLoop::getSuspension();

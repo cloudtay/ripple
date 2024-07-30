@@ -291,7 +291,7 @@ class HttpServer
                             /**
                              * 解析文件
                              */
-                            if ($method === 'GET') {
+                            if (in_array($method, ['GET', 'HEAD'])) {
                                 $this->bodyLength = 0;
                                 $this->step       = 2;
                             } elseif ($method === 'POST') {
@@ -334,8 +334,17 @@ class HttpServer
                                 } elseif ($this->bodyLength > intval($this->server['HTTP_CONTENT_LENGTH'])) {
                                     throw new RuntimeException('Content-Length is not match');
                                 }
-                            } elseif(in_array($method, ['PUT', 'DELETE','PATCH','OPTIONS','HEAD','TRACE','CONNECT'])) {
-                                $this->step = 2;
+                                //not body
+                            } elseif(in_array($method, ['PUT', 'DELETE','PATCH','OPTIONS','TRACE','CONNECT'])) {
+                                if (!isset($this->server['HTTP_CONTENT_LENGTH'])) {
+                                    $this->step = 2;
+                                } else {
+                                    if ($this->bodyLength === intval($this->server['HTTP_CONTENT_LENGTH'])) {
+                                        $this->step = 2;
+                                    } elseif ($this->bodyLength > intval($this->server['HTTP_CONTENT_LENGTH'])) {
+                                        throw new RuntimeException('Content-Length is not match');
+                                    }
+                                }
                             }
 
                             $this->buffer = '';

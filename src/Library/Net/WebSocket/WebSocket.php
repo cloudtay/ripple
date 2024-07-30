@@ -34,19 +34,19 @@
 
 namespace Psc\Library\Net\WebSocket;
 
-use Psc\Core\StoreAbstract;
+use Psc\Core\LibraryAbstract;
 use Psc\Library\Net\WebSocket\Client\Connection;
 use Psc\Library\Net\WebSocket\Server\Server;
 
 /**
  *
  */
-class WebSocket extends StoreAbstract
+class WebSocket extends LibraryAbstract
 {
     /**
-     * @var StoreAbstract
+     * @var LibraryAbstract
      */
-    protected static StoreAbstract $instance;
+    protected static LibraryAbstract $instance;
 
     /**
      * @param string     $address

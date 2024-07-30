@@ -34,7 +34,7 @@
 
 namespace Psc\Library\System\Proc;
 
-use Psc\Core\StoreAbstract;
+use Psc\Core\LibraryAbstract;
 
 use function is_resource;
 use function proc_open;
@@ -42,9 +42,9 @@ use function proc_open;
 /**
  *
  */
-class Proc extends StoreAbstract
+class Proc extends LibraryAbstract
 {
-    protected static StoreAbstract $instance;
+    protected static LibraryAbstract $instance;
 
     /**
      * @param string $entrance

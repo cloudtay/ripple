@@ -3,13 +3,14 @@
 namespace Psc\Library\IO\Channel;
 
 use Exception;
+use P\IO;
 use Psc\Core\Stream\Stream;
 use Psc\Drive\Stream\Zx7e;
 use Psc\Library\IO\Channel\Exception\ChannelException;
+use Psc\Library\IO\Lock\Lock;
 
 use function chr;
 use function file_exists;
-use function flock;
 use function fopen;
 use function md5;
 use function P\cancelForkHandler;
@@ -17,14 +18,9 @@ use function P\registerForkHandler;
 use function posix_mkfifo;
 use function serialize;
 use function sys_get_temp_dir;
-use function touch;
 use function unlink;
 use function unpack;
 use function unserialize;
-
-use const LOCK_EX;
-use const LOCK_NB;
-use const LOCK_UN;
 
 /**
  *
@@ -46,22 +42,23 @@ class Channel
     /*** @var Stream */
     private Stream $stream;
 
-    /*** @var string */
-    private readonly string $lockPath;
+    /*** @var Lock */
+    private Lock   $lock;
 
-    /*** @var Stream */
-    private Stream $lockStream;
+    /*** @var string */
+    private string $path;
 
     /**
-     * @param string $path
+     * @param string $name
      * @param bool   $owner
      * @throws Exception
      */
     public function __construct(
-        private readonly string $path,
+        private readonly string $name,
         private bool            $owner = false
     ) {
-        $this->lockPath = $this->path . '.lock';
+        $this->path = self::generateFilePathByChannelName($name);
+        $this->lock = IO::Lock()->access($this->name);
 
         if (!file_exists($this->path)) {
             if (!$this->owner) {
@@ -73,28 +70,15 @@ class Channel
             }
         }
 
-        if (!file_exists($this->lockPath)) {
-            if (!$this->owner) {
-                throw new Exception('Channel does not exist.');
-            }
-
-            if(!touch($this->lockPath)) {
-                throw new Exception('Failed to create lock file.');
-            }
-        }
-
         $this->stream = new Stream(fopen($this->path, 'r+'));
-        $this->lockStream = new Stream(fopen($this->lockPath, 'r'));
         $this->zx7e   = new Zx7e();
 
         // 注册进程fork后重新打开流资源
         $this->forkHandlerId = registerForkHandler(function () {
             $this->owner = false;
             $this->stream->close();
-            $this->lockStream->close();
 
             $this->stream = new Stream(fopen($this->path, 'r+'));
-            $this->lockStream = new Stream(fopen($this->lockPath, 'r'));
             $this->zx7e   = new Zx7e();
         });
     }
@@ -110,8 +94,7 @@ class Channel
             throw new ChannelException('Unable to send data to a closed channel');
         }
 
-        flock($this->lockStream->stream, LOCK_EX);
-
+        $this->lock->lock();
         $this->stream->setBlocking(true);
 
         try {
@@ -119,7 +102,7 @@ class Channel
         } catch (Exception) {
             return false;
         } finally {
-            flock($this->lockStream->stream, LOCK_UN);
+            $this->lock->unlock();
         }
         return true;
     }
@@ -136,10 +119,10 @@ class Channel
 
         try {
             if ($this->blocking) {
-                flock($this->lockStream->stream, LOCK_EX);
+                $this->lock->lock();
                 $this->stream->setBlocking(true);
             } else {
-                if (!flock($this->lockStream->stream, LOCK_EX | LOCK_NB)) {
+                if (!$this->lock->lock(false)) {
                     throw new Exception('Failed to acquire lock.');
                 }
                 $this->stream->setBlocking(false);
@@ -148,7 +131,7 @@ class Channel
             $header = $this->stream->read(1);
 
             if ($header !== chr(self::FRAME_HEADER)) {
-                flock($this->lockStream->stream, LOCK_UN);
+                $this->lock->unlock();
                 return null;
             }
 
@@ -160,30 +143,46 @@ class Channel
             $footer   = $this->stream->read(1);
 
             if ($footer !== chr(self::FRAME_FOOTER)) {
-                flock($this->lockStream->stream, LOCK_UN);
+                $this->lock->unlock();
                 throw new Exception('Failed to read frame footer.');
             }
 
             if ($checksum !== chr($this->zx7e->calculateChecksum($data))) {
-                flock($this->lockStream->stream, LOCK_UN);
+                $this->lock->unlock();
                 throw new Exception('Failed to verify checksum.');
             }
 
-            flock($this->lockStream->stream, LOCK_UN);
+            $this->lock->unlock();
             return unserialize($data);
         } catch (Exception $e) {
             throw new ChannelException($e->getMessage());
         } finally {
-            flock($this->lockStream->stream, LOCK_UN);
+            $this->lock->unlock();
         }
     }
 
-    /**
-     * @return bool
-     */
+    /*** @return bool */
     public function getBlocking(): bool
     {
         return $this->blocking;
+    }
+
+    /*** @return string */
+    public function getName(): string
+    {
+        return $this->name;
+    }
+
+    /*** @return string */
+    public function getPath(): string
+    {
+        return $this->path;
+    }
+
+    /*** @return Lock */
+    public function getLock(): Lock
+    {
+        return $this->lock;
     }
 
     /**
@@ -195,14 +194,10 @@ class Channel
         $this->blocking = $blocking;
     }
 
-
-
     /*** @var bool */
     private bool $closed = false;
 
-    /**
-     * @return void
-     */
+    /*** @return void */
     public function close(): void
     {
         if ($this->closed) {
@@ -210,11 +205,10 @@ class Channel
         }
 
         $this->stream->close();
-        $this->lockStream->close();
+        $this->lock->close();
 
         if ($this->owner) {
             unlink($this->path);
-            unlink($this->lockPath);
         }
 
         $this->closed = true;
@@ -222,9 +216,7 @@ class Channel
         cancelForkHandler($this->forkHandlerId);
     }
 
-    /**
-     *
-     */
+    /****/
     public function __destruct()
     {
         $this->close();

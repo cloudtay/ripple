@@ -2,15 +2,15 @@
 
 namespace Psc\Library\IO\Channel;
 
-use Psc\Core\StoreAbstract;
 use Exception;
+use Psc\Core\LibraryAbstract;
 
-class ChannelLibrary extends StoreAbstract
+class ChannelLibrary extends LibraryAbstract
 {
     /**
-     * @var StoreAbstract
+     * @var LibraryAbstract
      */
-    protected static StoreAbstract $instance;
+    protected static LibraryAbstract $instance;
 
     /**
      * @param string $name

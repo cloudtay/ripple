@@ -1,6 +1,4 @@
-<?php
-
-declare(strict_types=1);
+<?php declare(strict_types=1);
 /*
  * Copyright (c) 2023-2024.
  *
@@ -43,7 +41,7 @@ use GuzzleHttp\HandlerStack;
 use GuzzleHttp\Promise\Utils;
 use GuzzleHttp\Psr7\Response;
 use Psc\Core\Coroutine\Promise;
-use Psc\Core\StoreAbstract;
+use Psc\Core\LibraryAbstract;
 
 use function array_merge;
 use function P\cancel;
@@ -54,12 +52,12 @@ use function P\repeat;
 /**
  *
  */
-class Guzzle extends StoreAbstract
+class Guzzle extends LibraryAbstract
 {
     /**
-     * @var StoreAbstract
+     * @var LibraryAbstract
      */
-    protected static StoreAbstract $instance;
+    protected static LibraryAbstract $instance;
 
     /**
      * @var CurlMultiHandler

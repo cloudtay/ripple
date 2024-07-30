@@ -14,7 +14,6 @@ $channel->send('hello');
 
 $task = \P\System::Process()->task(function () use ($channel) {
     $channel->setBlocking(false);
-
     while ($item = $channel->receive()) {
         \var_dump($item);
 
@@ -22,7 +21,6 @@ $task = \P\System::Process()->task(function () use ($channel) {
     }
 
     $channel->close();
-
     exit(0);
 });
 

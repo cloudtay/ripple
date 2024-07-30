@@ -37,7 +37,7 @@ namespace Psc\Library\IO\Socket;
 use Closure;
 use Psc\Core\Coroutine\Exception;
 use Psc\Core\Coroutine\Promise;
-use Psc\Core\StoreAbstract;
+use Psc\Core\LibraryAbstract;
 use Psc\Core\Stream\SocketStream;
 use Throwable;
 
@@ -60,12 +60,12 @@ use const STREAM_SERVER_LISTEN;
 /**
  *
  */
-class Socket extends StoreAbstract
+class Socket extends LibraryAbstract
 {
     /**
-     * @var StoreAbstract
+     * @var LibraryAbstract
      */
-    protected static StoreAbstract $instance;
+    protected static LibraryAbstract $instance;
 
     /**
      * @param string     $address

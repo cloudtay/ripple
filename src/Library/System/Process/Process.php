@@ -1,6 +1,4 @@
-<?php
-
-declare(strict_types=1);
+<?php declare(strict_types=1);
 /*
  * Copyright (c) 2023-2024.
  *
@@ -38,7 +36,7 @@ namespace Psc\Library\System\Process;
 
 use Closure;
 use Psc\Core\Output;
-use Psc\Core\StoreAbstract;
+use Psc\Core\LibraryAbstract;
 use Psc\Library\System\Exception\ProcessException;
 use Revolt\EventLoop;
 use Revolt\EventLoop\UnsupportedFeatureException;
@@ -63,12 +61,12 @@ use const WUNTRACED;
 /**
  *
  */
-class Process extends StoreAbstract
+class Process extends LibraryAbstract
 {
     /**
-     * @var StoreAbstract
+     * @var LibraryAbstract
      */
-    protected static StoreAbstract $instance;
+    protected static LibraryAbstract $instance;
 
     /**
      * @var array
@@ -242,7 +240,10 @@ class Process extends StoreAbstract
 
                     $this->noticeFork();
 
-                    call_user_func($closure, ...$args);
+                    $result = call_user_func($closure, ...$args);
+                    if($result !== null) {
+                        exit(0);
+                    }
                     run();
                 }
 
@@ -251,7 +252,10 @@ class Process extends StoreAbstract
                     $this->noticeFork();
 
                     //call user function
-                    call_user_func($closure, ...$args);
+                    $result = call_user_func($closure, ...$args);
+                    if($result !== null) {
+                        exit(0);
+                    }
                 }, true);
             }
 

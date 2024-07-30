@@ -36,6 +36,7 @@ namespace P;
 
 use Psc\Library\IO\Channel\ChannelLibrary;
 use Psc\Library\IO\FIle\File;
+use Psc\Library\IO\Lock\LockLibrary;
 use Psc\Library\IO\Socket\Socket;
 
 /**
@@ -65,5 +66,13 @@ class IO
     public static function Channel(): ChannelLibrary
     {
         return ChannelLibrary::getInstance();
+    }
+
+    /**
+     * @return LockLibrary
+     */
+    public static function Lock(): LockLibrary
+    {
+        return LockLibrary::getInstance();
     }
 }

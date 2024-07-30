@@ -36,7 +36,7 @@ namespace Psc\Library\IO\FIle;
 
 use Closure;
 use Psc\Core\Coroutine\Promise;
-use Psc\Core\StoreAbstract;
+use Psc\Core\LibraryAbstract;
 use Psc\Core\Stream\Stream;
 use Psc\Std\Stream\Exception\Exception;
 
@@ -48,12 +48,12 @@ use function P\promise;
 /**
  *
  */
-class File extends StoreAbstract
+class File extends LibraryAbstract
 {
     /**
-     * @var StoreAbstract
+     * @var LibraryAbstract
      */
-    protected static StoreAbstract $instance;
+    protected static LibraryAbstract $instance;
 
     /**
      * @param string $path
