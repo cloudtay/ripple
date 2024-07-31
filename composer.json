@@ -8,7 +8,7 @@
       "P\\": "src/Supports/"
     },
     "files": [
-      "src/helper.php"
+      "src/functions.php"
     ]
   },
   "autoload-dev": {
@@ -31,7 +31,8 @@
     "revolt/event-loop": "^1.0",
     "symfony/http-foundation": "*",
     "guzzlehttp/guzzle": "*",
-    "psr/http-message": "*"
+    "psr/http-message": "*",
+    "amphp/amp": "^3.0"
   },
   "require-dev": {
     "phpunit/phpunit": "^11.2",

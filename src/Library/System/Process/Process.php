@@ -35,23 +35,25 @@
 namespace Psc\Library\System\Process;
 
 use Closure;
-use Psc\Core\Output;
+use P\Coroutine;
 use Psc\Core\LibraryAbstract;
+use Psc\Core\Output;
+use Psc\Library\Coroutine\EscapeException;
 use Psc\Library\System\Exception\ProcessException;
 use Revolt\EventLoop;
 use Revolt\EventLoop\UnsupportedFeatureException;
 use Throwable;
 
 use function call_user_func;
+use function count;
+use function P\cancel;
+use function P\cancelAll;
+use function P\getIdentities;
 use function P\promise;
-use function P\reinstall;
-use function P\run;
 use function pcntl_fork;
 use function pcntl_wait;
 use function pcntl_wexitstatus;
 use function pcntl_wifexited;
-use function posix_getpid;
-use function posix_getppid;
 
 use const SIGCHLD;
 use const SIGKILL;
@@ -63,14 +65,10 @@ use const WUNTRACED;
  */
 class Process extends LibraryAbstract
 {
-    /**
-     * @var LibraryAbstract
-     */
+    /*** @var LibraryAbstract */
     protected static LibraryAbstract $instance;
 
-    /**
-     * @var array
-     */
+    /*** @var array */
     private array $process2promiseCallback = [];
 
     /**
@@ -78,17 +76,13 @@ class Process extends LibraryAbstract
      */
     private array $process2runtime = [];
 
-    /**
-     * @var array
-     */
+    /*** @var array */
     private array $onFork = [];
 
     /**
-     * @throws UnsupportedFeatureException
      */
     public function __construct()
     {
-        $this->registerSignalHandler();
     }
 
     /**
@@ -99,13 +93,24 @@ class Process extends LibraryAbstract
         $this->destroy();
     }
 
+    /*** @var string */
+    private string $signalHandlerEventId;
+
     /**
      * @return void
      * @throws UnsupportedFeatureException
      */
     private function registerSignalHandler(): void
     {
-        $this->onSignal(SIGCHLD, fn () => $this->signalSIGCHLDHandler());
+        $this->signalHandlerEventId = $this->onSignal(SIGCHLD, fn () => $this->signalSIGCHLDHandler());
+    }
+
+    /**
+     * @return void
+     */
+    private function unregisterSignalHandler(): void
+    {
+        cancel($this->signalHandlerEventId);
     }
 
 
@@ -146,6 +151,10 @@ class Process extends LibraryAbstract
 
         unset($this->process2promiseCallback[$processId]);
         unset($this->process2runtime[$processId]);
+
+        if(empty($this->process2runtime)) {
+            $this->unregisterSignalHandler();
+        }
     }
 
     /**
@@ -158,9 +167,7 @@ class Process extends LibraryAbstract
         }
     }
 
-    /**
-     * @var int
-     */
+    /*** @var int */
     private int $index = 0;
 
     /**
@@ -188,7 +195,9 @@ class Process extends LibraryAbstract
      */
     public function noticeFork(): void
     {
-        $this->registerSignalHandler();
+        if (!empty($this->process2runtime)) {
+            $this->unregisterSignalHandler();
+        }
 
         foreach ($this->onFork as $key => $closure) {
             try {
@@ -201,22 +210,6 @@ class Process extends LibraryAbstract
 
         $this->process2promiseCallback = [];
         $this->process2runtime         = [];
-    }
-
-    /**
-     * @return int
-     */
-    public function getPid(): int
-    {
-        return posix_getpid();
-    }
-
-    /**
-     * @return int
-     */
-    public function getPPid(): int
-    {
-        return posix_getppid();
     }
 
     /**
@@ -233,30 +226,36 @@ class Process extends LibraryAbstract
             }
 
             if ($processId === 0) {
-                if (!EventLoop::getDriver()->isRunning()) {
-                    EventLoop::setDriver(
-                        (new EventLoop\DriverFactory())->create()
-                    );
+                /**
+                 * 此处要保证无论通过任何手段都无法逃逸末位闭包
+                 */
 
-                    $this->noticeFork();
+                // 是否属于PRipple协程空间
+                Coroutine::Coroutine()->isCoroutine();
 
-                    $result = call_user_func($closure, ...$args);
-                    if($result !== null) {
-                        exit(0);
-                    }
-                    run();
+                // 忘记所有事件
+                cancelAll();
+
+                // 处理回收和新进程挂载
+                $this->noticeFork();
+
+                // call用户挂载
+                try {
+                    call_user_func($closure, ...$args);
+                } catch (Throwable) {
+                    exit(1);
                 }
 
-                reinstall(function () use ($closure, $args) {
-                    //reload process event
-                    $this->noticeFork();
+                // 判断事件列表是否空
+                if(count(getIdentities()) === 0) {
+                    exit(0);
+                }
 
-                    //call user function
-                    $result = call_user_func($closure, ...$args);
-                    if($result !== null) {
-                        exit(0);
-                    }
-                }, true);
+                Coroutine::Coroutine()->handleEscapeException(new EscapeException('The process is abnormal.'));
+            }
+
+            if(empty($this->process2runtime)) {
+                $this->registerSignalHandler();
             }
 
             $promise = promise(function ($r, $d) use ($processId) {

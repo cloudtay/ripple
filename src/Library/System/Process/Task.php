@@ -36,6 +36,8 @@ namespace Psc\Library\System\Process;
 
 use Closure;
 
+use Psc\Library\System\Exception\ProcessException;
+
 use function call_user_func;
 
 /**
@@ -54,6 +56,7 @@ class Task
     /**
      * @param ...$argv
      * @return Runtime
+     * @throws ProcessException
      */
     public function run(...$argv): Runtime
     {
