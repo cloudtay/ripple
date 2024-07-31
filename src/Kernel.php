@@ -35,7 +35,6 @@
 namespace Psc;
 
 use Closure;
-use Fiber;
 use P\Coroutine;
 use P\System;
 use Psc\Core\Coroutine\Promise;
@@ -52,6 +51,14 @@ class Kernel
      * @var Kernel
      */
     public static Kernel $instance;
+
+    /**
+     *
+     */
+    public function __construct()
+    {
+        $this->mainSuspension = EventLoop::getSuspension();
+    }
 
     /**
      * @return Kernel
@@ -71,7 +78,7 @@ class Kernel
      */
     public function await(Promise $promise): mixed
     {
-        return Coroutine::Async()->await($promise);
+        return Coroutine::Coroutine()->await($promise);
     }
 
     /**
@@ -81,7 +88,7 @@ class Kernel
      */
     public function async(Closure $closure): Promise
     {
-        return Coroutine::Async()->async($closure);
+        return Coroutine::Coroutine()->async($closure);
     }
 
     /**
@@ -99,9 +106,9 @@ class Kernel
      */
     public function sleep(int|float $second): void
     {
-        $mainSuspension = EventLoop::getSuspension();
-        $this->delay(fn () => $mainSuspension->resume(), $second);
-        $mainSuspension->suspend();
+        $suspension = EventLoop::getSuspension();
+        $this->delay(fn () => $suspension->resume(), $second);
+        $suspension->suspend();
     }
 
     /**
@@ -173,66 +180,38 @@ class Kernel
         System::Process()->cancelForkHandler($index);
     }
 
-    /**
-     * @var EventLoop\Suspension
-     */
-    public EventLoop\Suspension $mainSuspension;
+    /*** @var EventLoop\Suspension */
+    private EventLoop\Suspension $mainSuspension;
 
     /**
      * @return void
      */
     public function run(): void
     {
-        //loop
         while (1) {
-            //the preloading phase enters the loop, and anyone who jumps out declares that preloading is complete.
-            $this->mainSuspension = EventLoop::getSuspension();
-
-            if (count($this->getIdentities()) === 0) {
-                //nothing to do
-                break;
+            if ($this->tick()) {
+                continue;
             }
 
-            try {
-                $callInMainStack = $this->mainSuspension->suspend();
-                if ($callInMainStack) {
-                    $callInMainStack();
-                }
-            } catch (Throwable) {
-                //nothing to do
-                break;
-            }
+            break;
         }
     }
 
     /**
-     * @param Closure|null $configure
-     * @param bool         $jumpMain
-     * @return void
-     * @throws Throwable
+     * @return bool
      */
-    public function reinstall(Closure|null $configure = null, bool $jumpMain = false): void
+    public function tick(): mixed
     {
-        if (!isset($this->mainSuspension)) {
-            $this->reset($configure);
-        } else {
-            $this->callInMainStack(function () use ($configure) {
-                $this->reset($configure);
-            });
-
-            if ($jumpMain) {
-                Fiber::suspend();
-            }
+        if (count($this->getIdentities()) === 0) {
+            //nothing to do
+            return false;
         }
-    }
 
-    /**
-     * @param Closure $closure
-     * @return void
-     */
-    public function callInMainStack(Closure $closure): void
-    {
-        $this->mainSuspension->resume($closure);
+        try {
+            return $this->mainSuspension->suspend();
+        } catch (Throwable) {
+            return false;
+        }
     }
 
     /**
@@ -259,26 +238,5 @@ class Kernel
     public function getIdentities(): array
     {
         return EventLoop::getIdentifiers();
-    }
-
-    /**
-     * @param Closure|null $configure
-     * @return void
-     */
-    private function reset(Closure|null $configure = null): void
-    {
-        $this->cancelAll();
-
-        $originDriver = EventLoop::getDriver();
-        $originDriver->stop();
-        $originDriver->run();
-
-        EventLoop::setDriver(
-            (new EventLoop\DriverFactory())->create()
-        );
-
-        if ($configure) {
-            $configure();
-        }
     }
 }

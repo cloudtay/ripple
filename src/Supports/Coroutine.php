@@ -44,7 +44,7 @@ class Coroutine
     /**
      * @return CoroutineLibrary
      */
-    public static function Async(): CoroutineLibrary
+    public static function Coroutine(): CoroutineLibrary
     {
         return CoroutineLibrary::getInstance();
     }

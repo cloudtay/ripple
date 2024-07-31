@@ -36,17 +36,29 @@ namespace Psc\Library\Coroutine;
 
 use Closure;
 use Fiber;
+use FiberError;
 use Psc\Core\Coroutine\Exception;
+use Psc\Core\Coroutine\Promise;
 use Psc\Core\LibraryAbstract;
+use Psc\Kernel;
 use Revolt\EventLoop;
 use Throwable;
 
+use function P\delay;
 use function P\registerForkHandler;
-use function P\promise;
+use function P\run;
 use function spl_object_hash;
 
 /**
- *
+ * 原则性
+ * 2024-07-13
+ * async独立于EventLoop之外的单线Fiber, 对Fiber的操作必须考虑到EventLoop的协程空间
+ * 任何suspend/resume都应该对当前操作的Fiber负责, 包括结果的返回处理
+ */
+
+/**
+ * 兼容性:Process模块
+ * 2024-07-13
  */
 class Coroutine extends LibraryAbstract
 {
@@ -56,53 +68,94 @@ class Coroutine extends LibraryAbstract
     protected static LibraryAbstract $instance;
 
     /**
-     * @var Promise[]
-     */
-    private array $fiber2promise;
-
-
-    /**
      * @param Promise $promise
      * @return mixed
      * @throws Throwable
      */
-    public function await(\Psc\Core\Coroutine\Promise $promise): mixed
+    public function await(Promise $promise): mixed
     {
-        if (!$fiber = EventLoop::getSuspension()) {
-            throw new Exception('The await function must be called in a coroutine.');
+        if(!$fiber = Fiber::getCurrent()) {
+            throw new Exception('Cannot be called outside an asynchronous context');
         }
 
-        if ($promise->getStatus() === \Psc\Core\Coroutine\Promise::FULFILLED) {
+        if(!$callback = $this->fiber2callback[spl_object_hash($fiber)] ?? null) {
+            throw new Exception('Cannot be called outside an asynchronous context');
+        }
+
+        if ($promise->getStatus() === Promise::FULFILLED) {
             return $promise->getResult();
         }
 
-        if ($promise->getStatus() === \Psc\Core\Coroutine\Promise::REJECTED) {
+        if ($promise->getStatus() === Promise::REJECTED) {
             throw $promise->getResult();
         }
 
-        promise(function ($r, $d) use ($promise) {
-            $promise->then(fn ($result) => $r($result));
-            $promise->except(fn ($e) => $d($e));
-        })
-            ->then(function ($result) use ($fiber) {
-                try {
-                    $fiber->resume($result);
-                } catch (Throwable $e) {
-                    $promise = $this->fiber2promise[spl_object_hash($fiber)];
-                    $promise->onFiberException($e);
-                }
-            })
-            ->except(function ($e) use ($fiber) {
-                try {
-                    $fiber->throw($e);
-                } catch (Throwable $e) {
-                    $promise = $this->fiber2promise[spl_object_hash($fiber)];
-                    $promise->onFiberException($e);
-                }
-            });
+        /**
+         * 确定自身准备Fiber的控制权则必须对Fiber的后续状态负责
+         */
 
+        // 被等待的Promise的状态完成时
+        $promise->then(function (mixed $result) use ($fiber, $callback) {
+            try {
+                // 尝试恢复Fiber运行
+                $fiber->resume($result);
+
+                // Fiber已经终止
+                if($fiber->isTerminated()) {
+                    try {
+                        $callback['resolve']($fiber->getReturn());
+                        return;
+                    } catch (FiberError $e) {
+                        $callback['reject']($e);
+                        return;
+                    }
+                }
+            } catch (EscapeException $exception) {
+                // 恢复运行过程发生逃逸异常
+                $this->handleEscapeException($exception);
+            } catch (Throwable $e) {
+                // 恢复运行过程发生意料之外的异常
+
+                $callback['reject']($e);
+                return;
+            }
+        });
+
+        // 被等待的Promise的状态拒绝时
+        $promise->except(function (Throwable $e) use ($fiber, $callback) {
+            try {
+                // 尝试告诉Fiber: 所等待的Promise发生异常
+                $fiber->throw($e);
+
+                // Fiber已经终止
+                if($fiber->isTerminated()) {
+                    try {
+                        $callback['resolve']($fiber->getReturn());
+                        return;
+                    } catch (FiberError $e) {
+                        $callback['reject']($e);
+                        return;
+                    }
+                }
+            } catch (EscapeException $exception) {
+                // 恢复运行过程发生逃逸异常
+                $this->handleEscapeException($exception);
+            } catch (Throwable $e) {
+                // 恢复运行过程发生意料之外的异常
+
+                $callback['reject']($e);
+                return;
+            }
+        });
+
+        // 确认已经准备了对Fiber恢复的处理, 通过挂起接手Fiber控制权
         return $fiber->suspend();
     }
+
+    /**
+     * @var array $fiber2promise
+     */
+    private array $fiber2callback = [];
 
     /**
      * @param Closure $closure
@@ -110,7 +163,37 @@ class Coroutine extends LibraryAbstract
      */
     public function async(Closure $closure): Promise
     {
-        return new Promise($closure);
+        return new Promise(function (Closure $r, Closure $d, Promise $promise) use ($closure) {
+            $fiber = new Fiber($closure);
+            $hash = spl_object_hash($fiber);
+
+            $this->fiber2callback[$hash] = [
+                'resolve' => $r,
+                'reject' => $d,
+            ];
+
+            try {
+                $fiber->start($r, $d);
+            } catch (EscapeException $exception) {
+                $this->handleEscapeException($exception);
+            }
+
+
+            if($fiber->isTerminated()) {
+                try {
+                    $result = $fiber->getReturn();
+                    $r($result);
+                    return;
+                } catch (FiberError $e) {
+                    $d($e);
+                    return;
+                }
+            }
+
+            $promise->finally(function () use ($fiber) {
+                unset($this->fiber2callback[spl_object_hash($fiber)]);
+            });
+        });
     }
 
     /**
@@ -119,7 +202,8 @@ class Coroutine extends LibraryAbstract
     private function registerOnFork(): void
     {
         registerForkHandler(function () {
-            $this->fiber2promise = [];
+            $this->fiber2callback = [];
+
             $this->registerOnFork();
         });
     }
@@ -130,5 +214,96 @@ class Coroutine extends LibraryAbstract
     public function __construct()
     {
         $this->registerOnFork();
+    }
+
+    /**
+     * @param float|int $second
+     * @return void
+     * @throws Throwable
+     */
+    public function sleep(float|int $second): void
+    {
+        if(!$fiber = Fiber::getCurrent()) {
+            //is Revolt
+            $suspension = EventLoop::getSuspension();
+            Kernel::getInstance()->delay(fn () => $suspension->resume(), $second);
+            $suspension->suspend();
+
+        } elseif(!$callback = $this->fiber2callback[spl_object_hash($fiber)] ?? null) {
+            //is Revolt
+            $suspension = EventLoop::getSuspension();
+            Kernel::getInstance()->delay(fn () => $suspension->resume(), $second);
+            $suspension->suspend();
+
+        } else {
+            delay(function () use ($fiber, $callback) {
+                try {
+                    // 尝试恢复Fiber运行
+                    $fiber->resume();
+                } catch (EscapeException) {
+                    // 恢复运行过程发生逃逸异常
+                    $this->handleEscapeException($exception);
+                } catch (Throwable $e) {
+                    // 恢复运行过程发生意料之外的异常
+
+                    $callback['reject']($e);
+                    return;
+                }
+
+                if($fiber->isTerminated()) {
+                    try {
+                        $result = $fiber->getReturn();
+                        $callback['resolve']($result);
+                        return;
+                    } catch (FiberError $e) {
+                        $callback['reject']($e);
+                        return;
+                    }
+                }
+            }, $second);
+
+            $fiber->suspend();
+        }
+    }
+
+    /**
+     * @return bool
+     */
+    public function isCoroutine(): bool
+    {
+        if(!$fiber = Fiber::getCurrent()) {
+            return false;
+        }
+
+        if(!isset($this->fiber2callback[spl_object_hash($fiber)])) {
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * @param EscapeException $exception
+     * @return void
+     * @throws EscapeException
+     * @throws Throwable
+     */
+    public function handleEscapeException(EscapeException $exception): void
+    {
+        if (!Fiber::getCurrent()) {
+            $this->fiber2callback = [];
+
+
+            run();
+            exit(0);
+        }
+
+        if ($this->isCoroutine()) {
+            throw $exception;
+        } else {
+            $this->fiber2callback = [];
+
+            Fiber::suspend();
+        }
     }
 }
