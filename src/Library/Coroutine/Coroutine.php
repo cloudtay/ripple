@@ -74,14 +74,6 @@ class Coroutine extends LibraryAbstract
      */
     public function await(Promise $promise): mixed
     {
-        if(!$fiber = Fiber::getCurrent()) {
-            throw new Exception('Cannot be called outside an asynchronous context');
-        }
-
-        if(!$callback = $this->fiber2callback[spl_object_hash($fiber)] ?? null) {
-            throw new Exception('Cannot be called outside an asynchronous context');
-        }
-
         if ($promise->getStatus() === Promise::FULFILLED) {
             return $promise->getResult();
         }
@@ -90,10 +82,20 @@ class Coroutine extends LibraryAbstract
             throw $promise->getResult();
         }
 
+        if(!$fiber = Fiber::getCurrent()) {
+            throw new Exception('Cannot be called outside an asynchronous context');
+        }
+
+        if(!$callback = $this->fiber2callback[spl_object_hash($fiber)] ?? null) {
+            $promise->then(fn ($result) => $fiber->resume($result));
+            $promise->except(fn (Throwable $e) => $fiber->throw($e));
+
+            return $fiber->suspend();
+        }
+
         /**
          * 确定自身准备Fiber的控制权则必须对Fiber的后续状态负责
          */
-
         // 被等待的Promise的状态完成时
         $promise->then(function (mixed $result) use ($fiber, $callback) {
             try {
@@ -170,6 +172,8 @@ class Coroutine extends LibraryAbstract
             $this->fiber2callback[$hash] = [
                 'resolve' => $r,
                 'reject' => $d,
+                'promise' => $promise,
+                'fiber' => $fiber,
             ];
 
             try {
@@ -280,6 +284,18 @@ class Coroutine extends LibraryAbstract
         }
 
         return true;
+    }
+
+    /**
+     * @return array|null
+     */
+    public function getCoroutine(): array|null
+    {
+        if(!$fiber = Fiber::getCurrent()) {
+            return null;
+        }
+
+        return $this->fiber2callback[spl_object_hash($fiber)] ?? null;
     }
 
     /**

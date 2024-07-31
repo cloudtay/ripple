@@ -251,17 +251,6 @@ class Promise
      */
     public function await(): mixed
     {
-        if(!Fiber::getCurrent()) {
-            $suspension = EventLoop::getSuspension();
-
-            defer(function () use ($suspension) {
-                $this->then(fn (mixed $result) => $suspension->resume($result));
-                $this->except(fn (Throwable $e) => $suspension->throw($e));
-            });
-
-            return $suspension->suspend();
-        }
-
         return await($this);
     }
 }

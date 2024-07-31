@@ -127,7 +127,12 @@ class Kernel
      */
     public function defer(Closure $closure): void
     {
-        EventLoop::defer($closure);
+        if (!$callback = Coroutine::Coroutine()->getCoroutine()) {
+            EventLoop::defer($closure);
+            return;
+        }
+
+        $callback['promise']->finally(fn () => EventLoop::defer($closure));
     }
 
     /**

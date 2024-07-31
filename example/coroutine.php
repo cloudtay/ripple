@@ -2,10 +2,12 @@
 
 include_once __DIR__ . '/../vendor/autoload.php';
 
-\P\async(function () {
-    echo \P\await(\P\promise(function ($r) {
-        $r(8);
-    }));
+\P\defer(function () {
+    $response  = \P\await(
+        \P\Net::Http()->Guzzle()->getAsync('https://www.baidu.com')
+    );
+
+    \var_dump($response->getStatusCode());
 });
 
 \P\tick();
