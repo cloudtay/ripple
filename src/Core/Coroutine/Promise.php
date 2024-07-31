@@ -35,12 +35,17 @@
 namespace Psc\Core\Coroutine;
 
 use Closure;
+use Fiber;
 use Psc\Core\Output;
+use Revolt\EventLoop;
 use Throwable;
 
+use function array_reverse;
 use function call_user_func;
 use function call_user_func_array;
 use function count;
+use function P\await;
+use function P\defer;
 
 /**
  *
@@ -87,8 +92,8 @@ class Promise
     {
         try {
             call_user_func_array($closure, [
-                fn (mixed $result = null) => $this->resolve($this->result = $result),
-                fn (mixed $result = null) => $this->reject($this->result = $result),
+                fn (mixed $result = null) => $this->resolve($result),
+                fn (mixed $result = null) => $this->reject($result),
                 $this
             ]);
         } catch (Throwable $exception) {
@@ -110,17 +115,18 @@ class Promise
         if ($this->status !== Promise::PENDING) {
             return $this;
         }
-
         $this->status = Promise::FULFILLED;
         $this->result = $result;
 
-        foreach ($this->onFulfilled as $onFulfilled) {
+
+        foreach (array_reverse($this->onFulfilled) as $onFulfilled) {
             try {
                 call_user_func($onFulfilled, $result);
             } catch (Throwable $exception) {
                 Output::error($exception->getMessage());
             }
         }
+
         return $this;
     }
 
@@ -143,7 +149,7 @@ class Promise
             return $this;
         }
 
-        foreach ($this->onRejected as $onRejected) {
+        foreach (array_reverse($this->onRejected) as $onRejected) {
             try {
                 call_user_func($onRejected, $exception);
             } catch (Throwable $exception) {
@@ -240,12 +246,22 @@ class Promise
     }
 
     /**
-     * @param Throwable $e
-     * @return void
+     * @return mixed
      * @throws Throwable
      */
-    public function onFiberException(Throwable $e): void
+    public function await(): mixed
     {
-        $this->reject($e);
+        if(!Fiber::getCurrent()) {
+            $suspension = EventLoop::getSuspension();
+
+            defer(function () use ($suspension) {
+                $this->then(fn (mixed $result) => $suspension->resume($result));
+                $this->except(fn (Throwable $e) => $suspension->throw($e));
+            });
+
+            return $suspension->suspend();
+        }
+
+        return await($this);
     }
 }

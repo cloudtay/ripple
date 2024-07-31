@@ -25,6 +25,7 @@ class Lock
     /*** @var string */
     private string $path;
 
+    /*** @var int */
     private int $forkHandlerEventId;
 
     /**

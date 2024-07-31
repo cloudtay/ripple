@@ -37,7 +37,6 @@ namespace P;
 use Closure;
 use Psc\Core\Coroutine\Promise;
 use Psc\Kernel;
-use Revolt\EventLoop;
 use Revolt\EventLoop\UnsupportedFeatureException;
 use Throwable;
 
@@ -73,12 +72,11 @@ function promise(Closure $closure): Promise
 /**
  * @param int|float $second
  * @return void
+ * @throws Throwable
  */
 function sleep(int|float $second): void
 {
-    $suspension = EventLoop::getSuspension();
-    Kernel::getInstance()->delay(fn () => $suspension->resume(), $second);
-    $suspension->suspend();
+    \Psc\Library\Coroutine\Coroutine::getInstance()->sleep($second);
 }
 
 /**
@@ -114,9 +112,7 @@ function cancel(string $id): void
  */
 function cancelAll(): void
 {
-    foreach (getIdentities() as $identity) {
-        cancel($identity);
-    }
+    Kernel::getInstance()->cancelAll();
 }
 
 /**
@@ -165,16 +161,6 @@ function cancelForkHandler(int $index): void
 {
     Kernel::getInstance()->cancelForkHandler($index);
 }
-/**
- * @param Closure|null $closure
- * @param bool|null    $jumpMain
- * @return void
- * @throws Throwable
- */
-function reinstall(Closure|null $closure, bool|null $jumpMain = null): void
-{
-    Kernel::getInstance()->reinstall($closure, $jumpMain);
-}
 
 /**
  * @return void
@@ -182,6 +168,14 @@ function reinstall(Closure|null $closure, bool|null $jumpMain = null): void
 function run(): void
 {
     Kernel::getInstance()->run();
+}
+
+/**
+ * @return void
+ */
+function tick(): void
+{
+    Kernel::getInstance()->tick();
 }
 
 /**
