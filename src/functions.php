@@ -72,6 +72,7 @@ function promise(Closure $closure): Promise
 /**
  * @param int|float $second
  * @return void
+ * @throws Throwable
  */
 function sleep(int|float $second): void
 {
