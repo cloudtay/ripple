@@ -31,8 +31,7 @@
     "revolt/event-loop": "^1.0",
     "symfony/http-foundation": "*",
     "guzzlehttp/guzzle": "*",
-    "psr/http-message": "*",
-    "amphp/amp": "^3.0"
+    "psr/http-message": "*"
   },
   "require-dev": {
     "phpunit/phpunit": "^11.2",
