@@ -44,6 +44,8 @@ use Revolt\EventLoop;
 use Revolt\EventLoop\UnsupportedFeatureException;
 use Throwable;
 
+use Fiber;
+
 use function call_user_func;
 use function count;
 use function P\cancel;
@@ -53,6 +55,7 @@ use function P\promise;
 use function pcntl_fork;
 use function pcntl_wait;
 use function pcntl_wexitstatus;
+
 use function pcntl_wifexited;
 
 use const SIGCHLD;
@@ -227,31 +230,35 @@ class Process extends LibraryAbstract
 
             if ($processId === 0) {
                 /**
-                 * 此处要保证无论通过任何手段都无法逃逸末位闭包
+                 * It is necessary to ensure that the final closure cannot be escaped by any means.
                  */
 
-                // 是否属于PRipple协程空间
-                Coroutine::Coroutine()->isCoroutine();
+                // Whether it belongs to the PRipple coroutine space
+                $isCoroutine = Coroutine::Coroutine()->isCoroutine();
 
-                // 忘记所有事件
+                // forget all events
                 cancelAll();
 
-                // 处理回收和新进程挂载
+                // Handle recycling and new process mounting
                 $this->noticeFork();
 
-                // call用户挂载
+                // call user mount
                 try {
                     call_user_func($closure, ...$args);
                 } catch (Throwable) {
                     exit(1);
                 }
 
-                // 判断事件列表是否空
+                // Determine whether the event list is empty
                 if(count(getIdentities()) === 0) {
                     exit(0);
                 }
 
-                Coroutine::Coroutine()->handleEscapeException(new EscapeException('The process is abnormal.'));
+                if(!$isCoroutine) {
+                    Fiber::suspend();
+                }
+
+                throw new EscapeException('The process is abnormal.');
             }
 
             if(empty($this->process2runtime)) {

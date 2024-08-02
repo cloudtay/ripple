@@ -35,50 +35,36 @@
 namespace Psc\Core\Coroutine;
 
 use Closure;
-use Fiber;
 use Psc\Core\Output;
-use Revolt\EventLoop;
 use Throwable;
 
 use function array_reverse;
 use function call_user_func;
 use function call_user_func_array;
-use function count;
 use function P\await;
-use function P\defer;
 
 /**
  *
  */
 class Promise
 {
-    public const PENDING   = 'pending';   // 悬空
+    public const PENDING   = 'pending';   // 待定
     public const FULFILLED = 'fulfilled'; // 已完成
     public const REJECTED  = 'rejected';  // 已拒绝
 
-    /**
-     * @var mixed
-     */
+    /*** @var mixed */
     public mixed $result;
 
-    /**
-     * @var string
-     */
+    /*** @var string */
     private string $status = Promise::PENDING;
 
-    /**
-     * @var Closure[]
-     */
+    /*** @var Closure[] */
     private array $onFulfilled = [];
 
-    /**
-     * @var Closure[]
-     */
+    /*** @var Closure[] */
     private array $onRejected = [];
 
-    /**
-     * @param Closure $closure
-     */
+    /*** @param Closure $closure */
     public function __construct(Closure $closure)
     {
         $this->execute($closure);
@@ -106,76 +92,77 @@ class Promise
     }
 
     /**
-     * @param mixed $result
-     * @return $this
-     * @throws Throwable
+     * @param mixed $value
+     * @return void
      */
-    private function resolve(mixed $result): Promise
+    public function resolve(mixed $value): void
     {
         if ($this->status !== Promise::PENDING) {
-            return $this;
+            return;
         }
         $this->status = Promise::FULFILLED;
-        $this->result = $result;
+        $this->result = $value;
 
 
         foreach (array_reverse($this->onFulfilled) as $onFulfilled) {
             try {
-                call_user_func($onFulfilled, $result);
+                call_user_func($onFulfilled, $value);
             } catch (Throwable $exception) {
                 Output::error($exception->getMessage());
             }
         }
 
-        return $this;
+        return;
     }
 
     /**
-     * @param Throwable $exception
-     * @return $this
-     * @throws Throwable
+     * @param Throwable $reason
+     * @return void
      */
-    private function reject(Throwable $exception): Promise
+    public function reject(mixed $reason): void
     {
         if ($this->status !== Promise::PENDING) {
-            return $this;
+            return;
         }
 
         $this->status = Promise::REJECTED;
-        $this->result = $exception;
+        $this->result = $reason;
 
-        if (count($this->onRejected) === 0) {
-            Output::error($exception->getMessage());
-            return $this;
-        }
+        Output::warning($reason->getMessage());
 
         foreach (array_reverse($this->onRejected) as $onRejected) {
             try {
-                call_user_func($onRejected, $exception);
-            } catch (Throwable $exception) {
-                Output::error($exception->getMessage());
+                call_user_func($onRejected, $reason);
+            } catch (Throwable $reason) {
+                Output::error($reason->getMessage());
             }
         }
-        return $this;
+        return;
     }
 
     /**
-     * @param Closure $onFulfilled
+     * @param callable|null $onFulfilled
+     * @param callable|null $onRejected
      * @return $this
      */
-    public function then(Closure $onFulfilled): Promise
+    public function then(?callable $onFulfilled = null, ?callable $onRejected = null): Promise
     {
-        if ($this->status === Promise::FULFILLED) {
-            try {
-                call_user_func($onFulfilled, $this->result);
-            } catch (Throwable $exception) {
-                Output::error($exception->getMessage());
+        if($onFulfilled) {
+            if ($this->status === Promise::FULFILLED) {
+                try {
+                    call_user_func($onFulfilled, $this->result);
+                } catch (Throwable $exception) {
+                    Output::error($exception->getMessage());
+                }
+                return $this;
+            } else {
+                $this->onFulfilled[] = $onFulfilled;
             }
-            return $this;
-        } else {
-            $this->onFulfilled[] = $onFulfilled;
         }
 
+        if($onRejected) {
+            $this->except($onRejected);
+        }
         return $this;
     }
 
@@ -252,5 +239,44 @@ class Promise
     public function await(): mixed
     {
         return await($this);
+    }
+
+
+
+    /**
+     * @return string
+     */
+    public function getState(): string
+    {
+        return $this->status;
+    }
+
+    /**
+     * @param bool $unwrap
+     * @return mixed
+     * @throws Throwable
+     */
+    public function wait(bool $unwrap = true): mixed
+    {
+        return $this->await();
+    }
+
+    /**
+     * @return void
+     * @throws Exception
+     */
+    public function cancel(): void
+    {
+        // TODO: Implement cancel() method.
+        throw new Exception('Method not implemented');
+    }
+
+    /**
+     * @param callable $onRejected
+     * @return Promise
+     */
+    public function otherwise(callable $onRejected): Promise
+    {
+        return $this->except($onRejected);
     }
 }

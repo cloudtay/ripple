@@ -76,7 +76,7 @@ function promise(Closure $closure): Promise
  */
 function sleep(int|float $second): void
 {
-    \Psc\Library\Coroutine\Coroutine::getInstance()->sleep($second);
+    Coroutine::Coroutine()->sleep($second);
 }
 
 /**

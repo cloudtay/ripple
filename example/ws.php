@@ -11,7 +11,7 @@ $context = \stream_context_create([
     'socket' => [
         'so_reuseport' => true,
         'so_reuseaddr' => true,
-    ],
+    ]
 ]);
 
 $server            = Net::WebSocket()->server('ws://127.0.0.1:8001', $context);

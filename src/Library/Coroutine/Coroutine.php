@@ -94,15 +94,15 @@ class Coroutine extends LibraryAbstract
         }
 
         /**
-         * 确定自身准备Fiber的控制权则必须对Fiber的后续状态负责
+         * To determine your own control over preparing Fiber, you must be responsible for the subsequent status of Fiber.
          */
-        // 被等待的Promise的状态完成时
+        // When the status of the awaited Promise is completed
         $promise->then(function (mixed $result) use ($fiber, $callback) {
             try {
-                // 尝试恢复Fiber运行
+                // Try to resume Fiber operation
                 $fiber->resume($result);
 
-                // Fiber已经终止
+                // Fiber has been terminated
                 if($fiber->isTerminated()) {
                     try {
                         $callback['resolve']($fiber->getReturn());
@@ -113,23 +113,23 @@ class Coroutine extends LibraryAbstract
                     }
                 }
             } catch (EscapeException $exception) {
-                // 恢复运行过程发生逃逸异常
+                // An escape exception occurs during recovery operation
                 $this->handleEscapeException($exception);
             } catch (Throwable $e) {
-                // 恢复运行过程发生意料之外的异常
+                // Unexpected exception occurred during recovery operation
 
                 $callback['reject']($e);
                 return;
             }
         });
 
-        // 被等待的Promise的状态拒绝时
+        // When rejected by the status of the awaited Promise
         $promise->except(function (Throwable $e) use ($fiber, $callback) {
             try {
-                // 尝试告诉Fiber: 所等待的Promise发生异常
+                // Try to notice Fiber: An exception occurred in the awaited Promise
                 $fiber->throw($e);
 
-                // Fiber已经终止
+                // Fiber has been terminated
                 if($fiber->isTerminated()) {
                     try {
                         $callback['resolve']($fiber->getReturn());
@@ -140,17 +140,16 @@ class Coroutine extends LibraryAbstract
                     }
                 }
             } catch (EscapeException $exception) {
-                // 恢复运行过程发生逃逸异常
+                // An escape exception occurs during recovery operation
                 $this->handleEscapeException($exception);
             } catch (Throwable $e) {
-                // 恢复运行过程发生意料之外的异常
-
+                // Unexpected exception occurred during recovery operation
                 $callback['reject']($e);
                 return;
             }
         });
 
-        // 确认已经准备了对Fiber恢复的处理, 通过挂起接手Fiber控制权
+        // Confirm that you have prepared to handle Fiber recovery and take over control of Fiber by suspending it
         return $fiber->suspend();
     }
 
@@ -308,7 +307,6 @@ class Coroutine extends LibraryAbstract
     {
         if (!Fiber::getCurrent()) {
             $this->fiber2callback = [];
-
 
             run();
             exit(0);

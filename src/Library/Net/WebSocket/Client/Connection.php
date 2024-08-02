@@ -359,7 +359,7 @@ class Connection
     {
         if (isset($this->onMessage)) {
             try {
-                call_user_func($this->onMessage, $unmaskedData, $opcode, $this);
+                call_user_func($this->onMessage, $unmaskedData, $this);
             } catch (Throwable $e) {
                 Output::error($e->getMessage());
             }
