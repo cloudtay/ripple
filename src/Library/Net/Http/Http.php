@@ -36,7 +36,7 @@ namespace Psc\Library\Net\Http;
 
 use Psc\Core\LibraryAbstract;
 use Psc\Library\Net\Http\Server\HttpServer;
-use Psc\Plugins\Guzzle;
+use Psc\Plugins\Guzzle\Guzzle;
 
 /**
  *
