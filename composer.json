@@ -29,12 +29,10 @@
     "ext-pcntl": "*",
     "ext-openssl": "*",
     "ext-curl": "*",
-
     "revolt/event-loop": "^1.0",
     "symfony/http-foundation": "*",
     "guzzlehttp/guzzle": "*",
-    "psr/http-message": "*",
-
+    "psr/http-message": "*"
   },
   "require-dev": {
     "phpunit/phpunit": "^11.2",
