@@ -38,20 +38,29 @@ use Psc\Core\LibraryAbstract;
 
 use function is_resource;
 use function proc_open;
+use function implode;
+use function is_array;
 
 /**
  *
  */
 class Proc extends LibraryAbstract
 {
+    /**
+     * @var LibraryAbstract
+     */
     protected static LibraryAbstract $instance;
 
     /**
-     * @param string $entrance
+     * @param string|array $entrance
      * @return Session|false
      */
-    public function open(string $entrance = '/bin/sh'): Session|false
+    public function open(string|array $entrance = '/bin/sh'): Session|false
     {
+        if (is_array($entrance)) {
+            $entrance = implode(' ', $entrance);
+        }
+
         $process = proc_open($entrance, array(
             0 => ['pipe', 'r'],
             1 => ['pipe', 'w'],
@@ -66,6 +75,7 @@ class Proc extends LibraryAbstract
                 $pipes[2],
             );
         }
+
         return false;
     }
 }

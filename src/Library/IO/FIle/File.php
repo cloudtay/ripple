@@ -127,7 +127,7 @@ class File extends LibraryAbstract
     /**
      * @var Monitor[]
      */
-    private array $monitors = [];
+    private array $monitors = array();
 
     /**
      *

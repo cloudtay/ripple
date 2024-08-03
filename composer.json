@@ -36,8 +36,6 @@
   },
   "require-dev": {
     "phpunit/phpunit": "^11.2",
-    "ext-event": "*",
-    "ext-ev": "*",
     "friendsofphp/php-cs-fixer": "*"
   }
 }

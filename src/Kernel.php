@@ -44,13 +44,15 @@ use Throwable;
 
 use function call_user_func;
 use function count;
+use function usleep;
 
 class Kernel
 {
-    /**
-     * @var Kernel
-     */
+    /*** @var Kernel */
     public static Kernel $instance;
+
+    /*** @var EventLoop\Suspension */
+    private EventLoop\Suspension $mainSuspension;
 
     /**
      *
@@ -185,9 +187,6 @@ class Kernel
         System::Process()->cancelForkHandler($index);
     }
 
-    /*** @var EventLoop\Suspension */
-    private EventLoop\Suspension $mainSuspension;
-
     /**
      * @return void
      */
@@ -198,7 +197,7 @@ class Kernel
                 continue;
             }
 
-            break;
+            usleep(10_0000);
         }
     }
 

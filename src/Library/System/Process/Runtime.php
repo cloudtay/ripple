@@ -39,6 +39,8 @@ use Psc\Core\Coroutine\Promise;
 
 use Revolt\EventLoop;
 
+use Throwable;
+
 use function posix_kill;
 
 use const SIGKILL;
@@ -126,13 +128,12 @@ class Runtime
         return $this->promise->finally($finally);
     }
 
-    /*** @return void */
-    public function await(): void
+    /***
+     * @return mixed
+     * @throws Throwable
+     */
+    public function await(): mixed
     {
-        $suspend = EventLoop::getSuspension();
-        $this->finally(function () use ($suspend) {
-            $suspend->resume();
-        });
-        $suspend->suspend();
+        return $this->getPromise()->await();
     }
 }

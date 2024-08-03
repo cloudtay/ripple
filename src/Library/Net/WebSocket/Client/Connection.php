@@ -276,7 +276,7 @@ class Connection
                         throw new HandshakeException('Invalid response');
                     }
 
-                    $headers  = [];
+                    $headers  = array();
                     $exploded = explode("\r\n", $header);
 
                     foreach ($exploded as $index => $line) {

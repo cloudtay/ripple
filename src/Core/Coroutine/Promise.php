@@ -59,10 +59,10 @@ class Promise
     private string $status = Promise::PENDING;
 
     /*** @var Closure[] */
-    private array $onFulfilled = [];
+    private array $onFulfilled = array();
 
     /*** @var Closure[] */
-    private array $onRejected = [];
+    private array $onRejected = array();
 
     /*** @param Closure $closure */
     public function __construct(Closure $closure)
@@ -240,8 +240,6 @@ class Promise
     {
         return await($this);
     }
-
-
 
     /**
      * @return string

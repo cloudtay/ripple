@@ -35,6 +35,7 @@
 namespace Psc\Library\System\Process;
 
 use Closure;
+use Fiber;
 use P\Coroutine;
 use Psc\Core\LibraryAbstract;
 use Psc\Core\Output;
@@ -43,8 +44,6 @@ use Psc\Library\System\Exception\ProcessException;
 use Revolt\EventLoop;
 use Revolt\EventLoop\UnsupportedFeatureException;
 use Throwable;
-
-use Fiber;
 
 use function call_user_func;
 use function count;
@@ -55,8 +54,8 @@ use function P\promise;
 use function pcntl_fork;
 use function pcntl_wait;
 use function pcntl_wexitstatus;
-
 use function pcntl_wifexited;
+use function posix_getpid;
 
 use const SIGCHLD;
 use const SIGKILL;
@@ -72,20 +71,27 @@ class Process extends LibraryAbstract
     protected static LibraryAbstract $instance;
 
     /*** @var array */
-    private array $process2promiseCallback = [];
+    private array $process2promiseCallback = array();
 
-    /**
-     * @var Runtime[]
-     */
-    private array $process2runtime = [];
+    /*** @var Runtime[] */
+    private array $process2runtime = array();
 
     /*** @var array */
-    private array $onFork = [];
+    private array $onFork = array();
 
-    /**
-     */
+    /*** @var int */
+    private int $rootProcessId;
+
+    /*** @var int */
+    private int $processId;
+
+    /*** @var string */
+    private string $signalHandlerEventId;
+
     public function __construct()
     {
+        $this->rootProcessId = posix_getpid();
+        $this->processId = posix_getpid();
     }
 
     /**
@@ -95,9 +101,6 @@ class Process extends LibraryAbstract
     {
         $this->destroy();
     }
-
-    /*** @var string */
-    private string $signalHandlerEventId;
 
     /**
      * @return void
@@ -115,7 +118,6 @@ class Process extends LibraryAbstract
     {
         cancel($this->signalHandlerEventId);
     }
-
 
     /**
      * @return void
@@ -196,7 +198,7 @@ class Process extends LibraryAbstract
      * @return void
      * @throws UnsupportedFeatureException|Throwable
      */
-    public function noticeFork(): void
+    public function forked(): void
     {
         if (!empty($this->process2runtime)) {
             $this->unregisterSignalHandler();
@@ -211,21 +213,23 @@ class Process extends LibraryAbstract
             }
         }
 
-        $this->process2promiseCallback = [];
-        $this->process2runtime         = [];
+        $this->process2promiseCallback = array();
+        $this->process2runtime         = array();
+        $this->processId               = posix_getpid();
     }
 
     /**
      * @param Closure $closure
-     * @return Task
+     * @return Task|false
      */
-    public function task(Closure $closure): Task
+    public function task(Closure $closure): Task|false
     {
         return new Task(function (...$args) use ($closure) {
             $processId = pcntl_fork();
 
             if ($processId === -1) {
-                throw new ProcessException('Fork failed.');
+                Output::warning('Fork failed.');
+                return false;
             }
 
             if ($processId === 0) {
@@ -240,7 +244,7 @@ class Process extends LibraryAbstract
                 cancelAll();
 
                 // Handle recycling and new process mounting
-                $this->noticeFork();
+                $this->forked();
 
                 // call user mount
                 try {
@@ -266,10 +270,10 @@ class Process extends LibraryAbstract
             }
 
             $promise = promise(function ($r, $d) use ($processId) {
-                $this->process2promiseCallback[$processId] = [
+                $this->process2promiseCallback[$processId] = array(
                     'resolve' => $r,
                     'reject'  => $d,
-                ];
+                );
             });
 
             $runtime = new Runtime(
@@ -291,5 +295,29 @@ class Process extends LibraryAbstract
     public function onSignal(int $signalCode, Closure $handler): string
     {
         return EventLoop::onSignal($signalCode, $handler);
+    }
+
+    /**
+     * @return int
+     */
+    public function getProcessId(): int
+    {
+        return $this->processId;
+    }
+
+    /**
+     * @return int
+     */
+    public function getMainProcessId(): int
+    {
+        return $this->rootProcessId;
+    }
+
+    /**
+     * @return bool
+     */
+    public function isRootProcess(): bool
+    {
+        return $this->processId === $this->rootProcessId;
     }
 }

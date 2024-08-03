@@ -41,7 +41,6 @@ use Psc\Library\Net\Exception\ConnectionException;
 use Psc\Library\Net\Http\Server\Exception\FormatException;
 use Psc\Library\Net\Http\Server\Upload\MultipartHandler;
 use Psc\Std\Stream\Exception\RuntimeException;
-use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Throwable;
 
 use function call_user_func;
@@ -208,12 +207,12 @@ class HttpServer
             private function reset(): void
             {
                 $this->step          = 0;
-                $this->query         = [];
-                $this->request       = [];
-                $this->attributes    = [];
-                $this->cookies       = [];
-                $this->files         = [];
-                $this->server        = [];
+                $this->query         = array();
+                $this->request       = array();
+                $this->attributes    = array();
+                $this->cookies       = array();
+                $this->files         = array();
+                $this->server        = array();
                 $this->content       = '';
                 $this->buffer        = '';
                 $this->requestUpload = null;
@@ -310,17 +309,19 @@ class HttpServer
                                     } else {
                                         $this->step          = 3;
                                         $this->requestUpload = new MultipartHandler($matches[1]);
-                                        $stream->onClose(fn () => $this->requestUpload?->disconnect());
-                                        $this->requestUpload->onFile = function (UploadedFile $file, string $name) {
-                                            $this->files[$name][] = $file;
-                                            if ($this->bodyLength === intval($this->server['HTTP_CONTENT_LENGTH'])) {
-                                                $this->step = 2;
-                                            }
-                                            $this->requestUpload->done();
-                                        };
+                                        $stream->onClose(fn () => $this->requestUpload?->cancel());
 
                                         try {
-                                            $this->requestUpload->push($this->content);
+                                            foreach ($this->requestUpload->tick($this->content) as $name => $files) {
+                                                foreach ($files as $file) {
+                                                    $this->files[$name][] = $file;
+                                                }
+                                            }
+
+                                            if ($this->bodyLength === intval($this->server['HTTP_CONTENT_LENGTH'])) {
+                                                $this->step = 2;
+                                                $this->requestUpload->cancel();
+                                            }
                                         } catch (Throwable) {
                                             $this->stream->close();
                                             return;
@@ -370,7 +371,17 @@ class HttpServer
                     if ($this->step === 3) {
                         $this->bodyLength += strlen($this->buffer);
                         try {
-                            $this->requestUpload->push($this->buffer);
+                            foreach ($this->requestUpload->tick($this->buffer) as $name => $files) {
+                                foreach ($files as $file) {
+                                    $this->files[$name][] = $file;
+                                }
+                            }
+
+                            if ($this->bodyLength === intval($this->server['HTTP_CONTENT_LENGTH'])) {
+                                $this->step = 2;
+                                $this->requestUpload->cancel();
+                            }
+
                             $this->buffer = '';
                         } catch (Throwable) {
                             $this->stream->close();

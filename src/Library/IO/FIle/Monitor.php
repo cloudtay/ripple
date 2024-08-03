@@ -73,7 +73,7 @@ class Monitor
     /**
      * @var array
      */
-    private array $cache = [];
+    private array $cache = array();
 
     /**
      * @var string
@@ -257,6 +257,6 @@ class Monitor
             cancel($this->timer2);
         }
 
-        $this->cache = [];
+        $this->cache = array();
     }
 }

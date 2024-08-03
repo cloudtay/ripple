@@ -1,4 +1,36 @@
 <?php declare(strict_types=1);
+/*
+ * Copyright (c) 2023-2024.
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *
+ * 特此免费授予任何获得本软件及相关文档文件（“软件”）副本的人，不受限制地处理
+ * 本软件，包括但不限于使用、复制、修改、合并、出版、发行、再许可和/或销售
+ * 软件副本的权利，并允许向其提供本软件的人做出上述行为，但须符合以下条件：
+ *
+ * 上述版权声明和本许可声明应包含在本软件的所有副本或主要部分中。
+ *
+ * 本软件按“原样”提供，不提供任何形式的保证，无论是明示或暗示的，
+ * 包括但不限于适销性、特定目的的适用性和非侵权性的保证。在任何情况下，
+ * 无论是合同诉讼、侵权行为还是其他方面，作者或版权持有人均不对
+ * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
+ */
 
 namespace Psc\Library\IO\Channel;
 
@@ -28,6 +60,7 @@ use function unserialize;
 class Channel
 {
     private const FRAME_HEADER = 0x7E;
+
     private const FRAME_FOOTER = 0x7E;
 
     /*** @var Zx7e */
@@ -43,7 +76,10 @@ class Channel
     private Stream $stream;
 
     /*** @var Lock */
-    private Lock   $lock;
+    private Lock   $readLock;
+
+    /*** @var Lock */
+    private Lock $writeLock;
 
     /*** @var string */
     private string $path;
@@ -51,22 +87,23 @@ class Channel
     /**
      * @param string $name
      * @param bool   $owner
-     * @throws Exception
+     * @throws ChannelException
      */
     public function __construct(
         private readonly string $name,
         private bool            $owner = false
     ) {
         $this->path = self::generateFilePathByChannelName($name);
-        $this->lock = IO::Lock()->access($this->name);
+        $this->readLock = IO::Lock()->access("{$this->name}.read");
+        $this->writeLock = IO::Lock()->access("{$this->name}.write");
 
         if (!file_exists($this->path)) {
             if (!$this->owner) {
-                throw new Exception('Channel does not exist.');
+                throw new ChannelException('Channel does not exist.');
             }
 
             if (!posix_mkfifo($this->path, 0600)) {
-                throw new Exception('Failed to create channel.');
+                throw new ChannelException('Failed to create channel.');
             }
         }
 
@@ -94,7 +131,7 @@ class Channel
             throw new ChannelException('Unable to send data to a closed channel');
         }
 
-        $this->lock->lock();
+        $this->writeLock->lock();
         $this->stream->setBlocking(true);
 
         try {
@@ -102,7 +139,7 @@ class Channel
         } catch (Exception) {
             return false;
         } finally {
-            $this->lock->unlock();
+            $this->writeLock->unlock();
         }
         return true;
     }
@@ -119,10 +156,10 @@ class Channel
 
         try {
             if ($this->blocking) {
-                $this->lock->lock();
+                $this->readLock->lock();
                 $this->stream->setBlocking(true);
             } else {
-                if (!$this->lock->lock(false)) {
+                if (!$this->readLock->lock(false)) {
                     throw new Exception('Failed to acquire lock.');
                 }
                 $this->stream->setBlocking(false);
@@ -131,7 +168,7 @@ class Channel
             $header = $this->stream->read(1);
 
             if ($header !== chr(self::FRAME_HEADER)) {
-                $this->lock->unlock();
+                $this->readLock->unlock();
                 return null;
             }
 
@@ -143,28 +180,22 @@ class Channel
             $footer   = $this->stream->read(1);
 
             if ($footer !== chr(self::FRAME_FOOTER)) {
-                $this->lock->unlock();
+                $this->readLock->unlock();
                 throw new Exception('Failed to read frame footer.');
             }
 
             if ($checksum !== chr($this->zx7e->calculateChecksum($data))) {
-                $this->lock->unlock();
+                $this->readLock->unlock();
                 throw new Exception('Failed to verify checksum.');
             }
 
-            $this->lock->unlock();
+            $this->readLock->unlock();
             return unserialize($data);
         } catch (Exception $e) {
             throw new ChannelException($e->getMessage());
         } finally {
-            $this->lock->unlock();
+            $this->readLock->unlock();
         }
-    }
-
-    /*** @return bool */
-    public function getBlocking(): bool
-    {
-        return $this->blocking;
     }
 
     /*** @return string */
@@ -177,12 +208,6 @@ class Channel
     public function getPath(): string
     {
         return $this->path;
-    }
-
-    /*** @return Lock */
-    public function getLock(): Lock
-    {
-        return $this->lock;
     }
 
     /**
@@ -205,7 +230,8 @@ class Channel
         }
 
         $this->stream->close();
-        $this->lock->close();
+        $this->readLock->close();
+        $this->writeLock->close();
 
         if ($this->owner) {
             unlink($this->path);
@@ -235,7 +261,7 @@ class Channel
     /**
      * @param string $name
      * @return Channel
-     * @throws Exception
+     * @throws ChannelException
      */
     public static function make(string $name): Channel
     {
@@ -245,14 +271,14 @@ class Channel
     /**
      * @param string $name
      * @return Channel
-     * @throws Exception
+     * @throws ChannelException
      */
     public static function open(string $name): Channel
     {
         $path = self::generateFilePathByChannelName($name);
 
         if (!file_exists($path)) {
-            throw new Exception('Channel does not exist.');
+            throw new ChannelException('Channel does not exist.');
         }
 
         return new self($name);

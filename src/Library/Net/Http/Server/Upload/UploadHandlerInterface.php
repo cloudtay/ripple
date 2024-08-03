@@ -32,100 +32,23 @@
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-include_once __DIR__ . '/../vendor/autoload.php';
+namespace Psc\Library\Net\Http\Server\Upload;
 
-use P\IO;
-use P\Net;
-use P\System;
-use Psc\Core\Output;
-use Psc\Library\Net\Http\Server\HttpServer;
-use Psc\Library\System\Process\Runtime;
-use Psc\Library\System\Process\Task;
-
-use function P\run;
-
-class PDrive
+interface UploadHandlerInterface
 {
-    private HttpServer $httpServer;
+    /**
+     * @param string $boundary
+     */
+    public function __construct(string $boundary);
+
+    /**
+     * @param string $content
+     * @return array
+     */
+    public function tick(string $content): array;
 
     /**
      * @return void
      */
-    public function execute(): void
-    {
-        $monitor = IO::File()->watch(__DIR__, 'php');
-        $pid     = \posix_getpid();
-
-        $monitor->onTouch = function (string $file) use ($pid) {
-            Output::warning("File touched: {$file}");
-            $this->reload();
-        };
-
-        $monitor->onModify = function (string $file) {
-            Output::warning("File modified: {$file}");
-            $this->reload();
-        };
-
-        $monitor->onRemove = function (string $file) {
-            Output::warning("File removed: {$file}");
-            $this->reload();
-        };
-
-        $context = \stream_context_create([
-            'socket' => [
-                'so_reuseport' => 1,
-                'so_reuseaddr' => 1,
-            ],
-        ]);
-
-        $this->httpServer = Net::Http()->server('http://127.0.0.1:8008', $context);
-        $task             = System::Process()->task(function (HttpServer $server) {
-
-        });
-        $this->guard($task);
-        run();
-    }
-
-    /**
-     * @param Task $task
-     * @return void
-     */
-    private function guard(Task $task): void
-    {
-        $runtime = $task->run($this->httpServer);
-        $runtime->finally(function () use ($task) {
-            try {
-                $this->guard($task);
-            } catch (Throwable $e) {
-                Output::exception($e);
-            }
-        });
-        $this->runtimes[] = $runtime;
-    }
-
-    /**
-     * @return void
-     */
-    private function reload(): void
-    {
-        while ($runtime = \array_shift($this->runtimes)) {
-            $runtime->stop();
-        }
-    }
-
-    /**
-     * @return void
-     */
-    private function monitor(): void
-    {
-    }
-
-    /**
-     * @var Runtime[]
-     */
-    private array $runtimes = [];
+    public function cancel(): void;
 }
-
-
-$p = new PDrive();
-$p->execute();

@@ -40,6 +40,8 @@ use Psc\Std\Stream\Exception\ConnectionException;
 use Throwable;
 
 use function call_user_func;
+use function implode;
+use function is_array;
 use function is_resource;
 use function posix_kill;
 use function proc_close;
@@ -139,11 +141,14 @@ class Session
     }
 
     /**
-     * @param string $content
+     * @param string|array $content
      * @return bool
      */
-    public function input(string $content): bool
+    public function input(string|array $content): bool
     {
+        if (is_array($content)) {
+            $content = implode(' ', $content);
+        }
         return $this->write("{$content}\n");
     }
 

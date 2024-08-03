@@ -32,31 +32,8 @@
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-namespace Psc\Library\System\Process;
+namespace Psc\Library\Net\Http\Server;
 
-use Closure;
-
-use function call_user_func;
-
-/**
- *
- */
-class Task
+class Client
 {
-    /**
-     * @param Closure $closure
-     */
-    public function __construct(
-        public readonly Closure $closure,
-    ) {
-    }
-
-    /**
-     * @param ...$argv
-     * @return Runtime
-     */
-    public function run(...$argv): Runtime
-    {
-        return call_user_func($this->closure, ...$argv);
-    }
 }

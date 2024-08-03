@@ -35,32 +35,34 @@
 namespace Tests;
 
 use GuzzleHttp\Psr7\Response;
-use P\Net;
+use P\Plugin;
 use PHPUnit\Framework\TestCase;
 use Throwable;
 
 use function hash;
 use function P\async;
 use function P\await;
-use function P\run;
-use function P\stop;
+use function P\cancel;
+use function P\repeat;
 use function uniqid;
 
 class HttpTest extends TestCase
 {
     /**
-     * @return
+     * @return void
+     * @throws Throwable
      */
     public function test_httpServerGet(): void
     {
         $answer = hash('sha256', uniqid());
+        $loop = repeat(function () {}, 1);
 
-        async(function () use ($answer) {
+        async(function () use ($answer, $loop) {
             try {
                 /**
                  * @var Response $response
                  */
-                $response = await(Net::Http()->Guzzle()->getAsync('http://127.0.0.1:8008/', [
+                $response = await(Plugin::Guzzle()->getAsync('http://127.0.0.1:8008/', [
                     'query' => [
                         'hash' => $answer,
                     ]
@@ -69,18 +71,23 @@ class HttpTest extends TestCase
             } catch (Throwable $exception) {
                 $this->fail($exception->getMessage());
             } finally {
-                stop();
+                cancel($loop);
             }
-        });
+        })->await();
 
-        run();
+        \P\sleep(3);
     }
 
+    /**
+     * @return void
+     * @throws Throwable
+     */
     public function test_httpServerPost(): void
     {
         $answer = hash('sha256', uniqid());
+        $loop = repeat(function () {}, 1);
 
-        Net::Http()->Guzzle()->postAsync('http://127.0.0.1:8008/', [
+        Plugin::Guzzle()->postAsync('http://127.0.0.1:8008/', [
             'body'    => $answer,
             'timeout' => 5,
         ])
@@ -90,10 +97,8 @@ class HttpTest extends TestCase
             ->except(function (Throwable $throwable) {
                 $this->fail($throwable->getMessage());
             })
-            ->finally(function () {
-                stop();
-            });
-
-        run();
+            ->finally(function () use ($loop) {
+                cancel($loop);
+            })->await();
     }
 }

@@ -37,7 +37,6 @@ namespace Psc\Library\Coroutine;
 use Closure;
 use Fiber;
 use FiberError;
-use Psc\Core\Coroutine\Exception;
 use Psc\Core\Coroutine\Promise;
 use Psc\Core\LibraryAbstract;
 use Psc\Kernel;
@@ -83,7 +82,15 @@ class Coroutine extends LibraryAbstract
         }
 
         if(!$fiber = Fiber::getCurrent()) {
-            throw new Exception('Cannot be called outside an asynchronous context');
+            $suspend = EventLoop::getSuspension();
+            $promise->then(fn ($result) => $suspend->resume($result));
+            $promise->except(fn (mixed $e) => $suspend->resume($e));
+
+            try {
+                return $suspend->suspend();
+            } catch (Throwable) {
+                return false;
+            }
         }
 
         if(!$callback = $this->fiber2callback[spl_object_hash($fiber)] ?? null) {
@@ -156,7 +163,7 @@ class Coroutine extends LibraryAbstract
     /**
      * @var array $fiber2promise
      */
-    private array $fiber2callback = [];
+    private array $fiber2callback = array();
 
     /**
      * @param Closure $closure
@@ -168,12 +175,12 @@ class Coroutine extends LibraryAbstract
             $fiber = new Fiber($closure);
             $hash = spl_object_hash($fiber);
 
-            $this->fiber2callback[$hash] = [
+            $this->fiber2callback[$hash] = array(
                 'resolve' => $r,
                 'reject' => $d,
                 'promise' => $promise,
                 'fiber' => $fiber,
-            ];
+            );
 
             try {
                 $fiber->start($r, $d);
@@ -205,7 +212,7 @@ class Coroutine extends LibraryAbstract
     private function registerOnFork(): void
     {
         registerForkHandler(function () {
-            $this->fiber2callback = [];
+            $this->fiber2callback = array();
 
             $this->registerOnFork();
         });
@@ -306,7 +313,7 @@ class Coroutine extends LibraryAbstract
     public function handleEscapeException(EscapeException $exception): void
     {
         if (!Fiber::getCurrent()) {
-            $this->fiber2callback = [];
+            $this->fiber2callback = array();
 
             run();
             exit(0);
@@ -315,7 +322,7 @@ class Coroutine extends LibraryAbstract
         if ($this->isCoroutine()) {
             throw $exception;
         } else {
-            $this->fiber2callback = [];
+            $this->fiber2callback = array();
 
             Fiber::suspend();
         }

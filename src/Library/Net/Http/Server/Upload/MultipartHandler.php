@@ -34,13 +34,10 @@
 
 namespace Psc\Library\Net\Http\Server\Upload;
 
-use Closure;
 use Psc\Library\Net\Http\Server\Exception\FormatException;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 
-use function array_pop;
 use function array_shift;
-use function call_user_func;
 use function explode;
 use function fclose;
 use function fopen;
@@ -55,31 +52,20 @@ use function uniqid;
 /**
  * Http上传解析器
  */
-class MultipartHandler
+class MultipartHandler implements UploadHandlerInterface
 {
     private const STATUS_WAIT = 0;
     private const STATUS_TRAN = 1;
-    private const STATUS_DONE = 2;
-
-    /**
-     * @var Closure
-     */
-    public Closure $onFile;
-
-    /**
-     * @var array
-     */
-    private array $files = array();
-
-    /**
-     * @var mixed
-     */
-    private mixed $currentTransferFile;
 
     /**
      * @var int
      */
     private int $status = MultipartHandler::STATUS_WAIT;
+
+    /**
+     * @var array
+     */
+    private array $task;
 
     /**
      * @var string
@@ -96,39 +82,50 @@ class MultipartHandler
 
     /**
      * 上下文推入
-     * @param string $context
-     * @return void
+     * @param string $content
+     * @return array
      * @throws FormatException
      */
-    public function push(string $context): void
+    public function tick(string $content): array
     {
-        $this->buffer .= $context;
+        $result = array();
+        $this->buffer .= $content;
+
         while (!empty($this->buffer)) {
             if ($this->status === MultipartHandler::STATUS_WAIT) {
-                if (!$this->parseFileInfo()) {
+                if (!$info = $this->parseFileInfo()) {
                     break;
                 }
+
+                $this->status = MultipartHandler::STATUS_TRAN;
+                $info['path'] = sys_get_temp_dir() . '/' . uniqid();
+                $info['stream'] = fopen($info['path'], 'wb+');
+                $this->task = $info;
             }
 
             if ($this->status === MultipartHandler::STATUS_TRAN) {
                 if (!$this->processTransmitting()) {
                     break;
                 }
-            }
 
-            if ($this->status === MultipartHandler::STATUS_DONE) {
-                break;
+                $this->status = MultipartHandler::STATUS_WAIT;
+                $result[$this->task['name']][] = new UploadedFile(
+                    $this->task['path'],
+                    $this->task['fileName'],
+                    $this->task['contentType'],
+                );
             }
-
         }
+
+        return $result;
     }
 
     /**
      * 解析文件信息
-     * @return bool
-     * @throws FormatException
+     * @return array|false 返回是否解析成功
+     * @throws FormatException 如果文件信息不完整
      */
-    private function parseFileInfo(): bool
+    private function parseFileInfo(): array|false
     {
         $headerEndPosition = strpos($this->buffer, "\r\n\r\n");
         if ($headerEndPosition === false) {
@@ -137,9 +134,7 @@ class MultipartHandler
 
         $header       = substr($this->buffer, 0, $headerEndPosition);
         $this->buffer = substr($this->buffer, $headerEndPosition + 4);
-
         $headerLines = explode("\r\n", $header);
-
         $meta1 = array_shift($headerLines);
         $meta2 = array_shift($headerLines);
         $meta3 = array_shift($headerLines);
@@ -156,25 +151,11 @@ class MultipartHandler
             throw new FormatException('File information is incomplete');
         }
 
-        $fileInfo                = array();
-        $fileInfo['name']        = $matches2[1];
-        $fileInfo['fileName']    = $matches2[2];
-        $fileInfo['contentType'] = $matches3[1];
-        $fileInfo['path']        = $this->createNewFile();
-        $this->files[]           = $fileInfo;
-        $this->status            = MultipartHandler::STATUS_TRAN;
-        return true;
-    }
-
-    /**
-     * 创建新文件
-     * @return string
-     */
-    private function createNewFile(): string
-    {
-        $path                      = sys_get_temp_dir() . '/' . uniqid();
-        $this->currentTransferFile = fopen($path, 'wb+');
-        return $path;
+        return array(
+            'name'        => $matches2[1],
+            'fileName'    => $matches2[2],
+            'contentType' => $matches3[1]
+        );
     }
 
     /**
@@ -199,46 +180,25 @@ class MultipartHandler
 
         if ($boundaryPosition !== false) {
             $this->buffer = substr($this->buffer, $boundaryPosition + $modeLength);
-
             $content = substr($this->buffer, 0, $boundaryPosition);
-            fwrite($this->currentTransferFile, $content);
-            fclose($this->currentTransferFile);
-            $this->status = MultipartHandler::STATUS_WAIT;
-
-            if (isset($this->onFile)) {
-                $fileInfo = array_pop($this->files);
-                call_user_func(
-                    $this->onFile,
-                    new UploadedFile(
-                        $fileInfo['path'],
-                        $fileInfo['fileName'],
-                        $fileInfo['contentType']
-                    ),
-                    $fileInfo['name']
-                );
-            }
+            fwrite($this->task['stream'], $content);
+            fclose($this->task['stream']);
+            return true;
         } else {
-            fwrite($this->currentTransferFile, $this->buffer);
+            fwrite($this->task['stream'], $this->buffer);
             $this->buffer = '';
         }
+
         return true;
     }
 
     /**
      * @return void
      */
-    public function disconnect(): void
+    public function cancel(): void
     {
         if ($this->status === MultipartHandler::STATUS_TRAN) {
-            fclose($this->currentTransferFile);
+            fclose($this->task['stream']);
         }
-    }
-
-    /**
-     * @return void
-     */
-    public function done(): void
-    {
-        $this->status = MultipartHandler::STATUS_DONE;
     }
 }

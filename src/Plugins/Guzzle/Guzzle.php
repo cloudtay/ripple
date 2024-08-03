@@ -98,7 +98,7 @@ class Guzzle extends LibraryAbstract
      * @param array|null $config
      * @return Client
      */
-    public function client(array|null $config = []): Client
+    public function client(array|null $config = array()): Client
     {
         $config = array_merge(['handler' => $this->handlerStack], $config);
         return new Client($config);
@@ -119,7 +119,7 @@ class Guzzle extends LibraryAbstract
      * @param array  $options
      * @return Promise<Response>
      */
-    public function requestAsync(string $method, string $uri, array $options = []): Promise
+    public function requestAsync(string $method, string $uri, array $options = array()): Promise
     {
         $this->refreshTimer();
         return new Promise(function (Closure $r, Closure $d) use ($method, $uri, $options) {
@@ -132,7 +132,7 @@ class Guzzle extends LibraryAbstract
      * @param array  $options
      * @return Promise<Response>
      */
-    public function getAsync(string $uri, array $options = []): Promise
+    public function getAsync(string $uri, array $options = array()): Promise
     {
         $this->refreshTimer();
         return new Promise(function (Closure $r, Closure $d) use ($uri, $options) {
@@ -149,7 +149,7 @@ class Guzzle extends LibraryAbstract
      * @param array  $options
      * @return Promise<Response>
      */
-    public function postAsync(string $uri, array $options = []): Promise
+    public function postAsync(string $uri, array $options = array()): Promise
     {
         $this->refreshTimer();
         return new Promise(function (Closure $r, Closure $d) use ($uri, $options) {
@@ -166,7 +166,7 @@ class Guzzle extends LibraryAbstract
      * @param array  $options
      * @return Promise<Response>
      */
-    public function putAsync(string $uri, array $options = []): Promise
+    public function putAsync(string $uri, array $options = array()): Promise
     {
         $this->refreshTimer();
         return new Promise(function (Closure $r, Closure $d) use ($uri, $options) {
@@ -183,7 +183,7 @@ class Guzzle extends LibraryAbstract
      * @param array  $options
      * @return Promise<Response>
      */
-    public function deleteAsync(string $uri, array $options = []): Promise
+    public function deleteAsync(string $uri, array $options = array()): Promise
     {
         $this->refreshTimer();
         return new Promise(function (Closure $r, Closure $d) use ($uri, $options) {
@@ -200,7 +200,7 @@ class Guzzle extends LibraryAbstract
      * @param array  $options
      * @return Promise<Response>
      */
-    public function headAsync(string $uri, array $options = []): Promise
+    public function headAsync(string $uri, array $options = array()): Promise
     {
         $this->refreshTimer();
         return new Promise(function (Closure $r, Closure $d) use ($uri, $options) {
@@ -217,7 +217,7 @@ class Guzzle extends LibraryAbstract
      * @param array  $options
      * @return Promise<Response>
      */
-    public function patchAsync(string $uri, array $options = []): Promise
+    public function patchAsync(string $uri, array $options = array()): Promise
     {
         $this->refreshTimer();
         return new Promise(function (Closure $r, Closure $d) use ($uri, $options) {

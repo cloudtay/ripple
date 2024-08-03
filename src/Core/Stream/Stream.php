@@ -55,17 +55,17 @@ class Stream extends \Psc\Std\Stream\Stream
     /**
      * @var string[]
      */
-    private array $onReadable = [];
+    private array $onReadable = array();
 
     /**
      * @var string[]
      */
-    private array $onWritable = [];
+    private array $onWritable = array();
 
     /**
      * @var array
      */
-    private array $onCloseCallbacks = [];
+    private array $onCloseCallbacks = array();
 
     /**
      * @param mixed $resource

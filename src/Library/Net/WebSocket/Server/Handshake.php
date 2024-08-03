@@ -1,9 +1,6 @@
 <?php declare(strict_types=1);
 /*
- * Copyright (c) 2023 cclilshy
- * Contact Information:
- * Email: jingnigg@gmail.com
- * Website: https://cc.cloudtay.com/
+ * Copyright (c) 2023-2024.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -22,8 +19,6 @@
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
- *
- * 版权所有 (c) 2023 cclilshy
  *
  * 特此免费授予任何获得本软件及相关文档文件（“软件”）副本的人，不受限制地处理
  * 本软件，包括但不限于使用、复制、修改、合并、出版、发行、再许可和/或销售
@@ -60,13 +55,13 @@ class Handshake
      * @param Connection $client
      * @return bool
      */
-    public const NEED_HEAD = [
+    public const NEED_HEAD = array(
         'Host'                  => true,
         'Upgrade'               => true,
         'Connection'            => true,
         'Sec-WebSocket-Key'     => true,
         'Sec-WebSocket-Version' => true
-    ];
+    );
 
     /**
      * @param Connection $client
@@ -141,11 +136,11 @@ class Handshake
      */
     private static function generateResultContext(string $accept): string
     {
-        $headers = [
+        $headers = array(
             'Upgrade'              => 'websocket',
             'Connection'           => 'Upgrade',
             'Sec-WebSocket-Accept' => $accept
-        ];
+        );
         $context = "HTTP/1.1 101 NFS\r\n";
         foreach ($headers as $key => $value) {
             $context .= "{$key}: {$value} \r\n";
