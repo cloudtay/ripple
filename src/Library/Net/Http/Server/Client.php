@@ -34,6 +34,321 @@
 
 namespace Psc\Library\Net\Http\Server;
 
+use Psc\Core\Stream\SocketStream;
+use Psc\Library\Net\Http\Server\Upload\MultipartHandler;
+use Psc\Std\Stream\Exception\RuntimeException;
+
+use function array_merge;
+use function count;
+use function explode;
+use function in_array;
+use function intval;
+use function is_array;
+use function is_string;
+use function json_decode;
+use function parse_str;
+use function parse_url;
+use function preg_match;
+use function rawurldecode;
+use function str_contains;
+use function str_replace;
+use function strlen;
+use function strpos;
+use function strtok;
+use function strtoupper;
+use function substr;
+
+use const PHP_URL_PATH;
+
 class Client
 {
+    /*** @var int */
+    private int                   $step;
+
+    /*** @var array */
+    private array                 $query;
+
+    /*** @var array */
+    private array                 $request;
+
+    /*** @var array */
+    private array                 $attributes;
+
+    /*** @var array */
+    private array                 $cookies;
+
+    /*** @var array */
+    private array                 $files;
+
+    /*** @var array */
+    private array                 $server;
+
+    /*** @var string */
+    private string                $content;
+
+    /*** @var string */
+    private string                $buffer;
+
+    /*** @var MultipartHandler|null */
+    private MultipartHandler|null $multipartHandler;
+
+    /*** @var int */
+    private int                   $bodyLength;
+
+    /**
+     * @param SocketStream $stream
+     */
+    public function __construct(private readonly SocketStream $stream)
+    {
+        $this->reset();
+    }
+
+    /**
+     * @return void
+     */
+    private function reset(): void
+    {
+        $this->step          = 0;
+        $this->query         = array();
+        $this->request       = array();
+        $this->attributes    = array();
+        $this->cookies       = array();
+        $this->files         = array();
+        $this->server        = array();
+        $this->content       = '';
+        $this->buffer        = '';
+        $this->multipartHandler = null;
+        $this->bodyLength    = 0;
+    }
+
+    /**
+     * @param string $content
+     * @return Request|null
+     * @throws RuntimeException|Exception\FormatException
+     */
+    public function tick(string $content): Request|null
+    {
+        $this->buffer .= $content;
+        if ($this->step === 0) {
+            if ($headerEnd = strpos($this->buffer, "\r\n\r\n")) {
+                $buffer = $this->freeBuffer();
+
+                /**
+                 * 切割解析head与body部分
+                 */
+                $this->step       = 1;
+                $header           = substr($buffer, 0, $headerEnd);
+                $base             = strtok($header, "\r\n");
+
+                if (count($base = explode(' ', $base)) !== 3) {
+                    throw new RuntimeException('Request head is not match');
+                }
+
+                /**
+                 * 初始化闭包参数
+                 */
+                $url     = $base[1];
+                $version = $base[2];
+                $method  = $base[0];
+
+                $urlExploded = explode('?', $url);
+                $path        = parse_url($base[1], PHP_URL_PATH);
+
+                if (isset($urlExploded[1])) {
+                    $queryArray = explode('&', $urlExploded[1]);
+                    foreach ($queryArray as $item) {
+                        $item = explode('=', $item);
+                        if (count($item) === 2) {
+                            $this->query[$item[0]] = $item[1];
+                        }
+                    }
+                }
+
+                $this->server['REQUEST_URI']     = $path;
+                $this->server['REQUEST_METHOD']  = $method;
+                $this->server['SERVER_PROTOCOL'] = $version;
+
+                /**
+                 * 解析header
+                 */
+                while ($line = strtok("\r\n")) {
+                    $lineParam = explode(': ', $line, 2);
+                    if (count($lineParam) >= 2) {
+                        $this->server['HTTP_' . str_replace('-', '_', strtoupper($lineParam[0]))] = $lineParam[1];
+                    }
+                }
+
+
+                $body = substr($buffer, $headerEnd + 4);
+                $this->bodyLength += strlen($body);
+
+                /**
+                 * 解析请求头
+                 */
+                if (in_array($method, ['GET', 'HEAD'])) {
+                    $this->bodyLength = 0;
+                    $this->step       = 2;
+                } elseif ($method === 'POST') {
+                    if (!$contentType = $this->server['HTTP_CONTENT_TYPE'] ?? null) {
+                        $contentType = '';
+                    }
+
+                    if (!isset($this->server['HTTP_CONTENT_LENGTH'])) {
+                        throw new RuntimeException('Content-Length is not set');
+                    }
+
+                    if (str_contains($contentType, 'multipart/form-data')) {
+                        preg_match('/boundary=(.*)$/', $contentType, $matches);
+                        if (!isset($matches[1])) {
+                            throw new RuntimeException('boundary is not set');
+                        } else {
+                            $this->step          = 3;
+                            $this->multipartHandler = new MultipartHandler($matches[1]);
+                            $this->stream->onClose(fn () => $this->multipartHandler?->cancel());
+
+                            foreach ($this->multipartHandler->tick($body) as $name => $multipartResult) {
+                                if (is_string($multipartResult)) {
+                                    $this->request[$name] = $multipartResult;
+                                } elseif(is_array($multipartResult)) {
+                                    foreach ($multipartResult as $file) {
+                                        $this->files[$name][] = $file;
+                                    }
+                                }
+                            }
+
+                            if ($this->bodyLength === intval($this->server['HTTP_CONTENT_LENGTH'])) {
+                                $this->step = 2;
+                                $this->multipartHandler->cancel();
+                            } elseif ($this->bodyLength > intval($this->server['HTTP_CONTENT_LENGTH'])) {
+                                throw new RuntimeException('Content-Length is not match');
+                            }
+                            $this->content = '';
+                        }
+                    } else {
+                        $this->content = $body;
+                    }
+
+                    if ($this->bodyLength === intval($this->server['HTTP_CONTENT_LENGTH'])) {
+                        $this->step = 2;
+                    } elseif ($this->bodyLength > intval($this->server['HTTP_CONTENT_LENGTH'])) {
+                        throw new RuntimeException('Content-Length is not match');
+                    }
+
+                } elseif(in_array($method, ['PUT', 'DELETE','PATCH','OPTIONS','TRACE','CONNECT'])) {
+                    //not body
+                    if (!isset($this->server['HTTP_CONTENT_LENGTH'])) {
+                        $this->step = 2;
+                    } else {
+                        if ($this->bodyLength === intval($this->server['HTTP_CONTENT_LENGTH'])) {
+                            $this->step = 2;
+                        } elseif ($this->bodyLength > intval($this->server['HTTP_CONTENT_LENGTH'])) {
+                            throw new RuntimeException('Content-Length is not match');
+                        }
+                    }
+                }
+            }
+        }
+
+        /**
+         * 持续传输
+         */
+        if ($this->step === 1 && $buffer = $this->freeBuffer()) {
+            $this->content .= $buffer;
+            $this->bodyLength += strlen($buffer);
+            if ($this->bodyLength === intval($this->server['HTTP_CONTENT_LENGTH'])) {
+                $this->step = 2;
+            } elseif ($this->bodyLength > intval($this->server['HTTP_CONTENT_LENGTH'])) {
+                throw new RuntimeException('Content-Length is not match');
+            }
+        }
+
+        /**
+         * 文件传输
+         */
+        if ($this->step === 3 && $buffer = $this->freeBuffer()) {
+            $this->bodyLength += strlen($buffer);
+            foreach ($this->multipartHandler->tick($buffer) as $name => $multipartResult) {
+                if (is_string($multipartResult)) {
+                    $this->request[$name] = $multipartResult;
+                } elseif(is_array($multipartResult)) {
+                    foreach ($multipartResult as $file) {
+                        $this->files[$name][] = $file;
+                    }
+                }
+            }
+
+            if ($this->bodyLength === intval($this->server['HTTP_CONTENT_LENGTH'])) {
+                $this->step = 2;
+                $this->multipartHandler->cancel();
+            } elseif ($this->bodyLength > intval($this->server['HTTP_CONTENT_LENGTH'])) {
+                throw new RuntimeException('Content-Length is not match');
+            }
+        }
+
+        /**
+         * 请求解析完成
+         */
+        if ($this->step === 2) {
+            /**
+             * 解析cookie
+             */
+            if (isset($this->server['HTTP_COOKIE'])) {
+                $cookie = $this->server['HTTP_COOKIE'];
+                $cookie = explode('; ', $cookie);
+                foreach ($cookie as $item) {
+                    $item                    = explode('=', $item);
+                    $this->cookies[$item[0]] = rawurldecode($item[1]);
+                }
+            }
+
+            /**
+             * 解析body
+             */
+            if ($this->server['REQUEST_METHOD'] === 'POST') {
+                if (str_contains($this->server['HTTP_CONTENT_TYPE'] ?? '', 'application/json')) {
+                    $this->request = array_merge($this->request, json_decode($this->content, true) ?? []);
+                } else {
+                    parse_str($this->content, $requestParams);
+                    $this->request = array_merge($this->request, $requestParams);
+                }
+            }
+
+            /**
+             * 解析用户IP信息
+             */
+            $address = $this->stream->getAddress();
+            $host    = $this->stream->getHost();
+            $port    = $this->stream->getPort();
+
+            $this->server['REMOTE_ADDR'] = $host;
+            $this->server['REMOTE_PORT'] = $port;
+            if ($xForwardedProto = $this->server['HTTP_X_FORWARDED_PROTO'] ?? null) {
+                $this->server['HTTPS'] = $xForwardedProto === 'https' ? 'on' : 'off';
+            }
+
+            $request =  new Request(
+                $this->query,
+                $this->request,
+                $this->attributes,
+                $this->cookies,
+                $this->files,
+                $this->server,
+                $this->content,
+            );
+
+            $this->reset();
+            return $request;
+        }
+        return null;
+    }
+
+    /**
+     * @return string
+     */
+    private function freeBuffer(): string
+    {
+        $buffer = $this->buffer;
+        $this->buffer = '';
+        return $buffer;
+    }
 }

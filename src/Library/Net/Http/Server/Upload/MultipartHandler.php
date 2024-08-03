@@ -43,7 +43,6 @@ use function fclose;
 use function fopen;
 use function fwrite;
 use function preg_match;
-use function strlen;
 use function strpos;
 use function substr;
 use function sys_get_temp_dir;
@@ -52,7 +51,7 @@ use function uniqid;
 /**
  * Http上传解析器
  */
-class MultipartHandler implements UploadHandlerInterface
+class MultipartHandler
 {
     private const STATUS_WAIT = 0;
     private const STATUS_TRAN = 1;
@@ -88,9 +87,8 @@ class MultipartHandler implements UploadHandlerInterface
      */
     public function tick(string $content): array
     {
-        $result = array();
         $this->buffer .= $content;
-
+        $result = array();
         while (!empty($this->buffer)) {
             if ($this->status === MultipartHandler::STATUS_WAIT) {
                 if (!$info = $this->parseFileInfo()) {
@@ -98,16 +96,25 @@ class MultipartHandler implements UploadHandlerInterface
                 }
 
                 $this->status = MultipartHandler::STATUS_TRAN;
-                $info['path'] = sys_get_temp_dir() . '/' . uniqid();
-                $info['stream'] = fopen($info['path'], 'wb+');
-                $this->task = $info;
+
+                if (!empty($info['fileName'])) {
+                    $info['path'] = sys_get_temp_dir() . '/' . uniqid();
+                    $info['stream'] = fopen($info['path'], 'wb+');
+                    $this->task = $info;
+                } else {
+                    // If it's not a file, handle text data
+                    $this->status = MultipartHandler::STATUS_WAIT;
+                    $textContent = $this->parseTextContent();
+                    if ($textContent !== false) {
+                        $result[$info['name']] = $textContent;
+                    }
+                }
             }
 
             if ($this->status === MultipartHandler::STATUS_TRAN) {
                 if (!$this->processTransmitting()) {
                     break;
                 }
-
                 $this->status = MultipartHandler::STATUS_WAIT;
                 $result[$this->task['name']][] = new UploadedFile(
                     $this->task['path'],
@@ -132,30 +139,51 @@ class MultipartHandler implements UploadHandlerInterface
             return false;
         }
 
-        $header       = substr($this->buffer, 0, $headerEndPosition);
+        $header = substr($this->buffer, 0, $headerEndPosition);
         $this->buffer = substr($this->buffer, $headerEndPosition + 4);
+
         $headerLines = explode("\r\n", $header);
         $meta1 = array_shift($headerLines);
         $meta2 = array_shift($headerLines);
-        $meta3 = array_shift($headerLines);
+        $meta3 = array_shift($headerLines) ?: '';
 
         if ($meta1 !== '--' . $this->boundary) {
             throw new FormatException('Boundary is invalid');
         }
 
-        if (!preg_match('/^Content-Disposition: form-data; name="([^"]+)"; filename="([^"]+)"$/i', $meta2, $matches2)) {
+        if (!preg_match('/^Content-Disposition: form-data; name="([^"]+)"(?:; filename="([^"]*)")?(?:; filename\*=.*)?$/i', $meta2, $matches2)) {
             throw new FormatException('File information is incomplete');
         }
 
-        if (!preg_match('/^Content-Type: (.+)$/i', $meta3, $matches3)) {
+        if ($meta3 && !preg_match('/^Content-Type: (.+)$/i', $meta3, $matches3)) {
             throw new FormatException('File information is incomplete');
+        }
+
+        if ($meta3 && $matches3[1] !== 'text/plain' && empty($matches2[2])) {
+            throw new FormatException('Content type must be text/plain for non-file fields');
         }
 
         return array(
             'name'        => $matches2[1],
-            'fileName'    => $matches2[2],
-            'contentType' => $matches3[1]
+            'fileName'    => $matches2[2] ?? '',
+            'contentType' => $matches3[1] ?? ''
         );
+    }
+
+    /**
+     * 解析文本内容
+     * @return string|false
+     */
+    private function parseTextContent(): string|false
+    {
+        $boundaryPosition = strpos($this->buffer, "\r\n--{$this->boundary}");
+        if ($boundaryPosition === false) {
+            return false;
+        }
+
+        $textContent = substr($this->buffer, 0, $boundaryPosition);
+        $this->buffer = substr($this->buffer, $boundaryPosition + 2);
+        return $textContent;
     }
 
     /**
@@ -164,32 +192,25 @@ class MultipartHandler implements UploadHandlerInterface
      */
     private function processTransmitting(): bool
     {
-        $mode1 = "\r\n--{$this->boundary}\r\n";
-        $mode2 = "\r\n--{$this->boundary}--\r\n";
+        $mode = "\r\n--{$this->boundary}\r\n";
 
-        $mode1Length = strlen($mode1);
-        $mode2Length = strlen($mode2);
-
-        $boundaryPosition = strpos($this->buffer, $mode1);
-        $modeLength       = $mode1Length;
+        $fileContent = $this->buffer;
+        $boundaryPosition = strpos($fileContent, $mode);
 
         if ($boundaryPosition === false) {
-            $boundaryPosition = strpos($this->buffer, $mode2);
-            $modeLength       = $mode2Length;
+            $boundaryPosition = strpos($fileContent, "\r\n--{$this->boundary}--");
         }
 
         if ($boundaryPosition !== false) {
-            $this->buffer = substr($this->buffer, $boundaryPosition + $modeLength);
-            $content = substr($this->buffer, 0, $boundaryPosition);
-            fwrite($this->task['stream'], $content);
-            fclose($this->task['stream']);
+            $fileContent = substr($fileContent, 0, $boundaryPosition);
+            $this->buffer = substr($this->buffer, $boundaryPosition + 2);
+            fwrite($this->task['stream'], $fileContent);
             return true;
         } else {
-            fwrite($this->task['stream'], $this->buffer);
             $this->buffer = '';
+            fwrite($this->task['stream'], $fileContent);
+            return false;
         }
-
-        return true;
     }
 
     /**
