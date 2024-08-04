@@ -32,113 +32,43 @@
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-use GuzzleHttp\Client;
-use GuzzleHttp\Promise\Promise;
-use GuzzleHttp\Promise\PromiseInterface;
-use GuzzleHttp\Psr7\Response;
-use P\IO;
-use Psc\Core\Stream\SocketStream;
-use Psr\Http\Message\RequestInterface;
+use P\Plugin;
 
-use function P\await;
+use function P\async;
 
 include_once __DIR__ . '/../vendor/autoload.php';
 
-$handler = new class () {
-    /**
-     * @param RequestInterface $request
-     * @return PromiseInterface
-     */
-    public function __invoke(RequestInterface $request): PromiseInterface
-    {
-        $promise = new Promise(function () use ($request, &$promise) {
-            $promise->resolve(new Response(200, [], 'Hello, World!'));
-            \P\async(function () use ($request, $promise) {
-                $uri = $request->getUri();
+async(function () {
+    $response = Plugin::Guzzle()->get('https://filesamples.com/samples/video/mp4/sample_640x360.mp4', [
+        'sink' => __DIR__ . '/download.file'
+    ]);
+    $hash = \md5_file(__DIR__ . '/download.file');
 
-                $method  = $request->getMethod();
-                $scheme  = $uri->getScheme();
-                $host    = $uri->getHost();
-                $port    = $uri->getPort() ?? ($scheme === 'https' ? 443 : 80);
-                $path    = $uri->getPath() ?: '/';
-                $address = "{$host}:$port";
-
-                /**
-                 * @var SocketStream $stream
-                 */
-                $stream = match ($uri->getScheme()) {
-                    'http' => await(IO::Socket()->streamSocketClient("tcp://{$address}")),
-                    'https' => await(IO::Socket()->streamSocketClientSSL("ssl://{$address}")),
-                    default => throw new \RuntimeException('Unsupported scheme: ' . $uri->getScheme()),
-                };
-
-                //构建请求报文
-                $content = "{$method} {$path} HTTP/1.1\r\n";
-                $content .= "Host: {$address}\r\n";
-                foreach ($request->getHeaders() as $name => $values) {
-                    $content .= "{$name}: " . \implode(', ', $values) . "\r\n";
-                }
-                $content .= "\r\n";
-                $content .= $request->getBody()->getContents();
-
-                $responseBuffer = '';
-                $responseHeader = '';
-                $responseBody = '';
-                $responseHeaderArray = [];
-                $step = 0;
-                $carry = 0;
-                $contentLength = 0;
-
-                $stream->write($content);
-                $stream->onReadable(function (SocketStream $stream) use (
-                    &$responseBuffer,
-                    &$responseHeader,
-                    &$responseBody,
-                    &$responseHeaderArray,
-                    &$step,
-                    &$carry,
-                    &$contentLength
-                ) {
-                    $responseBuffer .= $stream->read(1024);
-                    if($step === 0) {
-                        if(\str_contains($responseBuffer, "\r\n\r\n")) {
-                            [$responseHeader, $responseBody] = \explode("\r\n\r\n", $responseBuffer, 2);
-                            $responseHeaderArray = \explode("\r\n", $responseHeader);
-                            if(!$contentLength = \array_reduce($responseHeaderArray, function ($carry, $item) {
-                                if(\str_starts_with($item, 'Content-Length: ')) {
-                                    $carry = (int)\substr($item, 16);
-                                }
-                                return $carry;
-                            })) {
-                                $step = 2;
-                            } else {
-                                $step = 1;
-                            }
-                        }
-                    }
-                    if($step === 2) {
-                        $stream->close();
-                    }
-                });
-            });
-
-        });
-
-        \P\defer(function () use ($promise) {
-            $promise->wait();
-        });
-
-        return $promise;
-    }
-};
-
-
-$client = new Client(['handler' => $handler]);
-$client->getAsync('https://www.baidu.com')->then(function (Response $response) {
+    \var_dump($hash);
     \var_dump($response->getStatusCode());
-}, function ($e) {
-    \var_dump($e->getMessage());
-    die;
 });
 
-\P\run();
+async(function () {
+    $response = Plugin::Guzzle()->get('https://www.baidu.com', [
+        'headers' => [
+            'name' => 'cc'
+        ]
+    ]);
+
+    \var_dump($response->getStatusCode());
+});
+
+async(function () {
+    try {
+        $response = Plugin::Guzzle()->get('https://www.baidu.com/404', [
+            'headers' => [
+                'name' => 'cc'
+            ]
+        ]);
+        \var_dump($response->getStatusCode());
+    } catch (Throwable $exception) {
+        \var_dump($exception->getMessage());
+    }
+});
+
+\P\tick();

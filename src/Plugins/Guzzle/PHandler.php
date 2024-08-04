@@ -32,77 +32,58 @@
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-use P\Net;
-use Psc\Library\Net\Http\Server\Request;
-use Psc\Library\Net\Http\Server\Response;
+namespace Psc\Plugins\Guzzle;
 
-use function P\run;
+use GuzzleHttp\Promise\Promise;
+use GuzzleHttp\Promise\PromiseInterface;
+use GuzzleHttp\Psr7\Response;
+use Psc\Library\Net\Http\Client\HttpClient;
+use Psr\Http\Message\RequestInterface;
+use Throwable;
 
-include __DIR__ . '/../vendor/autoload.php';
+use function P\async;
+use function P\await;
+use function P\defer;
+use function strval;
 
-$context = \stream_context_create([
-    'socket' => [
-        'so_reuseport' => true,
-        'so_reuseaddr' => true,
-    ],
-]);
+class PHandler
+{
+    /*** @var HttpClient */
+    private HttpClient $httpClient;
 
-$server            = Net::Http()->server('http://127.0.0.1:8008', $context);
-$server->onRequest = function (Request $request, Response $response) {
-    $uri = $request->getRequestUri();
-    if($uri === '/upload') {
-
-        if($request->isMethod('post')) {
-            $response->headers->set('Content-Type', 'application/json');
-            $response->setContent(
-                \json_encode([
-                    'files' => \count($request->files->get('files[]')),
-                    'data' => $request->request->all(),
-                ])
-            )->respond();
-            return;
-        }
-
-        $response->setContent(
-            <<<EOF
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Multiple File Upload</title>
-</head>
-<body>
-    <h2>Upload Multiple Files</h2>
-    <form action="/upload" method="post" enctype="multipart/form-data">
-        <label for="files">Choose multiple files:</label>
-        <input type="file" id="files" name="files[]" multiple>
-        <br><br>
-        <input type="submit" value="Upload">
-    </form>
-</body>
-</html>
-EOF
-        )->respond();
-        return;
+    /**
+     * 构造函数
+     */
+    public function __construct(array $config = [])
+    {
+        $this->httpClient = new HttpClient($config);
     }
 
-    if($uri === '/test') {
-        if ($request->isMethod('get')) {
-            $hash = $request->query->get('hash');
-            $response->setContent($hash)->respond();
-            return;
-        }
+    /**
+     * @param RequestInterface $request
+     * @param array            $options
+     * @return PromiseInterface
+     */
+    public function __invoke(RequestInterface $request, array $options): PromiseInterface
+    {
+        $promise = new Promise(function () use ($request, $options, &$promise) {
+            // loop in coroutine
+            async(function () use ($request, $options, $promise) {
+                try {
+                    /**
+                     * @var Response $response
+                     */
+                    $promise->resolve(await($this->httpClient->request($request, $options)));
+                } catch (Throwable $throwable) {
+                    $promise->reject($throwable);
+                }
+            })->await();
+        });
 
-        if ($request->isMethod('post')) {
-            $response->setContent(
-                $request->getContent()
-            )->respond();
-            return;
-        }
+        defer(function () use ($promise) {
+            $promise->wait(false);
+        });
+
+        return $promise;
     }
-
-    $response->setStatusCode(404)->respond();
-};
-$server->listen();
-run();
+}

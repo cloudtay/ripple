@@ -32,77 +32,20 @@
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-use P\Net;
-use Psc\Library\Net\Http\Server\Request;
-use Psc\Library\Net\Http\Server\Response;
+namespace Psc\Library\Net\Http\Stream;
 
-use function P\run;
+use Psc\Core\Stream\Stream;
 
-include __DIR__ . '/../vendor/autoload.php';
-
-$context = \stream_context_create([
-    'socket' => [
-        'so_reuseport' => true,
-        'so_reuseaddr' => true,
-    ],
-]);
-
-$server            = Net::Http()->server('http://127.0.0.1:8008', $context);
-$server->onRequest = function (Request $request, Response $response) {
-    $uri = $request->getRequestUri();
-    if($uri === '/upload') {
-
-        if($request->isMethod('post')) {
-            $response->headers->set('Content-Type', 'application/json');
-            $response->setContent(
-                \json_encode([
-                    'files' => \count($request->files->get('files[]')),
-                    'data' => $request->request->all(),
-                ])
-            )->respond();
-            return;
-        }
-
-        $response->setContent(
-            <<<EOF
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Multiple File Upload</title>
-</head>
-<body>
-    <h2>Upload Multiple Files</h2>
-    <form action="/upload" method="post" enctype="multipart/form-data">
-        <label for="files">Choose multiple files:</label>
-        <input type="file" id="files" name="files[]" multiple>
-        <br><br>
-        <input type="submit" value="Upload">
-    </form>
-</body>
-</html>
-EOF
-        )->respond();
-        return;
+class MultipartStream extends Stream
+{
+    private array $streams = [];
+    public function __construct(array $data, mixed $resource)
+    {
+        /**
+         * 'name'     => 'custom_file_param',  // 文件参数名
+         * 'contents' => fopen('/path/to/your/file.txt', 'r'),  // 文件路径
+         * 'filename' => 'custom_filename.txt',  // 自定义文件名
+         * 'Content-Type' => 'application/custom-mime-type'  // 自定义 MIME 类型
+         */
     }
-
-    if($uri === '/test') {
-        if ($request->isMethod('get')) {
-            $hash = $request->query->get('hash');
-            $response->setContent($hash)->respond();
-            return;
-        }
-
-        if ($request->isMethod('post')) {
-            $response->setContent(
-                $request->getContent()
-            )->respond();
-            return;
-        }
-    }
-
-    $response->setStatusCode(404)->respond();
-};
-$server->listen();
-run();
+}

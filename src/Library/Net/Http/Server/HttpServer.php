@@ -164,10 +164,7 @@ class HttpServer
      */
     private function addClient(SocketStream $stream): void
     {
-        $client =  new Client($stream);
-        $stream->onClose(function () {
-            //            debug_print_backtrace();
-        });
+        $client =  new Connection($stream);
         $stream->onReadable(function (SocketStream $stream) use ($client) {
             $content = $stream->read(1024);
             if ($content === '') {

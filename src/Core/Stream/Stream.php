@@ -119,21 +119,7 @@ class Stream extends \Psc\Std\Stream\Stream
         return $eventId;
     }
 
-    /**
-     * @return void
-     */
-    public function close(): void
-    {
-        if (is_resource($this->stream) === false) {
-            return;
-        }
 
-        parent::close();
-
-        foreach ($this->onCloseCallbacks as $callback) {
-            call_user_func($callback);
-        }
-    }
 
     /**
      * @param Closure $closure
@@ -170,5 +156,21 @@ class Stream extends \Psc\Std\Stream\Stream
     public function setBlocking(bool $bool): bool
     {
         return stream_set_blocking($this->stream, $bool);
+    }
+
+    /**
+     * @return void
+     */
+    public function close(): void
+    {
+        if (is_resource($this->stream) === false) {
+            return;
+        }
+
+        parent::close();
+
+        foreach ($this->onCloseCallbacks as $callback) {
+            call_user_func($callback);
+        }
     }
 }

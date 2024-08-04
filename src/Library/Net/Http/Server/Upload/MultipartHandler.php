@@ -46,7 +46,9 @@ use function preg_match;
 use function strpos;
 use function substr;
 use function sys_get_temp_dir;
+use function trim;
 use function uniqid;
+use function array_pop;
 
 /**
  * Http上传解析器
@@ -128,9 +130,8 @@ class MultipartHandler
     }
 
     /**
-     * 解析文件信息
-     * @return array|false 返回是否解析成功
-     * @throws FormatException 如果文件信息不完整
+     * @return array|false
+     * @throws FormatException
      */
     private function parseFileInfo(): array|false
     {
@@ -143,32 +144,42 @@ class MultipartHandler
         $this->buffer = substr($this->buffer, $headerEndPosition + 4);
 
         $headerLines = explode("\r\n", $header);
-        $meta1 = array_shift($headerLines);
-        $meta2 = array_shift($headerLines);
-        $meta3 = array_shift($headerLines) ?: '';
 
-        if ($meta1 !== '--' . $this->boundary) {
+        $boundaryLine = array_shift($headerLines);
+        if (trim($boundaryLine) !== '--' . $this->boundary) {
             throw new FormatException('Boundary is invalid');
         }
 
-        if (!preg_match('/^Content-Disposition: form-data; name="([^"]+)"(?:; filename="([^"]*)")?(?:; filename\*=.*)?$/i', $meta2, $matches2)) {
+        $name = '';
+        $fileName = '';
+        $contentType = '';
+
+        while ($line = array_pop($headerLines)) {
+            if (preg_match('/^Content-Disposition:\s*form-data;\s*name="([^"]+)"(?:;\s*filename="([^"]*)")?$/i', trim($line), $matches)) {
+                $name = $matches[1];
+                if (isset($matches[2])) {
+                    $fileName = $matches[2];
+                }
+            } elseif (preg_match('/^Content-Type:\s*(.+)$/i', trim($line), $matches)) {
+                $contentType = $matches[1];
+            }
+        }
+
+        if ($name === '') {
             throw new FormatException('File information is incomplete');
         }
 
-        if ($meta3 && !preg_match('/^Content-Type: (.+)$/i', $meta3, $matches3)) {
-            throw new FormatException('File information is incomplete');
-        }
-
-        if ($meta3 && $matches3[1] !== 'text/plain' && empty($matches2[2])) {
+        if ($contentType && $contentType !== 'text/plain' && $fileName === '') {
             throw new FormatException('Content type must be text/plain for non-file fields');
         }
 
         return array(
-            'name'        => $matches2[1],
-            'fileName'    => $matches2[2] ?? '',
-            'contentType' => $matches3[1] ?? ''
+            'name'        => $name,
+            'fileName'    => $fileName,
+            'contentType' => $contentType
         );
     }
+
 
     /**
      * 解析文本内容

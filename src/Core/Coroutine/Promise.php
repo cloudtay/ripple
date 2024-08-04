@@ -97,12 +97,20 @@ class Promise
      */
     public function resolve(mixed $value): void
     {
+        if ($value instanceof Promise) {
+            try {
+                $this->resolve(await($value));
+            } catch (Throwable $e) {
+                $this->reject($e);
+            }
+            return;
+        }
+
         if ($this->status !== Promise::PENDING) {
             return;
         }
         $this->status = Promise::FULFILLED;
         $this->result = $value;
-
 
         foreach (array_reverse($this->onFulfilled) as $onFulfilled) {
             try {
@@ -111,7 +119,6 @@ class Promise
                 Output::error($exception->getMessage());
             }
         }
-
         return;
     }
 
@@ -127,9 +134,9 @@ class Promise
 
         $this->status = Promise::REJECTED;
         $this->result = $reason;
-
-        Output::warning($reason->getMessage());
-
+        if ($reason instanceof Throwable) {
+            Output::warning($reason->getMessage());
+        }
         foreach (array_reverse($this->onRejected) as $onRejected) {
             try {
                 call_user_func($onRejected, $reason);

@@ -77,12 +77,11 @@ class Socket extends LibraryAbstract
     {
         return async(function (Closure $r, Closure $d) use ($address, $timeout, $context) {
             $address                   = str_replace('ssl://', 'tcp://', $address);
-            $streamSocketClientPromise = $this->streamSocketClient($address, $timeout, $context);
 
             /**
              * @var SocketStream $streamSocket
              */
-            $streamSocket = await($streamSocketClientPromise);
+            $streamSocket = await($this->streamSocketClient($address, $timeout, $context));
             $promise      = $this->streamEnableCrypto($streamSocket)->then($r)->except($d);
 
             if ($timeout > 0) {
@@ -119,7 +118,7 @@ class Socket extends LibraryAbstract
                 return;
             }
 
-            $stream = new SocketStream($connection);
+            $stream = new SocketStream($connection, $address);
             $stream->onWritable(function (SocketStream $stream, Closure $cancel) use ($r) {
                 $cancel();
                 $r($stream);

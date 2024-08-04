@@ -34,139 +34,180 @@
 
 namespace Psc\Library\Net\Http\Client;
 
+use Closure;
+use GuzzleHttp\Psr7\MultipartStream;
+use InvalidArgumentException;
 use P\IO;
 use Psc\Core\Coroutine\Promise;
 use Psc\Core\Stream\SocketStream;
 use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\ResponseInterface;
+use Throwable;
 
-use function array_shift;
+use function fclose;
+use function fopen;
+use function implode;
+use function in_array;
 use function P\async;
 use function P\await;
-use function P\registerForkHandler;
+use function P\cancel;
+use function P\delay;
+use function P\repeat;
+use function str_contains;
+use function strtolower;
 
 class HttpClient
 {
-    /**
-     * @var array
-     */
-    private array $busy = [
-        'ssl' => array(),
-        'tcp' => array(),
-    ];
+    /*** @var ConnectionPool */
+    private ConnectionPool $connectionPool;
 
-    /**
-     * @var array
-     */
-    private array $idle = [
-        'ssl' => array(),
-        'tcp' => array(),
-    ];
+    /*** @var bool */
+    private bool $pool;
 
-    /**
-     *
-     */
-    public function __construct()
+    /*** @param array $config */
+    public function __construct(private readonly array $config = [])
     {
-        $this->registerForkHandler();
+        $pool = $this->config['pool'] ?? 'off';
+        $this->pool = in_array($pool, [true, 1, 'on'], true);
+
+        if ($this->pool) {
+            $this->connectionPool = new ConnectionPool();
+        }
+    }
+
+    /**
+     * @param RequestInterface $request
+     * @param array            $option
+     * @return Promise<ResponseInterface>
+     */
+    public function request(RequestInterface $request, array $option = []): Promise
+    {
+        return async(function () use ($request, $option) {
+            return \P\promise(function (Closure $r, Closure $d, Promise $promise) use ($request, $option) {
+                $uri = $request->getUri();
+
+                $method = $request->getMethod();
+                $scheme = $uri->getScheme();
+                $host   = $uri->getHost();
+                $port   = $uri->getPort() ?? ($scheme === 'https' ? 443 : 80);
+                $path   = $uri->getPath() ?: '/';
+
+                /**
+                 * @var Connection $connection
+                 */
+                $connection = await($this->pullConnection(
+                    $host,
+                    $port,
+                    $scheme === 'https'
+                ));
+
+                $header = "{$method} {$path} HTTP/1.1\r\n";
+                foreach ($request->getHeaders() as $name => $values) {
+                    $header .= "{$name}: " . implode(', ', $values) . "\r\n";
+                }
+
+                $bodyStream = $request->getBody();
+                if ($bodyStream->getMetadata('uri') === 'php://temp') {
+                    $body = $bodyStream->getContents();
+                    $connection->stream->write("{$header}\r\n{$body}");
+                } elseif ($bodyStream instanceof MultipartStream) {
+                    if (!$request->getHeader('Content-Type')) {
+                        $header .= "Content-Type: multipart/form-data; boundary={$bodyStream->getBoundary()}\r\n";
+                    }
+                    if (!$request->getHeader('Content-Length')) {
+                        $header .= "Content-Length: {$bodyStream->getSize()}\r\n";
+                    }
+                    $connection->stream->write("{$header}\r\n");
+                    repeat(function (Closure $cancel) use ($connection, $bodyStream, $r, $d) {
+                        try {
+                            $content = $bodyStream->read(8192);
+                            if ($content) {
+                                $connection->stream->write($content);
+                            } else {
+                                $cancel();
+                                $bodyStream->close();
+                            }
+                        } catch (Throwable) {
+                            $cancel();
+                            $bodyStream->close();
+                            $d(new InvalidArgumentException('Invalid body stream'));
+                        }
+                    }, 0.1);
+                } else {
+                    throw new InvalidArgumentException('Invalid body stream');
+                }
+
+                if ($timeout = $option['timeout'] ?? null) {
+                    $delay = delay(function () use ($connection, $d) {
+                        $connection->stream->close();
+                        $d(new InvalidArgumentException('Request timeout'));
+                    }, $timeout);
+                    $promise->finally(function () use ($delay) {
+                        cancel($delay);
+                    });
+                }
+
+                if($sink = $option['sink'] ?? null) {
+                    $connection->setOutput($sinkFile = fopen($sink, 'wb'));
+                    $promise->finally(function () use ($sinkFile) {
+                        fclose($sinkFile);
+                    });
+                }
+
+                $connection->stream->onReadable(function (SocketStream $socketStream) use ($connection, $scheme, $r, $d) {
+                    try {
+                        $content = $socketStream->read(1024);
+                        if ($response = $connection->tick($content)) {
+                            $k = implode(', ', $response->getHeader('Connection'));
+                            if (str_contains(strtolower($k), 'keep-alive') && $this->pool) {
+                                $this->pushConnection($connection, $scheme === 'https');
+                            } else {
+                                $socketStream->close();
+                            }
+                            $r($response);
+                        }
+                    } catch (Throwable $exception) {
+                        $socketStream->close();
+                        $d($exception);
+                        return;
+                    }
+                });
+            });
+        });
     }
 
     /**
      * @param string $host
      * @param int    $port
      * @param bool   $ssl
-     * @return Promise<SocketStream>
+     * @return Promise<Connection>
+     * @throws Throwable
      */
-    public function pullConnection(string $host, int $port, bool $ssl = false): Promise
+    private function pullConnection(string $host, int $port, bool $ssl): Promise
     {
-        return async(function () use (
-            $ssl,
-            $host,
-            $port,
-        ) {
-            if ($ssl) {
-                if(isset($this->idle['ssl']["{$host}:{$port}"])) {
-                    $connection = array_shift($this->idle['ssl']["{$host}:{$port}"]);
-                } else {
-                    $connection = await(IO::Socket()->streamSocketClientSSL("ssl://{$host}:{$port}"));
-                    $this->busy['ssl']["{$host}:{$port}"] = $connection;
-                }
+        return async(function () use ($host, $port, $ssl) {
+            if ($this->pool) {
+                $connection =  await($this->connectionPool->pullConnection($host, $port, $ssl));
             } else {
-                if(isset($this->idle['tcp']["{$host}:{$port}"])) {
-                    $connection = array_shift($this->idle['tcp']["{$host}:{$port}"]);
-                } else {
-                    $connection = await(IO::Socket()->streamSocketClient("tcp://{$host}:{$port}"));
-                    $this->busy['tcp']["{$host}:{$port}"] = $connection;
-                }
+                $connection =  $ssl
+                    ? new Connection(await(IO::Socket()->streamSocketClientSSL("ssl://{$host}:{$port}")))
+                    : new Connection(await(IO::Socket()->streamSocketClient("tcp://{$host}:{$port}")));
             }
+
+            $connection->stream->setBlocking(false);
             return $connection;
         });
     }
 
     /**
-     * @param SocketStream $stream
-     * @param bool         $ssl
+     * @param Connection $connection
+     * @param bool       $ssl
      * @return void
      */
-    public function pushConnection(SocketStream $stream, bool $ssl): void
+    private function pushConnection(Connection $connection, bool $ssl): void
     {
-        $this->idle[$ssl ? 'ssl' : 'tcp'][$stream->getAddress()] = $stream;
-        $stream->onReadable(function (SocketStream $stream) use ($ssl) {
-            unset($this->idle[$ssl ? 'ssl' : 'tcp'][$stream->getAddress()]);
-            $stream->close();
-        });
-    }
-
-    /**
-     * @param RequestInterface $request
-     * @return Promise<ResponseInterface>
-     */
-    public function request(RequestInterface $request): Promise
-    {
-        return async(function () use ($request) {
-            $uri = $request->getUri();
-
-            $method  = $request->getMethod();
-            $scheme  = $uri->getScheme();
-            $host    = $uri->getHost();
-            $port    = $uri->getPort() ?? ($scheme === 'https' ? 443 : 80);
-            $path    = $uri->getPath() ?: '/';
-            $address = "{$host}:$port";
-
-            /**
-             * @var SocketStream $connection
-             */
-            $connection = await($this->pullConnection($host, $port, $scheme === 'https'));
-        });
-    }
-
-    /**
-     * @return void
-     */
-    private function registerForkHandler(): void
-    {
-        registerForkHandler(function () {
-            $this->registerForkHandler();
-            $this->clearConnectionPool();
-        });
-    }
-
-    /**
-     * 清空链接池
-     * @return void
-     */
-    private function clearConnectionPool(): void
-    {
-        foreach ($this->busy as $type => $connections) {
-            foreach ($connections as $address => $connection) {
-                $connection->close();
-            }
-        }
-
-        foreach ($this->idle as $type => $connections) {
-            foreach ($connections as $address => $connection) {
-                $connection->close();
-            }
+        if ($this->pool) {
+            $this->connectionPool->pushConnection($connection, $ssl);
         }
     }
 }

@@ -43,6 +43,8 @@ use function implode;
 use function posix_getpid;
 use function posix_getppid;
 
+use function debug_print_backtrace;
+
 use const PHP_EOL;
 use const STDIN;
 
