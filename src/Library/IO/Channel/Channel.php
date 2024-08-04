@@ -37,9 +37,9 @@ namespace Psc\Library\IO\Channel;
 use Exception;
 use P\IO;
 use Psc\Core\Stream\Stream;
-use Psc\Drive\Stream\Zx7e;
 use Psc\Library\IO\Channel\Exception\ChannelException;
 use Psc\Library\IO\Lock\Lock;
+use Psc\Utils\Serialization\Zx7e;
 
 use function chr;
 use function file_exists;

@@ -79,9 +79,6 @@ class Lock
         });
     }
 
-    /**
-     *
-     */
     public function __destruct()
     {
         $this->close();

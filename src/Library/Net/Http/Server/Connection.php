@@ -60,7 +60,7 @@ use function substr;
 
 use const PHP_URL_PATH;
 
-class Client
+class Connection
 {
     /*** @var int */
     private int                   $step;
@@ -95,6 +95,9 @@ class Client
     /*** @var int */
     private int                   $bodyLength;
 
+    /*** @var int */
+    private int $contentLength;
+
     /**
      * @param SocketStream $stream
      */
@@ -119,6 +122,7 @@ class Client
         $this->buffer        = '';
         $this->multipartHandler = null;
         $this->bodyLength    = 0;
+        $this->contentLength = 0;
     }
 
     /**
@@ -178,7 +182,6 @@ class Client
                     }
                 }
 
-
                 $body = substr($buffer, $headerEnd + 4);
                 $this->bodyLength += strlen($body);
 
@@ -192,10 +195,11 @@ class Client
                     if (!$contentType = $this->server['HTTP_CONTENT_TYPE'] ?? null) {
                         $contentType = '';
                     }
-
                     if (!isset($this->server['HTTP_CONTENT_LENGTH'])) {
-                        throw new RuntimeException('Content-Length is not set');
+                        throw new RuntimeException('Content-Length is not set 1');
                     }
+
+                    $this->contentLength = intval($this->server['HTTP_CONTENT_LENGTH']);
 
                     if (str_contains($contentType, 'multipart/form-data')) {
                         preg_match('/boundary=(.*)$/', $contentType, $matches);
@@ -216,11 +220,11 @@ class Client
                                 }
                             }
 
-                            if ($this->bodyLength === intval($this->server['HTTP_CONTENT_LENGTH'])) {
+                            if ($this->bodyLength === $this->contentLength) {
                                 $this->step = 2;
                                 $this->multipartHandler->cancel();
-                            } elseif ($this->bodyLength > intval($this->server['HTTP_CONTENT_LENGTH'])) {
-                                throw new RuntimeException('Content-Length is not match');
+                            } elseif ($this->bodyLength > $this->contentLength) {
+                                throw new RuntimeException('Content-Length is not match 2');
                             }
                             $this->content = '';
                         }
@@ -228,21 +232,20 @@ class Client
                         $this->content = $body;
                     }
 
-                    if ($this->bodyLength === intval($this->server['HTTP_CONTENT_LENGTH'])) {
+                    if ($this->bodyLength === $this->contentLength) {
                         $this->step = 2;
-                    } elseif ($this->bodyLength > intval($this->server['HTTP_CONTENT_LENGTH'])) {
-                        throw new RuntimeException('Content-Length is not match');
+                    } elseif ($this->bodyLength > $this->contentLength) {
+                        throw new RuntimeException('Content-Length is not match 3');
                     }
-
                 } elseif(in_array($method, ['PUT', 'DELETE','PATCH','OPTIONS','TRACE','CONNECT'])) {
                     //not body
                     if (!isset($this->server['HTTP_CONTENT_LENGTH'])) {
                         $this->step = 2;
                     } else {
-                        if ($this->bodyLength === intval($this->server['HTTP_CONTENT_LENGTH'])) {
+                        if ($this->bodyLength === $this->contentLength) {
                             $this->step = 2;
-                        } elseif ($this->bodyLength > intval($this->server['HTTP_CONTENT_LENGTH'])) {
-                            throw new RuntimeException('Content-Length is not match');
+                        } elseif ($this->bodyLength > $this->contentLength) {
+                            throw new RuntimeException('Content-Length is not match 4');
                         }
                     }
                 }
@@ -255,10 +258,10 @@ class Client
         if ($this->step === 1 && $buffer = $this->freeBuffer()) {
             $this->content .= $buffer;
             $this->bodyLength += strlen($buffer);
-            if ($this->bodyLength === intval($this->server['HTTP_CONTENT_LENGTH'])) {
+            if ($this->bodyLength === $this->contentLength) {
                 $this->step = 2;
-            } elseif ($this->bodyLength > intval($this->server['HTTP_CONTENT_LENGTH'])) {
-                throw new RuntimeException('Content-Length is not match');
+            } elseif ($this->bodyLength > $this->contentLength) {
+                throw new RuntimeException('Content-Length is not match 5');
             }
         }
 
@@ -277,11 +280,11 @@ class Client
                 }
             }
 
-            if ($this->bodyLength === intval($this->server['HTTP_CONTENT_LENGTH'])) {
+            if ($this->bodyLength === $this->contentLength) {
                 $this->step = 2;
                 $this->multipartHandler->cancel();
-            } elseif ($this->bodyLength > intval($this->server['HTTP_CONTENT_LENGTH'])) {
-                throw new RuntimeException('Content-Length is not match');
+            } elseif ($this->bodyLength > $this->contentLength) {
+                throw new RuntimeException('Content-Length is not match 6');
             }
         }
 

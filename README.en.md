@@ -35,16 +35,6 @@ Better understand PRipple’s workflow
 If you want to quickly deploy and use PRipple's services, you can directly
 visit [Quick Deployment](https://p-ripple.cloudtay.com/docs/install/server)
 
-### Related projects
-
-- RevoltPHP: [https://revolt.run/](https://revolt.run/)
-- Workerman/Webman：[https://www.workerman.net/](https://www.workerman.net/)
-- Laravel: [https://laravel.com/](https://laravel.com/)
-- ThinkPHP：[https://www.thinkphp.cn/](https://www.thinkphp.cn/)
-- Symfony: [https://symfony.com/](https://symfony.com/)
-- PHP: [https://www.php.net/](https://www.php.net/)
-- JavaScript: [https://www.javascript.com/](https://www.javascript.com/)
-
 ### Acknowledgments
 
 - Jetbrains: [https://www.jetbrains.com/](https://www.jetbrains.com/)

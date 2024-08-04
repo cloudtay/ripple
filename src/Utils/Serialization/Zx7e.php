@@ -32,7 +32,7 @@
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-namespace Psc\Drive\Stream;
+namespace Psc\Utils\Serialization;
 
 use function chr;
 use function ord;
@@ -47,14 +47,9 @@ use function unpack;
  */
 class Zx7e
 {
-    /**
-     *
-     */
     private const FRAME_HEADER = 0x7E;
 
-    /**
-     *
-     */
+
     private const FRAME_FOOTER = 0x7E;
 
     /**

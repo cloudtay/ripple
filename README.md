@@ -30,19 +30,10 @@ composer require cclilshy/p-ripple-core
 你可以访问PRipple的[文档](https://p-ripple.cloudtay.com/)开始阅读
 
 我们建议你从[手动安装](https://p-ripple.cloudtay.com/docs/install/professional)开始
+
 更好地理解PRipple的工作流程
 
 如果你想快速部署并使用PRipple的服务，你可以直接访问[快速部署](https://p-ripple.cloudtay.com/docs/install/server)
-
-### 相关项目
-
-- RevoltPHP：[https://revolt.run/](https://revolt.run/)
-- Workerman/Webman：[https://www.workerman.net/](https://www.workerman.net/)
-- Laravel：[https://laravel.com/](https://laravel.com/)
-- ThinkPHP：[https://www.thinkphp.cn/](https://www.thinkphp.cn/)
-- Symfony：[https://symfony.com/](https://symfony.com/)
-- PHP：[https://www.php.net/](https://www.php.net/)
-- JavaScript：[https://www.javascript.com/](https://www.javascript.com/)
 
 ### 致谢
 

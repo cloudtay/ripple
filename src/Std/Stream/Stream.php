@@ -49,6 +49,8 @@ use function rewind;
 use function stream_get_contents;
 use function stream_get_meta_data;
 
+use function fstat;
+
 use const SEEK_SET;
 
 /**
@@ -167,7 +169,8 @@ class Stream implements StreamInterface
      */
     public function getSize(): int|null
     {
-        return $this->meta['size'] ?? null;
+        $stats = fstat($this->stream);
+        return $stats['size'];
     }
 
     /**

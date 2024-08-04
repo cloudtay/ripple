@@ -35,6 +35,7 @@
 namespace Psc\Library\Net\Http;
 
 use Psc\Core\LibraryAbstract;
+use Psc\Library\Net\Http\Client\HttpClient;
 use Psc\Library\Net\Http\Server\HttpServer;
 use Psc\Plugins\Guzzle\Guzzle;
 
@@ -64,5 +65,14 @@ class Http extends LibraryAbstract
     public function server(string $address, mixed $context = null): HttpServer
     {
         return new HttpServer($address, $context);
+    }
+
+    /**
+     * @param array $config
+     * @return HttpClient
+     */
+    public function client(array $config): HttpClient
+    {
+        return new HttpClient($config);
     }
 }

@@ -33,112 +33,19 @@
  */
 
 use GuzzleHttp\Client;
-use GuzzleHttp\Promise\Promise;
-use GuzzleHttp\Promise\PromiseInterface;
-use GuzzleHttp\Psr7\Response;
-use P\IO;
-use Psc\Core\Stream\SocketStream;
-use Psr\Http\Message\RequestInterface;
+use Psc\Plugins\Guzzle\PHandler;
 
-use function P\await;
+use function P\async;
 
 include_once __DIR__ . '/../vendor/autoload.php';
-
-$handler = new class () {
-    /**
-     * @param RequestInterface $request
-     * @return PromiseInterface
-     */
-    public function __invoke(RequestInterface $request): PromiseInterface
-    {
-        $promise = new Promise(function () use ($request, &$promise) {
-            $promise->resolve(new Response(200, [], 'Hello, World!'));
-            \P\async(function () use ($request, $promise) {
-                $uri = $request->getUri();
-
-                $method  = $request->getMethod();
-                $scheme  = $uri->getScheme();
-                $host    = $uri->getHost();
-                $port    = $uri->getPort() ?? ($scheme === 'https' ? 443 : 80);
-                $path    = $uri->getPath() ?: '/';
-                $address = "{$host}:$port";
-
-                /**
-                 * @var SocketStream $stream
-                 */
-                $stream = match ($uri->getScheme()) {
-                    'http' => await(IO::Socket()->streamSocketClient("tcp://{$address}")),
-                    'https' => await(IO::Socket()->streamSocketClientSSL("ssl://{$address}")),
-                    default => throw new \RuntimeException('Unsupported scheme: ' . $uri->getScheme()),
-                };
-
-                //构建请求报文
-                $content = "{$method} {$path} HTTP/1.1\r\n";
-                $content .= "Host: {$address}\r\n";
-                foreach ($request->getHeaders() as $name => $values) {
-                    $content .= "{$name}: " . \implode(', ', $values) . "\r\n";
-                }
-                $content .= "\r\n";
-                $content .= $request->getBody()->getContents();
-
-                $responseBuffer = '';
-                $responseHeader = '';
-                $responseBody = '';
-                $responseHeaderArray = [];
-                $step = 0;
-                $carry = 0;
-                $contentLength = 0;
-
-                $stream->write($content);
-                $stream->onReadable(function (SocketStream $stream) use (
-                    &$responseBuffer,
-                    &$responseHeader,
-                    &$responseBody,
-                    &$responseHeaderArray,
-                    &$step,
-                    &$carry,
-                    &$contentLength
-                ) {
-                    $responseBuffer .= $stream->read(1024);
-                    if($step === 0) {
-                        if(\str_contains($responseBuffer, "\r\n\r\n")) {
-                            [$responseHeader, $responseBody] = \explode("\r\n\r\n", $responseBuffer, 2);
-                            $responseHeaderArray = \explode("\r\n", $responseHeader);
-                            if(!$contentLength = \array_reduce($responseHeaderArray, function ($carry, $item) {
-                                if(\str_starts_with($item, 'Content-Length: ')) {
-                                    $carry = (int)\substr($item, 16);
-                                }
-                                return $carry;
-                            })) {
-                                $step = 2;
-                            } else {
-                                $step = 1;
-                            }
-                        }
-                    }
-                    if($step === 2) {
-                        $stream->close();
-                    }
-                });
-            });
-
-        });
-
-        \P\defer(function () use ($promise) {
-            $promise->wait();
-        });
-
-        return $promise;
-    }
-};
-
-
+$handler = new PHandler();
 $client = new Client(['handler' => $handler]);
-$client->getAsync('https://www.baidu.com')->then(function (Response $response) {
-    \var_dump($response->getStatusCode());
-}, function ($e) {
-    \var_dump($e->getMessage());
-    die;
-});
+// 创建100个协程进行请求
+for($i = 0; $i < 100; $i++) {
+    async(function () use ($client, $i) {
+        $response = $client->get('https://www.baidu.com');
+        echo "request {$i} status: " . $response->getStatusCode() . \PHP_EOL;
+    });
+}
 
-\P\run();
+\P\tick();

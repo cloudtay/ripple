@@ -54,9 +54,7 @@ class Kernel
     /*** @var EventLoop\Suspension */
     private EventLoop\Suspension $mainSuspension;
 
-    /**
-     *
-     */
+
     public function __construct()
     {
         $this->mainSuspension = EventLoop::getSuspension();

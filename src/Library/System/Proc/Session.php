@@ -196,9 +196,7 @@ class Session
         return posix_kill($this->getStatus('pid'), $signalCode);
     }
 
-    /**
-     *
-     */
+
     public function __destruct()
     {
         $this->close();

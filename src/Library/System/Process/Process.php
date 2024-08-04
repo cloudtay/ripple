@@ -94,9 +94,7 @@ class Process extends LibraryAbstract
         $this->processId = posix_getpid();
     }
 
-    /**
-     *
-     */
+
     public function __destruct()
     {
         $this->destroy();

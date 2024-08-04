@@ -305,7 +305,7 @@ abstract class AbstractDriver implements Driver
         $callback = $this->callbacks[$callbackId];
 
         if (!$callback->enabled) {
-            return $callbackId; // Callback already disabled.
+            return $callbackId; // 回调已禁用。
         }
 
         $callback->enabled = false;
@@ -313,10 +313,10 @@ abstract class AbstractDriver implements Driver
         $id = $callback->id;
 
         if ($callback instanceof DeferCallback) {
-            // Callback was only queued to be enabled.
+            // 回调仅排队等待启用。
             unset($this->enableDeferQueue[$id]);
         } elseif (isset($this->enableQueue[$id])) {
-            // Callback was only queued to be enabled.
+            // 回调仅排队等待启用。
             unset($this->enableQueue[$id]);
         } else {
             $this->deactivate($callback);
