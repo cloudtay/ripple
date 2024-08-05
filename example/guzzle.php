@@ -38,13 +38,27 @@ use Psc\Plugins\Guzzle\PHandler;
 use function P\async;
 
 include_once __DIR__ . '/../vendor/autoload.php';
-$handler = new PHandler();
-$client = new Client(['handler' => $handler]);
-// 创建100个协程进行请求
+$client = new Client(['handle' => new PHandler()]);
+
 for($i = 0; $i < 100; $i++) {
     async(function () use ($client, $i) {
-        $response = $client->get('https://www.baidu.com');
-        echo "request {$i} status: " . $response->getStatusCode() . \PHP_EOL;
+        try {
+            $response = $client->get('http://127.0.0.1:8080/', ['timeout' => 10]);
+            echo "request {$i} status: " . $response->getStatusCode() . \PHP_EOL;
+        } catch (Throwable $exception) {
+            echo "request {$i} error: " . $exception->getMessage() . \PHP_EOL;
+        }
+    });
+}
+
+for($i = 100; $i < 200; $i++) {
+    async(function () use ($client, $i) {
+        try {
+            $response = $client->getAsync('http://127.0.0.1:8080/', ['timeout' => 10])->wait();
+            echo "request {$i} status: " . $response->getStatusCode() . \PHP_EOL;
+        } catch (Throwable $exception) {
+            echo "request {$i} error: " . $exception->getMessage() . \PHP_EOL;
+        }
     });
 }
 

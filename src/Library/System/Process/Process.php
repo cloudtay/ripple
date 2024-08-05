@@ -51,6 +51,7 @@ use function P\cancel;
 use function P\cancelAll;
 use function P\getIdentities;
 use function P\promise;
+use function P\tick;
 use function pcntl_fork;
 use function pcntl_wait;
 use function pcntl_wexitstatus;
@@ -257,7 +258,11 @@ class Process extends LibraryAbstract
                 }
 
                 if(!$isCoroutine) {
-                    Fiber::suspend();
+                    if(Fiber::getCurrent()) {
+                        Fiber::suspend();
+                    }
+                    tick();
+                    exit(0);
                 }
 
                 throw new EscapeException('The process is abnormal.');
