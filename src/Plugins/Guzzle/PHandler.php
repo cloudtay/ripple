@@ -38,7 +38,6 @@ use GuzzleHttp\Promise\Promise;
 use GuzzleHttp\Promise\PromiseInterface;
 use Psc\Library\Net\Http\Client\HttpClient;
 use Psr\Http\Message\RequestInterface;
-use Throwable;
 
 use function P\await;
 
@@ -62,17 +61,10 @@ class PHandler
      */
     public function __invoke(RequestInterface $request, array $options): PromiseInterface
     {
-        try {
-            $response = await($this->httpClient->request($request, $options));
-            $promise  = new Promise(function () use ($response, &$promise) {
-                $promise->resolve($response);
-            });
-        } catch (Throwable $exception) {
-            $promise = new Promise(function () use ($exception, &$promise) {
-                $promise->reject($exception);
-            });
-        }
-        $promise->wait();
+        $async   = $this->httpClient->request($request, $options);
+        $promise = new Promise(function () use ($async, &$promise) {
+            $promise->resolve(await($async));
+        });
         return $promise;
     }
 }
