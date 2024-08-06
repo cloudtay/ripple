@@ -34,16 +34,12 @@
 
 namespace Psc\Plugins\Guzzle;
 
-use Closure;
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\GuzzleException;
+use GuzzleHttp\Promise\Promise;
 use GuzzleHttp\Promise\PromiseInterface;
 use GuzzleHttp\Psr7\Response;
-use Psc\Core\Coroutine\Promise;
 use Psc\Core\LibraryAbstract;
-
-use function array_merge;
-use function P\registerForkHandler;
 
 /**
  *
@@ -54,54 +50,26 @@ class Guzzle extends LibraryAbstract
     protected static LibraryAbstract $instance;
 
     /*** @var PHandler */
-    private PHandler                 $pHandler;
+    private PHandler $pHandler;
+
+    /*** @var Client */
+    private Client $client;
 
     public function __construct()
     {
-        $this->install();
-        $this->registerOnFork();
-    }
-
-    /**
-     * @return void
-     */
-    private function registerOnFork(): void
-    {
-        registerForkHandler(function () {
-            $this->install();
-            $this->registerOnFork();
-        });
-    }
-
-    /**
-     * @param array|null $config
-     * @return Client
-     */
-    public function client(array|null $config = array()): Client
-    {
-        $config = array_merge(['handler' => $this->pHandler], $config);
-        return new Client($config);
-    }
-
-    /**
-     * @return void
-     */
-    private function install(): void
-    {
         $this->pHandler = new PHandler(['pool' => 1]);
+        $this->client   = new Client(['handler' => $this->pHandler]);
     }
 
     /**
      * @param string $method
      * @param string $uri
      * @param array  $options
-     * @return Promise<Response>
+     * @return PromiseInterface
      */
-    public function requestAsync(string $method, string $uri, array $options = array()): Promise
+    public function requestAsync(string $method, string $uri, array $options = array()): PromiseInterface
     {
-        return new Promise(function (Closure $r, Closure $d) use ($method, $uri, $options) {
-            $this->client()->requestAsync($method, $uri, $options)->then($r, $d);
-        });
+        return $this->client->requestAsync($method, $uri, $options);
     }
 
     /**
@@ -109,15 +77,9 @@ class Guzzle extends LibraryAbstract
      * @param array  $options
      * @return Promise<Response>
      */
-    public function getAsync(string $uri, array $options = array()): Promise
+    public function getAsync(string $uri, array $options = array()): PromiseInterface
     {
-        return new Promise(function (Closure $r, Closure $d) use ($uri, $options) {
-            $this->translatePromise(
-                $this->client()->getAsync($uri, $options),
-                $r,
-                $d
-            );
-        });
+        return $this->client->getAsync($uri, $options);
     }
 
     /**
@@ -125,15 +87,9 @@ class Guzzle extends LibraryAbstract
      * @param array  $options
      * @return Promise<Response>
      */
-    public function postAsync(string $uri, array $options = array()): Promise
+    public function postAsync(string $uri, array $options = array()): PromiseInterface
     {
-        return new Promise(function (Closure $r, Closure $d) use ($uri, $options) {
-            $this->translatePromise(
-                $this->client()->postAsync($uri, $options),
-                $r,
-                $d
-            );
-        });
+        return $this->client->postAsync($uri, $options);
     }
 
     /**
@@ -141,15 +97,9 @@ class Guzzle extends LibraryAbstract
      * @param array  $options
      * @return Promise<Response>
      */
-    public function putAsync(string $uri, array $options = array()): Promise
+    public function putAsync(string $uri, array $options = array()): PromiseInterface
     {
-        return new Promise(function (Closure $r, Closure $d) use ($uri, $options) {
-            $this->translatePromise(
-                $this->client()->putAsync($uri, $options),
-                $r,
-                $d
-            );
-        });
+        return $this->client->putAsync($uri, $options);
     }
 
     /**
@@ -157,15 +107,9 @@ class Guzzle extends LibraryAbstract
      * @param array  $options
      * @return Promise<Response>
      */
-    public function deleteAsync(string $uri, array $options = array()): Promise
+    public function deleteAsync(string $uri, array $options = array()): PromiseInterface
     {
-        return new Promise(function (Closure $r, Closure $d) use ($uri, $options) {
-            $this->translatePromise(
-                $this->client()->deleteAsync($uri, $options),
-                $r,
-                $d
-            );
-        });
+        return $this->client->deleteAsync($uri, $options);
     }
 
     /**
@@ -173,15 +117,9 @@ class Guzzle extends LibraryAbstract
      * @param array  $options
      * @return Promise<Response>
      */
-    public function headAsync(string $uri, array $options = array()): Promise
+    public function headAsync(string $uri, array $options = array()): PromiseInterface
     {
-        return new Promise(function (Closure $r, Closure $d) use ($uri, $options) {
-            $this->translatePromise(
-                $this->client()->headAsync($uri, $options),
-                $r,
-                $d
-            );
-        });
+        return $this->client->headAsync($uri, $options);
     }
 
     /**
@@ -189,15 +127,9 @@ class Guzzle extends LibraryAbstract
      * @param array  $options
      * @return Promise<Response>
      */
-    public function patchAsync(string $uri, array $options = array()): Promise
+    public function patchAsync(string $uri, array $options = array()): PromiseInterface
     {
-        return new Promise(function (Closure $r, Closure $d) use ($uri, $options) {
-            $this->translatePromise(
-                $this->client()->patchAsync($uri, $options),
-                $r,
-                $d
-            );
-        });
+        return $this->client->patchAsync($uri, $options);
     }
 
     /**
@@ -209,7 +141,7 @@ class Guzzle extends LibraryAbstract
      */
     public function request(string $method, string $uri, array $options = array()): Response
     {
-        return $this->client()->request($method, $uri, $options);
+        return $this->client->request($method, $uri, $options);
     }
 
     /**
@@ -220,7 +152,7 @@ class Guzzle extends LibraryAbstract
      */
     public function get(string $uri, array $options = array()): Response
     {
-        return $this->client()->get($uri, $options);
+        return $this->client->get($uri, $options);
     }
 
     /**
@@ -231,7 +163,7 @@ class Guzzle extends LibraryAbstract
      */
     public function post(string $uri, array $options = array()): Response
     {
-        return $this->client()->post($uri, $options);
+        return $this->client->post($uri, $options);
     }
 
     /**
@@ -242,7 +174,7 @@ class Guzzle extends LibraryAbstract
      */
     public function put(string $uri, array $options = array()): Response
     {
-        return $this->client()->put($uri, $options);
+        return $this->client->put($uri, $options);
     }
 
     /**
@@ -253,7 +185,7 @@ class Guzzle extends LibraryAbstract
      */
     public function delete(string $uri, array $options = array()): Response
     {
-        return $this->client()->delete($uri, $options);
+        return $this->client->delete($uri, $options);
     }
 
     /**
@@ -264,7 +196,7 @@ class Guzzle extends LibraryAbstract
      */
     public function head(string $uri, array $options = array()): Response
     {
-        return $this->client()->head($uri, $options);
+        return $this->client->head($uri, $options);
     }
 
     /**
@@ -275,30 +207,6 @@ class Guzzle extends LibraryAbstract
      */
     public function patch(string $uri, array $options = array()): Response
     {
-        return $this->client()->patch($uri, $options);
-    }
-
-    /**
-     * @param PromiseInterface $guzzlePromise
-     * @param Closure          $localR
-     * @param Closure          $localD
-     * @return void
-     */
-    private function translatePromise(PromiseInterface $guzzlePromise, Closure $localR, Closure $localD): void
-    {
-        $guzzlePromise->then(
-            fn (mixed $result) => $this->onCallback($result, $localR),
-            fn (mixed $reason) => $this->onCallback($reason, $localD)
-        );
-    }
-
-    /**
-     * @param mixed   $result
-     * @param Closure $localCallback
-     * @return void
-     */
-    private function onCallback(mixed $result, Closure $localCallback): void
-    {
-        $localCallback($result);
+        return $this->client->patch($uri, $options);
     }
 }
