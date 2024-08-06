@@ -243,9 +243,6 @@ class Connection
     /**
      * @return array
      */
-    /**
-     * @return array
-     */
     private function parse(): array
     {
         $results = array();

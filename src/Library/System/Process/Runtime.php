@@ -37,8 +37,6 @@ namespace Psc\Library\System\Process;
 use Closure;
 use Psc\Core\Coroutine\Promise;
 
-use Revolt\EventLoop;
-
 use Throwable;
 
 use function posix_kill;
