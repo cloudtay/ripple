@@ -91,6 +91,9 @@ class HttpClient
                 $host   = $uri->getHost();
                 $port   = $uri->getPort() ?? ($scheme === 'https' ? 443 : 80);
                 $path   = $uri->getPath() ?: '/';
+                $query = $uri->getQuery();
+                $query = $query ? "?{$query}" : '';
+
 
                 /**
                  * @var Connection $connection
@@ -101,40 +104,49 @@ class HttpClient
                     $scheme === 'https'
                 ));
 
-                $header = "{$method} {$path} HTTP/1.1\r\n";
+                $header = "{$method} {$path}{$query} HTTP/1.1\r\n";
                 foreach ($request->getHeaders() as $name => $values) {
                     $header .= "{$name}: " . implode(', ', $values) . "\r\n";
                 }
 
-                $bodyStream = $request->getBody();
-                if ($bodyStream->getMetadata('uri') === 'php://temp') {
-                    $body = $bodyStream->getContents();
-                    $connection->stream->write("{$header}\r\n{$body}");
-                } elseif ($bodyStream instanceof MultipartStream) {
-                    if (!$request->getHeader('Content-Type')) {
-                        $header .= "Content-Type: multipart/form-data; boundary={$bodyStream->getBoundary()}\r\n";
-                    }
+                //写入初始化头
+                $connection->stream->write($header);
+
+                if ($bodyStream = $request->getBody()) {
                     if (!$request->getHeader('Content-Length')) {
-                        $header .= "Content-Length: {$bodyStream->getSize()}\r\n";
+                        $size = $bodyStream->getSize();
+                        $size > 0 && $connection->stream->write("Content-Length: {$bodyStream->getSize()}\r\n");
                     }
-                    $connection->stream->write("{$header}\r\n");
-                    repeat(function (Closure $cancel) use ($connection, $bodyStream, $r, $d) {
-                        try {
-                            $content = $bodyStream->read(8192);
-                            if ($content) {
-                                $connection->stream->write($content);
-                            } else {
+
+                    if ($bodyStream->getMetadata('uri') === 'php://temp') {
+                        $connection->stream->write("\r\n");
+                        $connection->stream->write($bodyStream->getContents());
+                    } elseif ($bodyStream instanceof MultipartStream) {
+                        if (!$request->getHeader('Content-Type')) {
+                            $connection->stream->write("Content-Type: multipart/form-data; boundary={$bodyStream->getBoundary()}\r\n");
+                        }
+                        $connection->stream->write("\r\n");
+
+                        repeat(function (Closure $cancel) use ($connection, $bodyStream, $r, $d) {
+                            try {
+                                $content = $bodyStream->read(8192);
+                                if ($content) {
+                                    $connection->stream->write($content);
+                                } else {
+                                    $cancel();
+                                    $bodyStream->close();
+                                }
+                            } catch (Throwable) {
                                 $cancel();
                                 $bodyStream->close();
+                                $d(new InvalidArgumentException('Invalid body stream'));
                             }
-                        } catch (Throwable) {
-                            $cancel();
-                            $bodyStream->close();
-                            $d(new InvalidArgumentException('Invalid body stream'));
-                        }
-                    }, 0.1);
+                        }, 0.1);
+                    } else {
+                        throw new InvalidArgumentException('Invalid body stream');
+                    }
                 } else {
-                    throw new InvalidArgumentException('Invalid body stream');
+                    $connection->stream->write("\r\n");
                 }
 
                 if ($timeout = $option['timeout'] ?? null) {
@@ -154,12 +166,18 @@ class HttpClient
                     });
                 }
 
+                /**
+                 * 解析响应过程
+                 */
                 $connection->stream->onReadable(function (SocketStream $socketStream) use ($connection, $scheme, $r, $d) {
                     try {
                         $content = $socketStream->read(1024);
                         if ($response = $connection->tick($content)) {
                             $k = implode(', ', $response->getHeader('Connection'));
                             if (str_contains(strtolower($k), 'keep-alive') && $this->pool) {
+                                /**
+                                 * 推入连接池
+                                 */
                                 $this->pushConnection($connection, $scheme === 'https');
                             } else {
                                 $socketStream->close();

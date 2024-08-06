@@ -32,13 +32,11 @@
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-namespace Psc\Library\Coroutine;
+namespace Psc\Core\Coroutine;
 
 use Closure;
 use Fiber;
 use FiberError;
-use Psc\Core\Coroutine\Exception;
-use Psc\Core\Coroutine\Promise;
 use Psc\Core\LibraryAbstract;
 use Psc\Kernel;
 use Revolt\EventLoop;

@@ -34,7 +34,7 @@
 
 namespace P;
 
-use Psc\Library\Coroutine\Coroutine as CoroutineLibrary;
+use Psc\Core\Coroutine\Coroutine as CoroutineLibrary;
 
 /**
  *
