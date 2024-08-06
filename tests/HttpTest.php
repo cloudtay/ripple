@@ -34,71 +34,93 @@
 
 namespace Tests;
 
-use GuzzleHttp\Psr7\Response;
+use P\Net;
 use P\Plugin;
 use PHPUnit\Framework\TestCase;
+use Psc\Core\Output;
+use Psc\Library\Net\Http\Server\Request;
+use Psc\Library\Net\Http\Server\Response;
 use Throwable;
 
-use function hash;
+use function md5;
 use function P\async;
-use function P\await;
-use function P\cancel;
-use function P\repeat;
+use function P\cancelAll;
+use function P\defer;
+use function P\tick;
 use function uniqid;
 
 class HttpTest extends TestCase
 {
     /**
      * @return void
-     * @throws Throwable
      */
-    public function test_httpServerGet(): void
+    public function test_httpServer(): void
     {
-        $answer = hash('sha256', uniqid());
-        $loop = repeat(function () {}, 1);
-
-        async(function () use ($answer, $loop) {
+        defer(function () {
             try {
-                /**
-                 * @var Response $response
-                 */
-                $response = await(Plugin::Guzzle()->getAsync('http://127.0.0.1:8008/', [
-                    'query' => [
-                        'hash' => $answer,
-                    ]
-                ]));
-                $this->assertEquals($answer, $response->getBody()->getContents());
+                $this->httpGet();
             } catch (Throwable $exception) {
-                $this->fail($exception->getMessage());
-            } finally {
-                cancel($loop);
+                Output::error($exception->getMessage());
             }
-        })->await();
 
-        \P\sleep(3);
+            try {
+                $this->httpPost();
+            } catch (Throwable $exception) {
+                Output::error($exception->getMessage());
+            }
+
+            cancelAll();
+        });
+
+        $server = Net::Http()->server('http://127.0.0.1:8008');
+        $server->onRequest(function (Request $request, Response $response) {
+            if($request->isMethod('get')) {
+                $response->setContent($request->query->get('query'))->respond();
+            }
+
+            if($request->isMethod('post')) {
+                $response->setContent($request->request->get('query'))->respond();
+            }
+        });
+
+        $server->listen();
+
+        tick();
     }
 
     /**
      * @return void
      * @throws Throwable
      */
-    public function test_httpServerPost(): void
+    public function httpGet(): void
     {
-        $answer = hash('sha256', uniqid());
-        $loop = repeat(function () {}, 1);
+        $hash = md5(uniqid());
 
-        Plugin::Guzzle()->postAsync('http://127.0.0.1:8008/', [
-            'body'    => $answer,
-            'timeout' => 5,
-        ])
-            ->then(function (Response $response) use ($answer) {
-                $this->assertEquals($answer, $response->getBody()->getContents());
-            })
-            ->except(function (Throwable $throwable) {
-                $this->fail($throwable->getMessage());
-            })
-            ->finally(function () use ($loop) {
-                cancel($loop);
-            })->await();
+        $client = Plugin::Guzzle();
+        $response = $client->get('http://127.0.0.1:8008/', [
+            'query' => [
+                'query' => $hash,
+            ]
+        ]);
+
+        $result = $response->getBody()->getContents();
+        $this->assertEquals($hash, $result);
+    }
+
+    /**
+     * @return void
+     * @throws Throwable
+     */
+    public function httpPost(): void
+    {
+        $hash = md5(uniqid());
+        $client = Plugin::Guzzle();
+        $response = $client->post('http://127.0.0.1:8008/', [
+            'json' => [
+                'query' => $hash,
+            ]
+        ]);
+
+        $this->assertEquals($hash, $response->getBody()->getContents());
     }
 }
