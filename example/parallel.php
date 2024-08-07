@@ -32,38 +32,28 @@
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-namespace P;
-
 use Psc\Library\System\Parallel\Parallel;
-use Psc\Library\System\Proc\Proc;
-use Psc\Library\System\Process\Process;
 
-/**
- *
- */
-class System
-{
-    /**
-     * @return Process
-     */
-    public static function Process(): Process
-    {
-        return Process::getInstance();
-    }
+include_once __DIR__ . '/../vendor/autoload.php';
 
-    /**
-     * @return Proc
-     */
-    public static function Proc(): Proc
-    {
-        return Proc::getInstance();
-    }
 
-    /**
-     * @return Parallel
-     */
-    public static function Parallel(): Parallel
-    {
-        return Parallel::getInstance();
-    }
-}
+$parallel = Parallel::getInstance();
+
+$thread = $parallel->thread(function () {
+    \sleep(1);
+    return 'mixins';
+});
+
+$future = $thread->run()->onValue(function () {
+    \var_dump('result');
+})->onKilled(function () {
+    \var_dump('ked');
+});
+
+
+\P\delay(function () use ($thread, $future) {
+    \var_dump('k');
+    $thread->kill();
+}, 3);
+
+\P\tick();

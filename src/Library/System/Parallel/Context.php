@@ -32,38 +32,10 @@
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-namespace P;
+namespace Psc\Library\System\Parallel;
 
-use Psc\Library\System\Parallel\Parallel;
-use Psc\Library\System\Proc\Proc;
-use Psc\Library\System\Process\Process;
-
-/**
- *
- */
-class System
+class Context
 {
-    /**
-     * @return Process
-     */
-    public static function Process(): Process
-    {
-        return Process::getInstance();
-    }
-
-    /**
-     * @return Proc
-     */
-    public static function Proc(): Proc
-    {
-        return Proc::getInstance();
-    }
-
-    /**
-     * @return Parallel
-     */
-    public static function Parallel(): Parallel
-    {
-        return Parallel::getInstance();
-    }
+    public array $argv;
+    public int   $index;
 }

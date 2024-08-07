@@ -32,38 +32,109 @@
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-namespace P;
+namespace Psc\Library\System\Parallel;
 
-use Psc\Library\System\Parallel\Parallel;
-use Psc\Library\System\Proc\Proc;
-use Psc\Library\System\Process\Process;
+use Closure;
+use parallel\Events\Event;
+use parallel\Events\Event\Type;
 
-/**
- *
- */
-class System
+use function posix_getpid;
+use function posix_kill;
+
+use const SIGUSR2;
+
+class Channel
 {
-    /**
-     * @return Process
-     */
-    public static function Process(): Process
+    /*** @var int */
+    private int $processId;
+
+    /*** @param \parallel\Channel $channel */
+    public function __construct(public readonly \parallel\Channel $channel)
     {
-        return Process::getInstance();
+        $this->processId = posix_getpid();
     }
 
     /**
-     * @return Proc
+     * @param mixed $value
+     * @return void
      */
-    public static function Proc(): Proc
+    public function send(mixed $value): void
     {
-        return Proc::getInstance();
+        $this->channel->send($value);
+        posix_kill($this->processId, SIGUSR2);
     }
 
     /**
-     * @return Parallel
+     * @return mixed
      */
-    public static function Parallel(): Parallel
+    public function recv(): mixed
     {
-        return Parallel::getInstance();
+        return $this->channel->recv();
+    }
+
+    /**
+     * @return void
+     */
+    public function close(): void
+    {
+        $this->channel->close();
+    }
+
+    private Closure $onRead;
+    private Closure $onWrite;
+    private Closure $onClose;
+
+    /**
+     * @param Closure $onRead
+     * @return void
+     */
+    public function onRead(Closure $onRead): void
+    {
+        $this->onRead = $onRead;
+    }
+
+    /**
+     * @param Closure $onWrite
+     * @return void
+     */
+    public function onWrite(Closure $onWrite): void
+    {
+        $this->onWrite = $onWrite;
+    }
+
+    /**
+     * @param Closure $onClose
+     * @return void
+     */
+    public function onClose(Closure $onClose): void
+    {
+        $this->onClose = $onClose;
+    }
+
+    /**
+     * @param Event $event
+     * @return void
+     */
+    public function onEvent(Event $event): void
+    {
+        switch ($event->type) {
+            case Type::Close:
+                if(isset($this->onClose)) {
+                    ($this->onClose)($event->value);
+                }
+                break;
+
+            case Type::Read:
+                if(isset($this->onRead)) {
+                    ($this->onRead)($event->value);
+                }
+                break;
+
+            case Type::Write:
+                if (isset($this->onWrite)) {
+                    ($this->onWrite)($event->value);
+                }
+                break;
+        }
     }
 }
