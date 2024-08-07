@@ -28,14 +28,16 @@
     "ext-sockets": "*",
     "ext-pcntl": "*",
     "ext-openssl": "*",
-    "ext-curl": "*",
     "revolt/event-loop": "^1.0",
     "symfony/http-foundation": "*",
     "guzzlehttp/guzzle": "*",
     "psr/http-message": "*"
   },
   "require-dev": {
+    "ext-curl": "*",
     "phpunit/phpunit": "^11.2",
-    "friendsofphp/php-cs-fixer": "*"
+    "friendsofphp/php-cs-fixer": "*",
+    "ext-parallel": "*"
+
   }
 }
