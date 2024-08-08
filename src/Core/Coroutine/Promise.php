@@ -277,10 +277,10 @@ class Promise
     }
 
     /**
-     * @param callable $onRejected
+     * @param Closure $onRejected
      * @return Promise
      */
-    public function otherwise(callable $onRejected): Promise
+    public function otherwise(Closure $onRejected): Promise
     {
         return $this->except($onRejected);
     }

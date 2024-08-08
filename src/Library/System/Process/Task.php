@@ -36,6 +36,9 @@ namespace Psc\Library\System\Process;
 
 use Closure;
 
+use Psc\Kernel;
+use Psc\Library\System\Parallel\Parallel;
+
 use function call_user_func;
 
 /**
@@ -57,6 +60,9 @@ class Task
      */
     public function run(...$argv): Runtime
     {
+        if(Kernel::getInstance()->supportParallel()) {
+            Parallel::getInstance()->wait();
+        }
         return call_user_func($this->closure, ...$argv);
     }
 }
