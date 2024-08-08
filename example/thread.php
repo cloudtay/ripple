@@ -1,4 +1,5 @@
 <?php declare(strict_types=1);
+
 /*
  * Copyright (c) 2023-2024.
  *
@@ -32,20 +33,16 @@
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-namespace Psc\Library\Net\Http\Stream;
+use function P\thread;
+use function P\tick;
 
-use Psc\Core\Stream\Stream;
+include __DIR__ . '/../vendor/autoload.php';
 
-class MultipartStream extends Stream
-{
-    private array $streams = [];
-    public function __construct(array $data, mixed $resource)
-    {
-        /**
-         * 'name'     => 'custom_file_param',  // 文件参数名
-         * 'contents' => fopen('/path/to/your/file.txt', 'r'),  // 文件路径
-         * 'filename' => 'custom_filename.txt',  // 自定义文件名
-         * 'Content-Type' => 'application/custom-mime-type'  // 自定义 MIME 类型
-         */
-    }
+
+for ($i = 0; $i < 100; $i++) {
+    $thread = thread(static function ($context) {
+        return \file_get_contents(__FILE__);
+    });
 }
+
+tick();

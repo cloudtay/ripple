@@ -44,6 +44,7 @@ use Throwable;
 
 use function call_user_func;
 use function count;
+use function extension_loaded;
 use function usleep;
 
 class Kernel
@@ -54,10 +55,13 @@ class Kernel
     /*** @var EventLoop\Suspension */
     private EventLoop\Suspension $mainSuspension;
 
+    /*** @var bool */
+    private bool $parallel;
 
     public function __construct()
     {
         $this->mainSuspension = EventLoop::getSuspension();
+        $this->parallel = extension_loaded('parallel');
     }
 
     /**
@@ -240,5 +244,13 @@ class Kernel
     public function getIdentities(): array
     {
         return EventLoop::getIdentifiers();
+    }
+
+    /**
+     * @return bool
+     */
+    public function supportParallel(): bool
+    {
+        return $this->parallel;
     }
 }

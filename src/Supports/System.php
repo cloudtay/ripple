@@ -60,6 +60,7 @@ class System
     }
 
     /**
+     * @Description 未通过测试
      * @return Parallel
      */
     public static function Parallel(): Parallel

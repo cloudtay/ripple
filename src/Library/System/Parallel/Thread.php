@@ -35,17 +35,9 @@
 namespace Psc\Library\System\Parallel;
 
 use Closure;
-use Composer\Autoload\ClassLoader;
 use parallel\Runtime;
-use ReflectionClass;
-use Throwable;
 
-use function dirname;
-use function posix_getpid;
-use function posix_kill;
-use function strval;
-
-use const SIGUSR2;
+use function P\tick;
 
 class Thread
 {
@@ -60,48 +52,31 @@ class Thread
 
     /**
      * @param Closure  $handler
-     * @param Parallel $parallel
-     * @param int      $index
+     * @param string   $name
      */
     public function __construct(
         private readonly Closure $handler,
-        private readonly Parallel $parallel,
-        private readonly int  $index,
+        public readonly string   $name,
     ) {
-        $reflector = new ReflectionClass(ClassLoader::class);
-        $vendorDir = dirname($reflector->getFileName(), 2);
-        $this->runtime = new Runtime("{$vendorDir}/autoload.php");
-        $this->guide = static function (Closure $handler, Context $context, \parallel\Channel $channel) {
+        $this->runtime = new Runtime(Parallel::$autoload);
+        $this->guide = static function (Closure $handler, Context $context) {
+            $counterChannel = \parallel\Channel::open('counter');
             try {
-                $result = $handler($context);
-                $channel->send(strval($context->index));
-
-                posix_kill(posix_getpid(), SIGUSR2);
-                return $result;
-            } catch (Throwable $exception) {
-
-                posix_kill(posix_getpid(), SIGUSR2);
-                throw $exception;
+                return $handler($context);
+            } finally {
+                tick();
+                $counterChannel->send(1);
             }
         };
         $this->context = new Context();
     }
 
     /**
-     * @param array<mixed> ...$argv
      * @return Future
      */
-    public function run(mixed ...$argv): Future
+    public function run(): Future
     {
-        $this->context->argv    = $argv;
-        $this->context->index = $this->index;
-        $future              = new Future($this->runtime->run($this->guide, [
-            $this->handler,
-            $this->context,
-            $this->parallel->futureChannel->channel
-        ]));
-        $this->parallel->listenFuture(strval($this->index), $future);
-        return $future;
+        return Parallel::getInstance()->run($this);
     }
 
     /**
@@ -109,7 +84,6 @@ class Thread
      */
     public function close(): void
     {
-        posix_kill(posix_getpid(), SIGUSR2);
         $this->runtime->close();
     }
 
@@ -118,7 +92,20 @@ class Thread
      */
     public function kill(): void
     {
-        posix_kill(posix_getpid(), SIGUSR2);
         $this->runtime->kill();
+    }
+
+    /**
+     * @param mixed ...$argv
+     * @return Future
+     */
+    public function __invoke(mixed ...$argv): Future
+    {
+        $this->context->argv    = $argv;
+        $this->context->name = $this->name;
+        return new Future($this->runtime->run($this->guide, [
+            $this->handler,
+            $this->context,
+        ]));
     }
 }

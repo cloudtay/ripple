@@ -147,7 +147,7 @@ class Coroutine extends LibraryAbstract
         });
 
         // When rejected by the status of the awaited Promise
-        $promise->except(function (Throwable $e) use ($fiber, $callback) {
+        $promise->except(function (mixed $e) use ($fiber, $callback) {
             try {
                 // Try to notice Fiber: An exception occurred in the awaited Promise
                 $e instanceof Throwable

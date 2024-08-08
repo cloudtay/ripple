@@ -35,64 +35,319 @@
 namespace Psc\Library\System\Parallel;
 
 use Closure;
+use Composer\Autoload\ClassLoader;
 use parallel\Events;
+use parallel\Runtime;
+use parallel\Sync;
 use Psc\Core\LibraryAbstract;
+use ReflectionClass;
+use Revolt\EventLoop;
 use Revolt\EventLoop\UnsupportedFeatureException;
+use Throwable;
 
+use function array_shift;
+use function count;
+use function dirname;
+use function file_exists;
+use function intval;
+use function is_int;
 use function P\cancel;
+use function P\defer;
 use function P\onSignal;
-use function var_dump;
+use function P\registerForkHandler;
+use function posix_getpid;
+use function posix_kill;
+use function preg_match;
+use function shell_exec;
+use function strval;
 
 use const SIGUSR2;
 
 /**
- * 允许你占用USR2信号，以便在主线程中执行并行代码
+ * @Description 未通过测试
+ * 这个扩展有很多玄学坑因此放弃了对它的封装,以下为踩坑笔记,下次重拾前掂量掂量
+ *
+ * 2024-08-07
+ * 0x00 允许保留USR2信号，以便在主线程中执行并行代码
+ * 0x01 用独立线程监听计数指令向主进程发送信号,原子性保留主进程events::poll的堵塞机制
  */
 class Parallel extends LibraryAbstract
 {
     /*** @var LibraryAbstract */
     protected static LibraryAbstract $instance;
 
-    /*** @var string */
-    private string $signalEventId;
-
     /*** @var int */
-    private int $index = 0;
+    public static int $cpuCount;
 
-    /*** @var Channel[] */
-    private array $channels = [];
-
-    /*** @var Future[] */
-    private array $futures = [];
+    /*** @var string */
+    public static string $autoload;
 
     /*** @var Events */
     private Events $events;
 
-    /*** @var Channel */
-    public Channel $futureChannel;
+    /*** @var Thread[] */
+    private array $threads = [];
 
+    /*** @var Future[] */
+    private array $futures = [];
+
+    /**
+     * 递归索引
+     * @var int
+     */
+    private int $index = 0;
+
+    /**
+     * 事件分发线程
+     * @var Runtime
+     */
+    private Runtime $counterRuntime;
+
+    /**
+     * 事件分发线程Future
+     * @var \parallel\Future
+     */
+    private \parallel\Future $counterFuture;
+
+    /**
+     * 事件计数通道
+     * @var Channel
+     */
+    public Channel $counterChannel;
+
+    /**
+     * 事件计数标量
+     * @var Sync
+     */
+    private Sync $eventScalar;
+
+    /**
+     * 初始化标量
+     * @var Sync
+     */
+    private Sync $initScalar;
+
+    /*** @var string */
+    private string $signalHandlerId;
+
+    /**
+     * Parallel constructor.
+     */
     public function __construct()
     {
+        $this->initialize();
+    }
+
+    /**
+     * @return void
+     */
+    private function initialize(): void
+    {
+        // 初始化自动加载地址
+        $this->initializeAutoload();
+
+        // 获取CPU核心数
+        Parallel::$cpuCount = intval(
+            // if
+            file_exists('/usr/bin/nproc')
+                ? shell_exec('/usr/bin/nproc')
+                : ( //else
+                    file_exists('/proc/cpuinfo') && preg_match('/^processor\s+:/', shell_exec('cat /proc/cpuinfo'), $matches)
+                        ? count($matches)
+                        : ( //else
+                            shell_exec('sysctl -n hw.ncpu')
+                                ? shell_exec('sysctl -n hw.ncpu')
+                                : 1 //else
+                        )
+                )
+        );
+
+        // 初始化事件处理器
         $this->events = new Events();
         $this->events->setBlocking(true);
-        $this->futureChannel = $this->makeChannel('future', 1);
-        $this->futureChannel->onRead(function (string $name) {
-            if($future = $this->futures[$name] ?? null) {
-                $future->resolve($future->value());
-                unset($this->futures[$name]);
-                $this->events->remove($name);
+    }
+
+    /**
+     * @return void
+     */
+    public function initializeCounter(): void
+    {
+        if(isset($this->counterRuntime) && !$this->counterFuture->done()) {
+            return;
+        }
+
+        if(!isset($this->counterChannel)) {
+            $this->counterChannel = $this->makeChannel('counter');
+        }
+
+        // 初始化标量同步器
+        $this->eventScalar = new Sync(0);
+
+        // 初始化标量
+        $this->initScalar = new Sync(false);
+
+        $this->counterRuntime = new Runtime();
+        $this->counterFuture = $this->counterRuntime->run(static function (\parallel\Channel $channel, Sync $eventScalar, Sync $initScalar) {
+            $initScalar(function () use ($initScalar) {
+                while(!$initScalar->get()) {
+                    $initScalar->wait();
+                }
+            });
+            $processId = posix_getpid();
+            $count = 0;
+            while($number = $channel->recv()) {
+                $eventScalar->set($count += $number);
+                if($number > 0) {
+                    posix_kill($processId, SIGUSR2);
+                }
+                if($count === -1) {
+                    break;
+                }
             }
+        }, [$this->counterChannel->channel, $this->eventScalar,$this->initScalar]);
+
+        defer(function () {
+            $this->initScalar->set(true);
+            $this->initScalar->notify();
         });
     }
 
     /**
-     *
+     * @return void
      */
-    public function __destruct()
+    private function initializeAutoload(): void
     {
-        if (isset($this->signalEventId)) {
-            cancel($this->signalEventId);
+        $reflector = new ReflectionClass(ClassLoader::class);
+        $vendorDir = dirname($reflector->getFileName(), 2);
+        Parallel::$autoload = "{$vendorDir}/autoload.php";
+    }
+
+    /**
+     * @return void
+     */
+    private function poll(): void
+    {
+        while($number = $this->eventScalar->get()) {
+            for ($i = 0; $i < $number; $i++) {
+                $event =  $this->events->poll();
+                if(!$event) {
+                    continue;
+                }
+                switch ($event->type) {
+                    case Events\Event\Type::Cancel:
+                    case Events\Event\Type::Kill:
+                    case Events\Event\Type::Error:
+                        if(isset($this->futures[$event->source])) {
+                            $this->futures[$event->source]->onEvent($event);
+                            unset($this->futures[$event->source]);
+                            unset($this->threads[$event->source]);
+                            $this->counterChannel->send(-1);
+                        }
+                        break;
+                    case Events\Event\Type::Read:
+                        if($event->object instanceof \parallel\Future) {
+                            $name = $event->source;
+                            if($this->futures[$name] ?? null) {
+                                try {
+                                    $this->futures[$name]->resolve();
+                                } catch (Throwable) {
+                                } finally {
+                                    unset($this->futures[$name]);
+                                    unset($this->threads[$name]);
+                                    $this->counterChannel->send(-1);
+                                }
+                            }
+                        }
+                        break;
+                }
+            }
         }
+
+        if (empty($this->futures)) {
+            $this->unregisterSignalHandler();
+            while($callback = array_shift($this->onBusy)) {
+                $callback();
+            }
+        }
+    }
+
+    private array $onBusy = [];
+
+    /**
+     * @param Thread $thread
+     * @return Future
+     */
+    public function run(Thread $thread): Future
+    {
+        $this->registerSignalHandler();
+        $this->initializeCounter();
+        $future = $thread();
+        $this->futures[$thread->name] = $future;
+        $this->events->addFuture($thread->name, $future->future);
+        return $future;
+    }
+
+    /**
+     * @return void
+     */
+    private function registerSignalHandler(): void
+    {
+        if(isset($this->signalHandlerId)) {
+            return;
+        }
+
+        try {
+            $this->signalHandlerId = onSignal(SIGUSR2, function () {
+                $this->poll();
+            });
+        } catch (UnsupportedFeatureException) {
+        }
+    }
+
+    /**
+     * @return void
+     */
+    private function unregisterSignalHandler(): void
+    {
+        if(!isset($this->signalHandlerId)) {
+            return;
+        }
+
+        cancel($this->signalHandlerId);
+        unset($this->signalHandlerId);
+
+        $this->counterChannel->send(-1);
+    }
+
+    /**
+     * @return void
+     */
+    private function registerForkHandler(): void
+    {
+        registerForkHandler(function () {
+            /*** @var LibraryAbstract $instance*/
+            /*** @var int $cpuCount*/
+            /*** @var string $autoload*/
+            /*** @var Events $events*/
+            /*** @var Thread[] $threads*/
+            /*** @var Future[] $futures*/
+            /*** @var int $index*/
+            /*** @var Runtime $counterRuntime*/
+            /*** @var \parallel\Future $counterFuture */
+            /*** @var Channel $counterChannel */
+            /*** @var Sync $eventScalar */
+            /*** @var Sync $initScalar */
+
+            foreach ($this->threads as $key => $thread) {
+                $thread->kill();
+                $this->futures[$key]?->cancel();
+                unset($this->threads[$key]);
+                unset($this->futures[$key]);
+                $this->events->remove($key);
+            }
+
+            unset($this->signalHandlerId);
+        });
     }
 
     /**
@@ -101,12 +356,10 @@ class Parallel extends LibraryAbstract
      */
     public function thread(Closure $closure): Thread
     {
-        try {
-            $this->registerSignal();
-        } catch (UnsupportedFeatureException $e) {
-
-        }
-        return new Thread($closure, $this, $this->index++);
+        $name = strval($this->index++);
+        $thread = new Thread($closure, $name);
+        $this->threads[$name] = $thread;
+        return $thread;
     }
 
     /**
@@ -115,10 +368,7 @@ class Parallel extends LibraryAbstract
      */
     public function openChannel(string $name): Channel
     {
-        $channel =  new Channel(\parallel\Channel::make($name));
-        $this->listenChannel($name, $channel);
-        $this->channels[$name] = $channel;
-        return $channel;
+        return new Channel(\parallel\Channel::make($name));
     }
 
     /**
@@ -126,95 +376,26 @@ class Parallel extends LibraryAbstract
      * @param int|null $capacity
      * @return Channel
      */
-    public function makeChannel(string $name, int|null $capacity = null): Channel
+    public function makeChannel(string $name, ?int $capacity = null): Channel
     {
-        $channel =  new Channel(\parallel\Channel::make($name, $capacity));
-        $this->listenChannel($name, $channel);
-        $this->channels[$name] = $channel;
-        return $channel;
-    }
-
-    /**
-     * @param Events\Event $event
-     * @return void
-     */
-    private function onEvent(Events\Event $event): void
-    {
-        switch ($event->type) {
-            case Events\Event\Type::Read:
-            case Events\Event\Type::Write:
-                if($channel = $this->channels[$event->source] ?? null) {
-                    $channel->onEvent($event);
-                }
-                break;
-            case Events\Event\Type::Close:
-                if($channel = $this->channels[$event->source] ?? null) {
-                    $channel->onEvent($event);
-                }
-                unset($this->channels[$event->source]);
-                $this->events->remove($event->source);
-                break;
-
-            case Events\Event\Type::Kill:
-            case Events\Event\Type::Error:
-            case Events\Event\Type::Cancel:
-                var_dump(1);
-                if($future = $this->futures[$event->source] ?? null) {
-                    $future->onEvent($event);
-                }
-                unset($this->futures[$event->source]);
-                $this->events->remove($event->source);
-                break;
-        }
-
-        if($this->events->count() === 0) {
-            cancel($this->signalEventId);
-            unset($this->signalEventId);
-        }
-    }
-
-    /**
-     * @param string  $name
-     * @param Channel $channel
-     * @return void
-     */
-    public function listenChannel(string $name, Channel $channel): void
-    {
-        try {
-            $this->registerSignal();
-        } catch (UnsupportedFeatureException $e) {
-        }
-        $this->events->addChannel($channel->channel);
-        $this->channels[$name] = $channel;
-    }
-
-    /**
-     * @param   string     $name
-     * @param Future $future
-     * @return void
-     */
-    public function listenFuture(string $name, Future $future): void
-    {
-        try {
-            $this->registerSignal();
-        } catch (UnsupportedFeatureException $e) {
-        }
-        $this->events->addFuture($name, $future->future);
-        $this->futures[$name] = $future;
+        return is_int($capacity)
+            ? new Channel(\parallel\Channel::make($name, $capacity))
+            : new Channel(\parallel\Channel::make($name));
     }
 
     /**
      * @return void
-     * @throws UnsupportedFeatureException
      */
-    private function registerSignal(): void
+    public function wait(): void
     {
-        if (!isset($this->signalEventId)) {
-            $this->signalEventId = onSignal(SIGUSR2, function () {
-                while($event = $this->events->poll()) {
-                    $this->onEvent($event);
-                }
-            });
+        if(empty($this->futures)) {
+            return;
         }
+
+        $suspension = EventLoop::getSuspension();
+        $this->onBusy[] = function () use ($suspension) {
+            $suspension->resume();
+        };
+        $suspension->suspend();
     }
 }
