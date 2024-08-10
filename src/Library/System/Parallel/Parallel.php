@@ -275,13 +275,14 @@ class Parallel extends LibraryAbstract
 
     /**
      * @param Thread $thread
+     * @param        ...$argv
      * @return Future
      */
-    public function run(Thread $thread): Future
+    public function run(Thread $thread, ...$argv): Future
     {
         $this->registerSignalHandler();
         $this->initializeCounter();
-        $future = $thread();
+        $future = $thread(...$argv);
         $this->futures[$thread->name] = $future;
         $this->events->addFuture($thread->name, $future->future);
         return $future;
