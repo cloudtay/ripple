@@ -72,11 +72,12 @@ class Thread
     }
 
     /**
+     * @param  ...$argv
      * @return Future
      */
-    public function run(): Future
+    public function run(...$argv): Future
     {
-        return Parallel::getInstance()->run($this);
+        return Parallel::getInstance()->run($this, ... $argv);
     }
 
     /**
@@ -101,7 +102,7 @@ class Thread
      */
     public function __invoke(mixed ...$argv): Future
     {
-        $this->context->argv    = $argv;
+        $this->context->argv = $argv;
         $this->context->name = $this->name;
         return new Future($this->runtime->run($this->guide, [
             $this->handler,
