@@ -34,18 +34,27 @@
 
 namespace Tests;
 
+use GuzzleHttp\Exception\GuzzleException;
 use P\Net;
 use P\Plugin;
+use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 use Psc\Core\Http\Server\Request;
 use Psc\Core\Http\Server\Response;
 use Psc\Utils\Output;
+use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Throwable;
 
+use function file_put_contents;
+use function fopen;
 use function md5;
+use function md5_file;
 use function P\cancelAll;
 use function P\defer;
 use function P\tick;
+use function str_repeat;
+use function sys_get_temp_dir;
+use function tempnam;
 use function uniqid;
 
 class HttpTest extends TestCase
@@ -53,6 +62,7 @@ class HttpTest extends TestCase
     /**
      * @return void
      */
+    #[Test]
     public function test_httpServer(): void
     {
         defer(function () {
@@ -68,21 +78,42 @@ class HttpTest extends TestCase
                 Output::error($exception->getMessage());
             }
 
+            try {
+                $this->httpFile();
+            } catch (Throwable $exception) {
+                Output::exception($exception);
+            }
+
             cancelAll();
         });
 
         $server = Net::Http()->server('http://127.0.0.1:8008');
         $server->onRequest(function (Request $request, Response $response) {
-            if($request->isMethod('get')) {
-                $response->setContent($request->query->get('query'))->respond();
+            if($request->getRequestUri() === '/upload') {
+                /**
+                 * @var UploadedFile $file
+                 */
+                $file = $request->files->get('file')[0];
+                $hash = $request->request->get('hash');
+                $this->assertEquals($hash, md5_file($file->getRealPath()));
+                $response->setContent(fopen($file->getRealPath(), 'r'))->respond();
+
+
+                return;
             }
 
-            if($request->isMethod('post')) {
+            if ($request->isMethod('get')) {
+                $response->setContent($request->query->get('query'))->respond();
+                return;
+            }
+
+            if ($request->isMethod('post')) {
                 $response->setContent($request->request->get('query'))->respond();
+                return;
             }
         });
-        $server->listen();
 
+        $server->listen();
         tick();
     }
 
@@ -92,10 +123,10 @@ class HttpTest extends TestCase
      */
     public function httpGet(): void
     {
-        $hash = md5(uniqid());
-        $client = Plugin::Guzzle();
-        $response = $client->get('http://127.0.0.1:8008/', [
-            'query' => [
+        $hash     = md5(uniqid());
+        $client   = Plugin::Guzzle();
+        $response = $client->get('http://127.0.0.1:8008/ss', [
+            'query'   => [
                 'query' => $hash,
             ],
             'timeout' => 1
@@ -103,6 +134,7 @@ class HttpTest extends TestCase
 
         $result = $response->getBody()->getContents();
         $this->assertEquals($hash, $result);
+
     }
 
     /**
@@ -111,15 +143,44 @@ class HttpTest extends TestCase
      */
     public function httpPost(): void
     {
-        $hash = md5(uniqid());
-        $client = Plugin::Guzzle();
+        $hash     = md5(uniqid());
+        $client   = Plugin::Guzzle();
         $response = $client->post('http://127.0.0.1:8008/', [
-            'json' => [
+            'json'    => [
                 'query' => $hash,
             ],
             'timeout' => 1
         ]);
 
         $this->assertEquals($hash, $response->getBody()->getContents());
+
+    }
+
+    /**
+     * @return void
+     * @throws GuzzleException
+     */
+    public function httpFile(): void
+    {
+        $client = Plugin::Guzzle();
+        $path = tempnam(sys_get_temp_dir(), 'test');
+        file_put_contents($path, str_repeat('a', 81920));
+        $hash = md5_file($path);
+        $client->post('http://127.0.0.1:8008/upload', [
+            'multipart' => [
+                [
+                    'name'     => 'file',
+                    'contents' => fopen($path, 'r'),
+                    'filename' => 'test.txt',
+                ],
+                [
+                    'name' => 'hash',
+                    'contents' => $hash
+                ]
+            ],
+            'timeout'  => 10,
+            'sink'     => $path . '.bak'
+        ]);
+        $this->assertEquals($hash, md5_file($path . '.bak'));
     }
 }

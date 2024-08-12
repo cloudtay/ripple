@@ -1,0 +1,31 @@
+name: PHP Unit Tests
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: posix,sockets,pcntl,openssl,parallel
+        env:
+          phpts: ts
+
+      - name: Install dependencies
+        run: composer install
+
+      - name: Run PHPUnit
+        run: ./vendor/bin/phpunit
