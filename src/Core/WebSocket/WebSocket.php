@@ -32,25 +32,40 @@
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-use P\Net;
+namespace Psc\Core\WebSocket;
+
+use Psc\Core\LibraryAbstract;
 use Psc\Core\WebSocket\Client\Connection;
+use Psc\Core\WebSocket\Server\Server;
 
-use function P\run;
+/**
+ *
+ */
+class WebSocket extends LibraryAbstract
+{
+    /**
+     * @var LibraryAbstract
+     */
+    protected static LibraryAbstract $instance;
 
-include __DIR__ . '/../vendor/autoload.php';
+    /**
+     * @param string     $address
+     * @param int|float  $timeout
+     * @param mixed|null $context
+     * @return Connection
+     */
+    public function connect(string $address, int|float $timeout = 10, mixed $context = null): Connection
+    {
+        return new Connection($address, $timeout, $context);
+    }
 
-$connection            = Net::WebSocket()->connect('wss://echo.websocket.org');
-$connection->onOpen(function (Connection $connection) {
-    $connection->send('{"action":"ping","data":[]}');
-
-});
-
-$connection->onMessage(function (string $data, Connection $connection) {
-    echo 'Received: ' . $data . \PHP_EOL;
-});
-
-$connection->onClose(function (Connection $connection) {
-    echo 'Connection closed' . \PHP_EOL;
-});
-
-run();
+    /**
+     * @param string $address
+     * @param mixed  $context
+     * @return Server
+     */
+    public function server(string $address, mixed $context): Server
+    {
+        return new Server($address, $context);
+    }
+}

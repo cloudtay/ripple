@@ -32,25 +32,105 @@
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-use P\Net;
-use Psc\Core\WebSocket\Client\Connection;
+namespace Psc\Core\Process;
 
-use function P\run;
+use Closure;
+use Psc\Core\Coroutine\Promise;
+use Throwable;
 
-include __DIR__ . '/../vendor/autoload.php';
+use function posix_kill;
 
-$connection            = Net::WebSocket()->connect('wss://echo.websocket.org');
-$connection->onOpen(function (Connection $connection) {
-    $connection->send('{"action":"ping","data":[]}');
+use const SIGKILL;
+use const SIGTERM;
 
-});
+/**
+ *
+ */
+class Runtime
+{
+    /**
+     * @param int     $processId
+     * @param Promise $promise
+     */
+    public function __construct(
+        private readonly Promise $promise,
+        private readonly int     $processId,
+    ) {
+    }
 
-$connection->onMessage(function (string $data, Connection $connection) {
-    echo 'Received: ' . $data . \PHP_EOL;
-});
+    /**
+     * @param bool $force
+     * @return void
+     */
+    public function stop(bool $force = false): void
+    {
+        $force
+            ? $this->kill()
+            : $this->signal(SIGTERM);
+    }
 
-$connection->onClose(function (Connection $connection) {
-    echo 'Connection closed' . \PHP_EOL;
-});
+    /*** @return void */
+    public function kill(): void
+    {
+        posix_kill($this->processId, SIGKILL);
+    }
 
-run();
+    /**
+     * @param int $signal
+     * @return void
+     */
+    public function signal(int $signal): void
+    {
+        posix_kill($this->processId, $signal);
+    }
+
+    /**
+     * @return Promise
+     */
+    public function getPromise(): Promise
+    {
+        return $this->promise;
+    }
+
+    /*** @return int */
+    public function getProcessId(): int
+    {
+        return $this->processId;
+    }
+
+    /**
+     * @param Closure $then
+     * @return Promise
+     */
+    public function then(Closure $then): Promise
+    {
+        return $this->promise->then($then);
+    }
+
+    /**
+     * @param Closure $catch
+     * @return Promise
+     */
+    public function except(Closure $catch): Promise
+    {
+        return $this->promise->except($catch);
+    }
+
+    /**
+     * @param Closure $finally
+     * @return Promise
+     */
+    public function finally(Closure $finally): Promise
+    {
+        return $this->promise->finally($finally);
+    }
+
+    /***
+     * @return mixed
+     * @throws Throwable
+     */
+    public function await(): mixed
+    {
+        return $this->getPromise()->await();
+    }
+}

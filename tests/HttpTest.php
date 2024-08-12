@@ -37,9 +37,9 @@ namespace Tests;
 use P\Net;
 use P\Plugin;
 use PHPUnit\Framework\TestCase;
-use Psc\Core\Output;
-use Psc\Library\Net\Http\Server\Request;
-use Psc\Library\Net\Http\Server\Response;
+use Psc\Core\Http\Server\Request;
+use Psc\Core\Http\Server\Response;
+use Psc\Utils\Output;
 use Throwable;
 
 use function md5;
@@ -81,7 +81,6 @@ class HttpTest extends TestCase
                 $response->setContent($request->request->get('query'))->respond();
             }
         });
-
         $server->listen();
 
         tick();
@@ -94,12 +93,12 @@ class HttpTest extends TestCase
     public function httpGet(): void
     {
         $hash = md5(uniqid());
-
         $client = Plugin::Guzzle();
         $response = $client->get('http://127.0.0.1:8008/', [
             'query' => [
                 'query' => $hash,
-            ]
+            ],
+            'timeout' => 1
         ]);
 
         $result = $response->getBody()->getContents();
@@ -117,7 +116,8 @@ class HttpTest extends TestCase
         $response = $client->post('http://127.0.0.1:8008/', [
             'json' => [
                 'query' => $hash,
-            ]
+            ],
+            'timeout' => 1
         ]);
 
         $this->assertEquals($hash, $response->getBody()->getContents());

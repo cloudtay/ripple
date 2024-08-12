@@ -33,8 +33,8 @@
  */
 
 use P\Net;
-use Psc\Library\Net\Http\Server\Request;
-use Psc\Library\Net\Http\Server\Response;
+use Psc\Core\Http\Server\Request;
+use Psc\Core\Http\Server\Response;
 
 use function P\run;
 

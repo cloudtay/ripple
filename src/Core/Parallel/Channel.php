@@ -32,25 +32,37 @@
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-use P\Net;
-use Psc\Core\WebSocket\Client\Connection;
+namespace Psc\Core\Parallel;
 
-use function P\run;
+class Channel
+{
+    /*** @param \parallel\Channel $channel */
+    public function __construct(public readonly \parallel\Channel $channel)
+    {
+    }
 
-include __DIR__ . '/../vendor/autoload.php';
+    /**
+     * @param mixed $value
+     * @return void
+     */
+    public function send(mixed $value): void
+    {
+        $this->channel->send($value);
+    }
 
-$connection            = Net::WebSocket()->connect('wss://echo.websocket.org');
-$connection->onOpen(function (Connection $connection) {
-    $connection->send('{"action":"ping","data":[]}');
+    /**
+     * @return mixed
+     */
+    public function recv(): mixed
+    {
+        return $this->channel->recv();
+    }
 
-});
-
-$connection->onMessage(function (string $data, Connection $connection) {
-    echo 'Received: ' . $data . \PHP_EOL;
-});
-
-$connection->onClose(function (Connection $connection) {
-    echo 'Connection closed' . \PHP_EOL;
-});
-
-run();
+    /**
+     * @return void
+     */
+    public function close(): void
+    {
+        $this->channel->close();
+    }
+}

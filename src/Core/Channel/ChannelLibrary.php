@@ -32,25 +32,35 @@
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-use P\Net;
-use Psc\Core\WebSocket\Client\Connection;
+namespace Psc\Core\Channel;
 
-use function P\run;
+use Psc\Core\Channel\Exception\ChannelException;
+use Psc\Core\LibraryAbstract;
 
-include __DIR__ . '/../vendor/autoload.php';
+class ChannelLibrary extends LibraryAbstract
+{
+    /**
+     * @var LibraryAbstract
+     */
+    protected static LibraryAbstract $instance;
 
-$connection            = Net::WebSocket()->connect('wss://echo.websocket.org');
-$connection->onOpen(function (Connection $connection) {
-    $connection->send('{"action":"ping","data":[]}');
+    /**
+     * @param string $name
+     * @return Channel
+     * @throws ChannelException
+     */
+    public function open(string $name): Channel
+    {
+        return Channel::open($name);
+    }
 
-});
-
-$connection->onMessage(function (string $data, Connection $connection) {
-    echo 'Received: ' . $data . \PHP_EOL;
-});
-
-$connection->onClose(function (Connection $connection) {
-    echo 'Connection closed' . \PHP_EOL;
-});
-
-run();
+    /**
+     * @param string $name
+     * @return Channel
+     * @throws ChannelException
+     */
+    public function make(string $name): Channel
+    {
+        return Channel::make($name);
+    }
+}

@@ -32,25 +32,50 @@
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-use P\Net;
-use Psc\Core\WebSocket\Client\Connection;
+namespace Psc\Core\Proc;
 
-use function P\run;
+use Psc\Core\LibraryAbstract;
 
-include __DIR__ . '/../vendor/autoload.php';
+use function implode;
+use function is_array;
+use function is_resource;
+use function proc_open;
 
-$connection            = Net::WebSocket()->connect('wss://echo.websocket.org');
-$connection->onOpen(function (Connection $connection) {
-    $connection->send('{"action":"ping","data":[]}');
+/**
+ *
+ */
+class Proc extends LibraryAbstract
+{
+    /**
+     * @var LibraryAbstract
+     */
+    protected static LibraryAbstract $instance;
 
-});
+    /**
+     * @param string|array $entrance
+     * @return Session|false
+     */
+    public function open(string|array $entrance = '/bin/sh'): Session|false
+    {
+        if (is_array($entrance)) {
+            $entrance = implode(' ', $entrance);
+        }
 
-$connection->onMessage(function (string $data, Connection $connection) {
-    echo 'Received: ' . $data . \PHP_EOL;
-});
+        $process = proc_open($entrance, array(
+            0 => ['pipe', 'r'],
+            1 => ['pipe', 'w'],
+            2 => ['pipe', 'w'],
+        ), $pipes);
 
-$connection->onClose(function (Connection $connection) {
-    echo 'Connection closed' . \PHP_EOL;
-});
+        if (is_resource($process)) {
+            return new Session(
+                $process,
+                $pipes[0],
+                $pipes[1],
+                $pipes[2],
+            );
+        }
 
-run();
+        return false;
+    }
+}

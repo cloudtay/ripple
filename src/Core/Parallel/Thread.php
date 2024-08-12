@@ -32,25 +32,81 @@
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-use P\Net;
-use Psc\Core\WebSocket\Client\Connection;
+namespace Psc\Core\Parallel;
 
-use function P\run;
+use Closure;
+use parallel\Runtime;
 
-include __DIR__ . '/../vendor/autoload.php';
+use function P\tick;
 
-$connection            = Net::WebSocket()->connect('wss://echo.websocket.org');
-$connection->onOpen(function (Connection $connection) {
-    $connection->send('{"action":"ping","data":[]}');
+class Thread
+{
+    /*** @var Runtime */
+    private readonly Runtime $runtime;
 
-});
+    /*** @var Closure */
+    private Closure $guide;
 
-$connection->onMessage(function (string $data, Connection $connection) {
-    echo 'Received: ' . $data . \PHP_EOL;
-});
+    /*** @var Context */
+    private Context $context;
 
-$connection->onClose(function (Connection $connection) {
-    echo 'Connection closed' . \PHP_EOL;
-});
+    /**
+     * @param Closure  $handler
+     * @param string   $name
+     */
+    public function __construct(
+        private readonly Closure $handler,
+        public readonly string   $name,
+    ) {
+        $this->runtime = new Runtime(Parallel::$autoload);
+        $this->guide = static function (Closure $handler, Context $context) {
+            $counterChannel = \parallel\Channel::open('counter');
+            try {
+                return $handler($context);
+            } finally {
+                tick();
+                $counterChannel->send(1);
+            }
+        };
+        $this->context = new Context();
+    }
 
-run();
+    /**
+     * @param  ...$argv
+     * @return Future
+     */
+    public function run(...$argv): Future
+    {
+        return Parallel::getInstance()->run($this, ... $argv);
+    }
+
+    /**
+     * @return void
+     */
+    public function close(): void
+    {
+        $this->runtime->close();
+    }
+
+    /**
+     * @return void
+     */
+    public function kill(): void
+    {
+        $this->runtime->kill();
+    }
+
+    /**
+     * @param mixed ...$argv
+     * @return Future
+     */
+    public function __invoke(mixed ...$argv): Future
+    {
+        $this->context->argv = $argv;
+        $this->context->name = $this->name;
+        return new Future($this->runtime->run($this->guide, [
+            $this->handler,
+            $this->context,
+        ]));
+    }
+}

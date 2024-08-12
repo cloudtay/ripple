@@ -36,8 +36,8 @@ namespace P;
 
 use Closure;
 use Psc\Core\Coroutine\Promise;
+use Psc\Core\Parallel\Thread;
 use Psc\Kernel;
-use Psc\Library\System\Parallel\Thread;
 use Revolt\EventLoop\UnsupportedFeatureException;
 use Throwable;
 
@@ -119,7 +119,6 @@ function repeat(Closure $closure, int|float $second): string
 }
 
 /**
- * @deprecated 未通过测试
  * @param Closure $closure
  * @return Thread
  */
