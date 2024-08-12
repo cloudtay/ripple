@@ -216,6 +216,7 @@ class Kernel
         try {
             return $this->mainSuspension->suspend();
         } catch (Throwable) {
+            $this->mainSuspension = EventLoop::getSuspension();
             return false;
         }
     }
