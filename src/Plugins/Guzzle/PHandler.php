@@ -36,7 +36,7 @@ namespace Psc\Plugins\Guzzle;
 
 use GuzzleHttp\Promise\Promise;
 use GuzzleHttp\Promise\PromiseInterface;
-use Psc\Library\Net\Http\Client\HttpClient;
+use Psc\Core\Http\Client\HttpClient;
 use Psr\Http\Message\RequestInterface;
 
 use function P\await;

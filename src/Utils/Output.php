@@ -32,47 +32,81 @@
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-namespace P;
+namespace Psc\Utils;
 
-use Psc\Core\Channel\ChannelLibrary;
-use Psc\Core\FIle\File;
-use Psc\Core\Lock\LockLibrary;
-use Psc\Core\Socket\Socket;
+use Throwable;
+
+use function explode;
+use function fwrite;
+use function get_class;
+use function implode;
+use function posix_getpid;
+use function posix_getppid;
+
+use const PHP_EOL;
+use const STDIN;
 
 /**
- *
+ * @class Output 输出辅助类
  */
-class IO
+final class Output
 {
     /**
-     * @return File
+     * @param Throwable $exception
+     * @return void
      */
-    public static function File(): File
+    public static function exception(Throwable $exception): void
     {
-        return File::getInstance();
+        fwrite(STDIN, "\033[1;31mProcess: " . posix_getpid() . '=>' . posix_getppid() . "\033[0m\n");
+        fwrite(STDIN, "\033[1;31mException: " . get_class($exception) . "\033[0m\n");
+        fwrite(STDIN, "\033[1;33mMessage: " . $exception->getMessage() . "\033[0m\n");
+        fwrite(STDIN, "\033[1;34mFile: " . $exception->getFile() . "\033[0m\n");
+        fwrite(STDIN, "\033[1;34mLine: " . $exception->getLine() . "\033[0m\n");
+        fwrite(STDIN, "\033[0;32mStack trace:\033[0m\n");
+        $trace      = $exception->getTraceAsString();
+        $traceLines = explode("\n", $trace);
+        foreach ($traceLines as $line) {
+            fwrite(STDIN, "\033[0;32m" . $line . "\033[0m\n");
+        }
+        fwrite(STDIN, PHP_EOL);
     }
 
     /**
-     * @return Socket
+     * @param string $title
+     * @param string ...$contents
+     * @return void
      */
-    public static function Socket(): Socket
+    public static function info(string $title, string ...$contents): void
     {
-        return Socket::getInstance();
+        Output::writeln("\033[1;32m" . $title . "\033[0m \033[1;33m" . implode(' ', $contents) . "\033[0m");
     }
 
     /**
-     * @return ChannelLibrary
+     * @param string $message
+     * @return void
      */
-    public static function Channel(): ChannelLibrary
+    public static function writeln(string $message): void
     {
-        return ChannelLibrary::getInstance();
+        fwrite(STDIN, $message . PHP_EOL);
     }
 
     /**
-     * @return LockLibrary
+     * @param string $title
+     * @param string ...$contents
+     * @return void
      */
-    public static function Lock(): LockLibrary
+    public static function warning(string $title, string ...$contents): void
     {
-        return LockLibrary::getInstance();
+        Output::writeln("\033[1;33m" . $title . "\033[0m \033[1;33m" . implode(' ', $contents) . "\033[0m");
+    }
+
+    /**
+     * @param string $title
+     * @param string ...$contents
+     * @return void
+     */
+    public static function error(string $title, string ...$contents): void
+    {
+        Output::writeln("\033[1;31m" . $title . "\033[0m \033[1;33m" . implode(' ', $contents) . "\033[0m");
     }
 }

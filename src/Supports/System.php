@@ -34,9 +34,9 @@
 
 namespace P;
 
-use Psc\Library\System\Parallel\Parallel;
-use Psc\Library\System\Proc\Proc;
-use Psc\Library\System\Process\Process;
+use Psc\Core\Parallel\Parallel;
+use Psc\Core\Proc\Proc;
+use Psc\Core\Process\Process;
 
 /**
  *

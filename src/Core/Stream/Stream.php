@@ -35,8 +35,8 @@
 namespace Psc\Core\Stream;
 
 use Closure;
-use Psc\Core\Output;
 use Psc\Std\Stream\Exception\ConnectionException;
+use Psc\Utils\Output;
 use Revolt\EventLoop;
 use Throwable;
 

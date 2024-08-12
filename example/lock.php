@@ -33,7 +33,7 @@
  */
 
 use P\System;
-use Psc\Library\IO\Lock\Lock;
+use Psc\Core\Lock\Lock;
 
 use function P\async;
 

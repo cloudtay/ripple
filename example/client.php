@@ -33,7 +33,7 @@
  */
 
 use GuzzleHttp\Psr7\Request;
-use Psc\Library\Net\Http\Client\HttpClient;
+use Psc\Core\Http\Client\HttpClient;
 use Psr\Http\Message\RequestInterface;
 
 use function P\async;

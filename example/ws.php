@@ -33,7 +33,7 @@
  */
 
 use P\Net;
-use Psc\Library\Net\WebSocket\Server\Connection;
+use Psc\Core\WebSocket\Server\Connection;
 
 use function P\run;
 

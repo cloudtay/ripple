@@ -35,7 +35,7 @@
 namespace Psc\Core\Coroutine;
 
 use Closure;
-use Psc\Core\Output;
+use Psc\Utils\Output;
 use Throwable;
 
 use function array_reverse;

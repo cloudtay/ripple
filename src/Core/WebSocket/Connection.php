@@ -32,25 +32,14 @@
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-use P\Net;
-use Psc\Core\WebSocket\Client\Connection;
+namespace Psc\Core\WebSocket;
 
-use function P\run;
-
-include __DIR__ . '/../vendor/autoload.php';
-
-$connection            = Net::WebSocket()->connect('wss://echo.websocket.org');
-$connection->onOpen(function (Connection $connection) {
-    $connection->send('{"action":"ping","data":[]}');
-
-});
-
-$connection->onMessage(function (string $data, Connection $connection) {
-    echo 'Received: ' . $data . \PHP_EOL;
-});
-
-$connection->onClose(function (Connection $connection) {
-    echo 'Connection closed' . \PHP_EOL;
-});
-
-run();
+/**
+ * @deprecated 即将弃用, 请使用 Psc\Library\Net\WebSocket\Client\Connection
+ * [协议相关]
+ * 白皮书: https://datatracker.ietf.org/doc/html/rfc6455
+ * 最新规范: https://websockets.spec.whatwg.org/
+ */
+class Connection extends Client\Connection
+{
+}
