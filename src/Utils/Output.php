@@ -44,7 +44,7 @@ use function posix_getpid;
 use function posix_getppid;
 
 use const PHP_EOL;
-use const STDIN;
+use const STDOUT;
 
 /**
  * @class Output 输出辅助类
@@ -57,18 +57,27 @@ final class Output
      */
     public static function exception(Throwable $exception): void
     {
-        fwrite(STDIN, "\033[1;31mProcess: " . posix_getpid() . '=>' . posix_getppid() . "\033[0m\n");
-        fwrite(STDIN, "\033[1;31mException: " . get_class($exception) . "\033[0m\n");
-        fwrite(STDIN, "\033[1;33mMessage: " . $exception->getMessage() . "\033[0m\n");
-        fwrite(STDIN, "\033[1;34mFile: " . $exception->getFile() . "\033[0m\n");
-        fwrite(STDIN, "\033[1;34mLine: " . $exception->getLine() . "\033[0m\n");
-        fwrite(STDIN, "\033[0;32mStack trace:\033[0m\n");
+        fwrite(STDOUT, "\033[1;31mProcess: " . posix_getpid() . '=>' . posix_getppid() . "\033[0m\n");
+        fwrite(STDOUT, "\033[1;31mException: " . get_class($exception) . "\033[0m\n");
+        fwrite(STDOUT, "\033[1;33mMessage: " . $exception->getMessage() . "\033[0m\n");
+        fwrite(STDOUT, "\033[1;34mFile: " . $exception->getFile() . "\033[0m\n");
+        fwrite(STDOUT, "\033[1;34mLine: " . $exception->getLine() . "\033[0m\n");
+        fwrite(STDOUT, "\033[0;32mStack trace:\033[0m\n");
         $trace      = $exception->getTraceAsString();
         $traceLines = explode("\n", $trace);
         foreach ($traceLines as $line) {
-            fwrite(STDIN, "\033[0;32m" . $line . "\033[0m\n");
+            fwrite(STDOUT, "\033[0;32m" . $line . "\033[0m\n");
         }
-        fwrite(STDIN, PHP_EOL);
+        fwrite(STDOUT, PHP_EOL);
+    }
+
+    /**
+     * @param string $message
+     * @return void
+     */
+    public static function writeln(string $message): void
+    {
+        fwrite(STDOUT, $message . PHP_EOL);
     }
 
     /**
@@ -79,15 +88,6 @@ final class Output
     public static function info(string $title, string ...$contents): void
     {
         Output::writeln("\033[1;32m" . $title . "\033[0m \033[1;33m" . implode(' ', $contents) . "\033[0m");
-    }
-
-    /**
-     * @param string $message
-     * @return void
-     */
-    public static function writeln(string $message): void
-    {
-        fwrite(STDIN, $message . PHP_EOL);
     }
 
     /**
