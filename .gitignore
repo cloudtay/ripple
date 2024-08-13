@@ -1,6 +1,7 @@
 .idea
 p-ripple-core.iml
 
+/build/
 /vendor/
 composer.lock
 

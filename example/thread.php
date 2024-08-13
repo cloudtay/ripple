@@ -43,6 +43,10 @@ for ($i = 0; $i < 100; $i++) {
     $thread = thread(static function ($context) {
         return \file_get_contents(__FILE__);
     });
+
+    $thread->run()->onValue(static function ($value) {
+        echo \strlen($value), \PHP_EOL;
+    });
 }
 
 tick();

@@ -32,75 +32,80 @@
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-namespace Psc\Core\Parallel;
+namespace Tests;
 
-use Closure;
-use parallel\Runtime;
+use P\System;
+use PHPUnit\Framework\TestCase;
+use Throwable;
 
-class Thread
+use function mt_rand;
+use function P\async;
+use function P\await;
+use function P\defer;
+use function P\thread;
+use function sleep;
+
+class ProcessTest extends TestCase
 {
-    /*** @var Runtime */
-    private readonly Runtime $runtime;
-
-    /*** @var Context */
-    private Context $context;
-
     /**
-     * @param Closure  $handler
-     * @param string   $name
+     * @return void
+     * @throws Throwable
      */
-    public function __construct(
-        private readonly Closure $handler,
-        public readonly string   $name,
-    ) {
-        $this->runtime = new Runtime(Parallel::$autoload);
-        $this->context = new Context();
-    }
-
-    /**
-     * @param  ...$argv
-     * @return Future
-     */
-    public function run(...$argv): Future
+    public function test_process(): void
     {
-        return Parallel::getInstance()->run($this, ... $argv);
+        $code = mt_rand(0, 255);
+        $task = System::Process()->task(function () use ($code) {
+            \P\sleep(1);
+            exit($code);
+        });
+
+        $runtime  = $task->run();
+        $exitCode = $runtime->await();
+        $this->assertEquals($code, $exitCode, 'Process exit code');
     }
 
     /**
      * @return void
+     * @throws Throwable
      */
-    public function close(): void
+    public function test_coroutine(): void
     {
-        $this->runtime->close();
+        $code     = mt_rand(0, 255);
+        $async    = async(function () use ($code) {
+            $task    = System::Process()->task(function () use ($code) {
+                \P\sleep(1);
+                defer(function () use ($code) {
+                    exit($code);
+                });
+            });
+            $runtime = $task->run();
+            return await($runtime->getPromise());
+        });
+        $exitCode = $async->await();
+        $this->assertEquals($code, $exitCode, 'Process exit code');
     }
 
     /**
      * @return void
+     * @throws Throwable
      */
-    public function kill(): void
+    public function test_parallel(): void
     {
-        $this->runtime->kill();
-    }
-
-    /**
-     * @param mixed ...$argv
-     * @return Future
-     */
-    public function __invoke(mixed ...$argv): Future
-    {
-        $this->context->argv = $argv;
-        $this->context->name = $this->name;
-
-        return new Future($this->runtime->run(static function (Closure $handler, Context $context) {
-            $counterChannel = \parallel\Channel::open('counter');
-            try {
-                return $handler($context);
-            } finally {
-                $counterChannel->send(1);
-            }
-        }, [
-            $this->handler,
-            $this->context,
-        ]));
+        $code    = mt_rand(0, 255);
+        $task    = System::Process()->task(function () use ($code) {
+            $thread = thread(static function ($context) {
+                sleep($context->argv[0]);
+                return $context->argv[1];
+            });
+            $future = $thread->run(1, $code);
+            $future->onValue(function ($value) {
+                exit($value);
+            });
+        });
+        $runtime = $task->run();
+        $runtime->finally(function ($exitCode) use ($code) {
+            $this->assertEquals($code, $exitCode, 'Process exit code');
+        });
+        $runtime->await();
     }
 }

@@ -43,7 +43,6 @@ use Revolt\EventLoop\UnsupportedFeatureException;
 use Throwable;
 
 use function call_user_func;
-use function count;
 use function extension_loaded;
 use function usleep;
 
@@ -203,21 +202,25 @@ class Kernel
         }
     }
 
+    private bool $running = false;
+
     /**
      * @return bool
      */
     public function tick(): mixed
     {
-        if (count($this->getIdentities()) === 0) {
-            //nothing to do
-            return false;
+        if ($this->running) {
+            $this->mainSuspension->resume();
         }
 
         try {
+            $this->running = true;
             return $this->mainSuspension->suspend();
         } catch (Throwable) {
-            $this->mainSuspension = EventLoop::getSuspension();
             return false;
+        } finally {
+            $this->running = false;
+            $this->mainSuspension = EventLoop::getSuspension();
         }
     }
 

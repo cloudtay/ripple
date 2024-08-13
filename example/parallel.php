@@ -32,21 +32,4 @@
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-use parallel\Runtime;
-
 include_once __DIR__ . '/../vendor/autoload.php';
-
-
-$channel = parallel\Channel::make('channel');
-$thread = new Runtime();
-
-$thread->run(static function ($channel) {
-    \sleep(1);
-    $channel->send(true);
-}, [$channel]);
-
-
-while(1) {
-    \var_dump($channel->recv());
-    \sleep(1);
-}
