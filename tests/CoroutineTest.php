@@ -92,10 +92,9 @@ class CoroutineTest extends TestCase
      */
     private function simulateWork(int $index): int
     {
-        // 模拟工作负载
         if ($index % 100 === 0) {
             throw new RuntimeException("Simulated error in coroutine $index");
         }
-        return $index * 2; // 返回模拟的计算结果
+        return $index * 2;
     }
 }

@@ -56,6 +56,7 @@ use function str_repeat;
 use function sys_get_temp_dir;
 use function tempnam;
 use function uniqid;
+use function stream_context_create;
 
 class HttpTest extends TestCase
 {
@@ -86,8 +87,13 @@ class HttpTest extends TestCase
 
             cancelAll();
         });
-
-        $server = Net::Http()->server('http://127.0.0.1:8008');
+        $context = stream_context_create([
+            'socket' => [
+                'so_reuseport' => 1,
+                'so_reuseaddr' => 1,
+            ],
+        ]);
+        $server = Net::Http()->server('http://127.0.0.1:8008', $context);
         $server->onRequest(function (Request $request, Response $response) {
             if($request->getRequestUri() === '/upload') {
                 /**
@@ -121,11 +127,11 @@ class HttpTest extends TestCase
      * @return void
      * @throws Throwable
      */
-    public function httpGet(): void
+    private function httpGet(): void
     {
         $hash     = md5(uniqid());
         $client   = Plugin::Guzzle();
-        $response = $client->get('http://127.0.0.1:8008/ss', [
+        $response = $client->get('http://127.0.0.1:8008/', [
             'query'   => [
                 'query' => $hash,
             ],
@@ -141,7 +147,7 @@ class HttpTest extends TestCase
      * @return void
      * @throws Throwable
      */
-    public function httpPost(): void
+    private function httpPost(): void
     {
         $hash     = md5(uniqid());
         $client   = Plugin::Guzzle();
@@ -160,7 +166,7 @@ class HttpTest extends TestCase
      * @return void
      * @throws GuzzleException
      */
-    public function httpFile(): void
+    private function httpFile(): void
     {
         $client = Plugin::Guzzle();
         $path = tempnam(sys_get_temp_dir(), 'test');

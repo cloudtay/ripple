@@ -234,7 +234,7 @@ class Channel
         $this->writeLock->close();
 
         if ($this->owner) {
-            unlink($this->path);
+            file_exists($this->path) && unlink($this->path);
         }
 
         $this->closed = true;

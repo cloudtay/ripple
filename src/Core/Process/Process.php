@@ -46,10 +46,9 @@ use Revolt\EventLoop\UnsupportedFeatureException;
 use Throwable;
 
 use function call_user_func;
-use function count;
 use function P\cancel;
 use function P\cancelAll;
-use function P\getIdentities;
+use function P\defer;
 use function P\promise;
 use function P\tick;
 use function pcntl_fork;
@@ -236,28 +235,20 @@ class Process extends LibraryAbstract
                  * It is necessary to ensure that the final closure cannot be escaped by any means.
                  */
 
-                // Whether it belongs to the PRipple coroutine space
-                $isCoroutine = Coroutine::Coroutine()->isCoroutine();
-
                 // forget all events
                 cancelAll();
 
-                // Handle recycling and new process mounting
                 $this->forked();
 
-                // call user mount
-                try {
+                // mouth user func
+                defer(function () use ($closure, $args) {
                     call_user_func($closure, ...$args);
-                } catch (Throwable) {
-                    exit(1);
-                }
+                });
 
-                // Determine whether the event list is empty
-                if(count(getIdentities()) === 0) {
-                    exit(0);
-                }
-
-                if(!$isCoroutine) {
+                // Whether it belongs to the PRipple coroutine space
+                if(Coroutine::Coroutine()->isCoroutine()) {
+                    throw new EscapeException('The process is abnormal.');
+                } else {
                     if(Fiber::getCurrent()) {
                         Fiber::suspend();
                     }
@@ -265,7 +256,19 @@ class Process extends LibraryAbstract
                     exit(0);
                 }
 
-                throw new EscapeException('The process is abnormal.');
+                //                // call user mount
+                //                try {
+                //                    call_user_func($closure, ...$args);
+                //                } catch (Throwable) {
+                //                    exit(1);
+                //                }
+                //
+                //                // Determine whether the event list is empty
+                //                if(count(getIdentities()) === 0) {
+                //                    exit(0);
+                //                }
+                //
+                //                throw new EscapeException('The process is abnormal.');
             }
 
             if(empty($this->process2runtime)) {
@@ -303,24 +306,8 @@ class Process extends LibraryAbstract
     /**
      * @return int
      */
-    public function getProcessId(): int
-    {
-        return $this->processId;
-    }
-
-    /**
-     * @return int
-     */
-    public function getMainProcessId(): int
+    public function getRootProcessId(): int
     {
         return $this->rootProcessId;
-    }
-
-    /**
-     * @return bool
-     */
-    public function isRootProcess(): bool
-    {
-        return $this->processId === $this->rootProcessId;
     }
 }

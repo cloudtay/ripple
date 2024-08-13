@@ -35,8 +35,10 @@
   },
   "require-dev": {
     "ext-curl": "*",
+    "ext-parallel": "*",
     "phpunit/phpunit": "^11.2",
-    "friendsofphp/php-cs-fixer": "*",
-    "ext-parallel": "*"
-  }
+    "friendsofphp/php-cs-fixer": "*"
+  },
+  "minimum-stability": "dev",
+  "prefer-stable": true
 }

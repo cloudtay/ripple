@@ -32,14 +32,25 @@
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-include_once __DIR__ .'/../vendor/autoload.php';
+use P\System;
 
+use function P\async;
+use function P\await;
+use function P\defer;
+use function P\tick;
 
+include_once __DIR__ . '/../vendor/autoload.php';
 
-$task = \P\System::Process()->task(function () {
-    \P\repeat(function () {}, 1);
+$code = \mt_rand(0, 255);
+$async = async(function () use ($code) {
+    $task = System::Process()->task(function () use ($code) {
+        \P\sleep(1);
+        defer(function () use ($code) {
+            exit($code);
+        });
+    });
+    $runtime = $task->run();
+    return await($runtime->getPromise());
 });
-
-$task->run();
-
-\P\tick();
+\var_dump($code, $async->await());
+tick();

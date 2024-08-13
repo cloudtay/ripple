@@ -34,6 +34,10 @@
 
 namespace Psc\Core\Parallel;
 
+if (!extension_loaded('parallel')) {
+    return;
+}
+
 use Closure;
 use Composer\Autoload\ClassLoader;
 use parallel\Events;
@@ -48,6 +52,7 @@ use Throwable;
 use function array_shift;
 use function count;
 use function dirname;
+use function extension_loaded;
 use function file_exists;
 use function intval;
 use function is_int;
@@ -69,6 +74,8 @@ use const SIGUSR2;
  * 2024-08-07
  * 0x00 允许保留USR2信号，以便在主线程中执行并行代码
  * 0x01 用独立线程监听计数指令向主进程发送信号,原子性保留主进程events::poll的堵塞机制
+ *
+ * PHP版本:8.3.0-8.3.8存在内存泄漏
  */
 class Parallel extends LibraryAbstract
 {
@@ -84,17 +91,14 @@ class Parallel extends LibraryAbstract
     /*** @var Events */
     private Events $events;
 
-    /*** @var Thread[] */
-    private array $threads = [];
-
     /*** @var Future[] */
     private array $futures = [];
 
     /**
-     * 递归索引
+     * 索引
      * @var int
      */
-    private int $index = 0;
+    private int $index;
 
     /**
      * 事件分发线程
@@ -112,7 +116,7 @@ class Parallel extends LibraryAbstract
      * 事件计数通道
      * @var Channel
      */
-    public Channel $counterChannel;
+    private Channel $counterChannel;
 
     /**
      * 事件计数标量
@@ -132,7 +136,7 @@ class Parallel extends LibraryAbstract
     /**
      * Parallel constructor.
      */
-    public function __construct()
+    protected function __construct()
     {
         $this->initialize();
     }
@@ -164,19 +168,22 @@ class Parallel extends LibraryAbstract
         // 初始化事件处理器
         $this->events = new Events();
         $this->events->setBlocking(true);
+
+        $this->index = 0;
+        $this->registerForkHandler();
     }
 
     /**
      * @return void
      */
-    public function initializeCounter(): void
+    private function initializeCounter(): void
     {
-        if(isset($this->counterRuntime) && !$this->counterFuture->done()) {
-            return;
-        }
-
         if(!isset($this->counterChannel)) {
             $this->counterChannel = $this->makeChannel('counter');
+        }
+
+        if (isset($this->counterFuture) && !$this->counterFuture->done()) {
+            return;
         }
 
         // 初始化标量同步器
@@ -184,14 +191,14 @@ class Parallel extends LibraryAbstract
 
         // 初始化标量
         $this->initScalar = new Sync(false);
-
         $this->counterRuntime = new Runtime();
-        $this->counterFuture = $this->counterRuntime->run(static function (\parallel\Channel $channel, Sync $eventScalar, Sync $initScalar) {
+        $this->counterFuture = $this->counterRuntime->run(static function ($channel, $eventScalar, $initScalar) {
             $initScalar(function () use ($initScalar) {
                 while(!$initScalar->get()) {
                     $initScalar->wait();
                 }
             });
+
             $processId = posix_getpid();
             $count = 0;
             while($number = $channel->recv()) {
@@ -203,12 +210,19 @@ class Parallel extends LibraryAbstract
                     break;
                 }
             }
+            return true;
         }, [$this->counterChannel->channel, $this->eventScalar,$this->initScalar]);
 
-        defer(function () {
+        //不可在信号处理器未注册前解锁
+        if (EventLoop::getDriver()->isRunning()) {
             $this->initScalar->set(true);
             $this->initScalar->notify();
-        });
+        } else {
+            defer(function () {
+                $this->initScalar->set(true);
+                $this->initScalar->notify();
+            });
+        }
     }
 
     /**
@@ -237,10 +251,9 @@ class Parallel extends LibraryAbstract
                     case Events\Event\Type::Kill:
                     case Events\Event\Type::Error:
                         if(isset($this->futures[$event->source])) {
+                            $this->counterChannel->send(-1);
                             $this->futures[$event->source]->onEvent($event);
                             unset($this->futures[$event->source]);
-                            unset($this->threads[$event->source]);
-                            $this->counterChannel->send(-1);
                         }
                         break;
                     case Events\Event\Type::Read:
@@ -248,12 +261,11 @@ class Parallel extends LibraryAbstract
                             $name = $event->source;
                             if($this->futures[$name] ?? null) {
                                 try {
+                                    $this->counterChannel->send(-1);
                                     $this->futures[$name]->resolve();
                                 } catch (Throwable) {
                                 } finally {
                                     unset($this->futures[$name]);
-                                    unset($this->threads[$name]);
-                                    $this->counterChannel->send(-1);
                                 }
                             }
                         }
@@ -261,7 +273,6 @@ class Parallel extends LibraryAbstract
                 }
             }
         }
-
         if (empty($this->futures)) {
             $this->unregisterSignalHandler();
             while($callback = array_shift($this->onBusy)) {
@@ -270,22 +281,10 @@ class Parallel extends LibraryAbstract
         }
     }
 
-    private array $onBusy = [];
-
     /**
-     * @param Thread $thread
-     * @param        ...$argv
-     * @return Future
+     * @var Closure[]
      */
-    public function run(Thread $thread, ...$argv): Future
-    {
-        $this->registerSignalHandler();
-        $this->initializeCounter();
-        $future = $thread(...$argv);
-        $this->futures[$thread->name] = $future;
-        $this->events->addFuture($thread->name, $future->future);
-        return $future;
-    }
+    private array $onBusy = [];
 
     /**
      * @return void
@@ -315,8 +314,21 @@ class Parallel extends LibraryAbstract
 
         cancel($this->signalHandlerId);
         unset($this->signalHandlerId);
-
         $this->counterChannel->send(-1);
+        $this->counterChannel->close();
+
+        try {
+            $this->counterFuture->value();
+        } catch (Throwable) {
+            // ignore
+        }
+
+        $this->counterRuntime->kill();
+        unset($this->counterChannel);
+        unset($this->counterFuture);
+        unset($this->counterRuntime);
+        unset($this->eventScalar);
+        unset($this->initScalar);
     }
 
     /**
@@ -329,7 +341,6 @@ class Parallel extends LibraryAbstract
             /*** @var int $cpuCount*/
             /*** @var string $autoload*/
             /*** @var Events $events*/
-            /*** @var Thread[] $threads*/
             /*** @var Future[] $futures*/
             /*** @var int $index*/
             /*** @var Runtime $counterRuntime*/
@@ -337,29 +348,26 @@ class Parallel extends LibraryAbstract
             /*** @var Channel $counterChannel */
             /*** @var Sync $eventScalar */
             /*** @var Sync $initScalar */
-
-            foreach ($this->threads as $key => $thread) {
-                $thread->kill();
-                $this->futures[$key]?->cancel();
-                unset($this->threads[$key]);
-                unset($this->futures[$key]);
-                $this->events->remove($key);
-            }
-
             unset($this->signalHandlerId);
+            unset($this->events);
+            $this->initialize();
         });
     }
 
     /**
-     * @param Closure $closure
-     * @return Thread
+     * @return void
      */
-    public function thread(Closure $closure): Thread
+    public function wait(): void
     {
-        $name = strval($this->index++);
-        $thread = new Thread($closure, $name);
-        $this->threads[$name] = $thread;
-        return $thread;
+        if(empty($this->futures)) {
+            return;
+        }
+
+        $suspension = EventLoop::getSuspension();
+        $this->onBusy[] = static function () use ($suspension) {
+            $suspension->resume();
+        };
+        $suspension->suspend();
     }
 
     /**
@@ -384,18 +392,39 @@ class Parallel extends LibraryAbstract
     }
 
     /**
-     * @return void
+     * @param Closure $closure
+     * @return Thread
      */
-    public function wait(): void
+    public function thread(Closure $closure): Thread
     {
-        if(empty($this->futures)) {
-            return;
-        }
+        $name = strval($this->index++);
+        $thread = new Thread($closure, $name);
+        return $thread;
+    }
 
-        $suspension = EventLoop::getSuspension();
-        $this->onBusy[] = function () use ($suspension) {
-            $suspension->resume();
-        };
-        $suspension->suspend();
+    /**
+     * @param Thread $thread
+     * @param        ...$argv
+     * @return Future
+     */
+    public function run(Thread $thread, ...$argv): Future
+    {
+        $this->registerSignalHandler();
+        $this->initializeCounter();
+        $future = $thread->__invoke(...$argv);
+        $this->futures[$thread->name] = $future;
+        $this->events->addFuture($thread->name, $future->future);
+        return $future;
+    }
+
+    /**
+     *
+     */
+    public function __destruct()
+    {
+        if (isset($this->counterChannel) &&  isset($this->counterFuture) && !$this->counterFuture->done()) {
+            $this->counterChannel->send(-1);
+            $this->counterChannel->close();
+        }
     }
 }

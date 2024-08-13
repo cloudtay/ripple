@@ -44,7 +44,7 @@ use Throwable;
 
 use function P\delay;
 use function P\registerForkHandler;
-use function P\run;
+use function P\tick;
 use function spl_object_hash;
 
 /**
@@ -211,7 +211,6 @@ class Coroutine extends LibraryAbstract
                 $this->handleEscapeException($exception);
             }
 
-
             if ($fiber->isTerminated()) {
                 try {
                     $result = $fiber->getReturn();
@@ -270,7 +269,7 @@ class Coroutine extends LibraryAbstract
                 try {
                     // 尝试恢复Fiber运行
                     $fiber->resume();
-                } catch (EscapeException) {
+                } catch (EscapeException $exception) {
                     // 恢复运行过程发生逃逸异常
                     $this->handleEscapeException($exception);
                 } catch (Throwable $e) {
@@ -332,19 +331,12 @@ class Coroutine extends LibraryAbstract
      */
     public function handleEscapeException(EscapeException $exception): void
     {
-        if (!Fiber::getCurrent()) {
+        if (!Fiber::getCurrent() || !$this->isCoroutine()) {
             $this->fiber2callback = array();
-
-            run();
+            tick();
             exit(0);
-        }
-
-        if ($this->isCoroutine()) {
-            throw $exception;
         } else {
-            $this->fiber2callback = array();
-
-            Fiber::suspend();
+            throw $exception;
         }
     }
 }
