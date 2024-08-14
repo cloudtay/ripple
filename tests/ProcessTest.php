@@ -35,6 +35,7 @@
 namespace Tests;
 
 use P\System;
+use PHPUnit\Framework\Attributes\RunClassInSeparateProcess;
 use PHPUnit\Framework\TestCase;
 use Throwable;
 
@@ -45,6 +46,7 @@ use function P\defer;
 use function P\thread;
 use function sleep;
 
+#[RunClassInSeparateProcess]
 class ProcessTest extends TestCase
 {
     /**

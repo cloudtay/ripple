@@ -39,9 +39,7 @@ namespace Psc\Core;
  */
 abstract class LibraryAbstract
 {
-    /**
-     * @var LibraryAbstract
-     */
+    /*** @var LibraryAbstract */
     protected static LibraryAbstract $instance;
 
     /**
@@ -53,5 +51,13 @@ abstract class LibraryAbstract
             static::$instance = new static();
         }
         return static::$instance;
+    }
+
+    /**
+     * @return bool
+     */
+    public static function hasInstance(): bool
+    {
+        return isset(static::$instance);
     }
 }
