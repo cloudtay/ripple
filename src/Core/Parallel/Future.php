@@ -37,6 +37,7 @@ namespace Psc\Core\Parallel;
 use Closure;
 use parallel\Events;
 use parallel\Events\Event;
+use Psc\Utils\Output;
 use Throwable;
 
 class Future
@@ -102,24 +103,29 @@ class Future
      */
     public function onEvent(Events\Event $event): void
     {
-        switch ($event->type) {
-            case Events\Event\Type::Error:
-                if (isset($this->onError)) {
-                    ($this->onError)($event->value);
-                }
-                break;
+        try {
+            switch ($event->type) {
+                case Events\Event\Type::Error:
+                    if (isset($this->onError)) {
+                        ($this->onError)($event->value);
+                    }
+                    break;
 
-            case Events\Event\Type::Cancel:
-                if (isset($this->onCancelled)) {
-                    ($this->onCancelled)($event->value);
-                }
-                break;
-            case Events\Event\Type::Kill:
-                if (isset($this->onKilled)) {
-                    ($this->onKilled)($event->value);
-                }
-                break;
+                case Events\Event\Type::Cancel:
+                    if (isset($this->onCancelled)) {
+                        ($this->onCancelled)($event->value);
+                    }
+                    break;
+                case Events\Event\Type::Kill:
+                    if (isset($this->onKilled)) {
+                        ($this->onKilled)($event->value);
+                    }
+                    break;
+            }
+        } catch (Throwable $exception) {
+            Output::error($exception->getMessage());
         }
+
     }
 
     /**

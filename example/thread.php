@@ -38,8 +38,7 @@ use function P\tick;
 
 include __DIR__ . '/../vendor/autoload.php';
 
-
-for ($i = 0; $i < 100; $i++) {
+for ($i = 0; $i < 1; $i++) {
     $thread = thread(static function ($context) {
         return \file_get_contents(__FILE__);
     });
@@ -48,5 +47,15 @@ for ($i = 0; $i < 100; $i++) {
         echo \strlen($value), \PHP_EOL;
     });
 }
+tick();
 
+for ($i = 0; $i < 5; $i++) {
+    $thread = thread(static function ($context) {
+        return \file_get_contents(__FILE__);
+    });
+
+    $thread->run()->onValue(static function ($value) {
+        echo \strlen($value), \PHP_EOL;
+    });
+}
 tick();

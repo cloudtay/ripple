@@ -37,6 +37,7 @@ namespace Tests;
 use GuzzleHttp\Exception\GuzzleException;
 use P\Net;
 use P\Plugin;
+use PHPUnit\Framework\Attributes\RunClassInSeparateProcess;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 use Psc\Core\Http\Server\Request;
@@ -58,6 +59,7 @@ use function tempnam;
 use function uniqid;
 use function stream_context_create;
 
+#[RunClassInSeparateProcess]
 class HttpTest extends TestCase
 {
     /**

@@ -35,6 +35,7 @@
 namespace Tests;
 
 use P\IO;
+use PHPUnit\Framework\Attributes\RunClassInSeparateProcess;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
 use Throwable;
@@ -44,6 +45,7 @@ use function P\async;
 use function P\tick;
 use function str_contains;
 
+#[RunClassInSeparateProcess]
 class CoroutineTest extends TestCase
 {
     /**

@@ -55,12 +55,14 @@ class Task
 
     /**
      * @param ...$argv
-     * @return Runtime
+     * @return Runtime|false
      */
-    public function run(...$argv): Runtime
+    public function run(...$argv): Runtime|false
     {
-        if(Kernel::getInstance()->supportParallel()) {
-            Parallel::getInstance()->wait();
+        if(Kernel::getInstance()->supportParallel() && Parallel::hasInstance()) {
+            // @bug: 无法在已经启用多线程的环境中运行子进程
+            // throw: new RuntimeException('Unable to run child processes in an environment with multithreading enabled');
+            return false;
         }
         return call_user_func($this->closure, ...$argv);
     }

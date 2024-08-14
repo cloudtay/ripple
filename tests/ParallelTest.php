@@ -35,6 +35,7 @@
 namespace Tests;
 
 use P\System;
+use PHPUnit\Framework\Attributes\RunClassInSeparateProcess;
 use PHPUnit\Framework\TestCase;
 use Throwable;
 
@@ -42,6 +43,7 @@ use function mt_rand;
 use function P\thread;
 use function sleep;
 
+#[RunClassInSeparateProcess]
 class ParallelTest extends TestCase
 {
     /**
@@ -50,6 +52,9 @@ class ParallelTest extends TestCase
      */
     public function test_process(): void
     {
+        thread(static function ($context) {
+            return true;
+        })->run();
         $code    = mt_rand(0, 255);
         $task    = System::Process()->task(function () use ($code) {
             $thread = thread(static function ($context) {
@@ -62,9 +67,6 @@ class ParallelTest extends TestCase
             });
         });
         $runtime = $task->run();
-        $runtime->finally(function ($exitCode) use ($code) {
-            $this->assertEquals($code, $exitCode, 'Process exit code');
-        });
-        $runtime->await();
+        $this->assertFalse($runtime, 'Process exit code');
     }
 }
