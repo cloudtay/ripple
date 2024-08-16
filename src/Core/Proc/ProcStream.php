@@ -37,7 +37,8 @@ namespace Psc\Core\Proc;
 use Psc\Core\Stream\Stream;
 
 /**
- *
+ * @Author cclilshy
+ * @Date   2024/8/16 09:36
  */
 class ProcStream extends Stream
 {

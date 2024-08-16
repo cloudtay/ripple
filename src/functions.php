@@ -165,6 +165,18 @@ function run(): void
 }
 
 /**
+ * @Author cclilshy
+ * @Date   2024/8/16 09:40
+ * @param Closure $closure
+ * @return void
+ */
+function main(Closure $closure): void
+{
+    $closure();
+    tick();
+}
+
+/**
  * @return void
  */
 function tick(): void

@@ -63,7 +63,8 @@ use const WNOHANG;
 use const WUNTRACED;
 
 /**
- *
+ * @Author cclilshy
+ * @Date   2024/8/16 09:36
  */
 class Process extends LibraryAbstract
 {

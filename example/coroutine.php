@@ -1,4 +1,5 @@
 <?php declare(strict_types=1);
+
 /*
  * Copyright (c) 2023-2024.
  *
@@ -35,17 +36,15 @@
 use P\Plugin;
 
 use function P\async;
-use function P\await;
+use function P\cancelAll;
 use function P\tick;
 
 include_once __DIR__ . '/../vendor/autoload.php';
 
 async(function () {
-    $response  = await(
-        Plugin::Guzzle()->getAsync('https://www.baidu.com')
-    );
-
+    $response = Plugin::Guzzle()->get('https://www.baidu.com');
     \var_dump($response->getStatusCode());
+    cancelAll();
 });
 
 tick();

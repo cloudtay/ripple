@@ -37,7 +37,6 @@ use function P\thread;
 use function P\tick;
 
 include __DIR__ . '/../vendor/autoload.php';
-
 for ($i = 0; $i < 1; $i++) {
     $thread = thread(static function ($context) {
         return \file_get_contents(__FILE__);

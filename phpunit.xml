@@ -36,7 +36,8 @@
          stopOnFailure="false"
          failOnWarning="true"
          failOnRisky="true"
-         testdox="true">
+         testdox="true"
+         processIsolation="true">
     <testsuites>
         <testsuite name="Core">
             <directory>tests</directory>

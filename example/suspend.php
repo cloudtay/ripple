@@ -34,14 +34,17 @@
 
 use P\System;
 
+use function P\defer;
+use function P\onSignal;
+
 include __DIR__ . '/../vendor/autoload.php';
 //
 
-\P\onSignal(\SIGTERM, function () {
+onSignal(\SIGTERM, function () {
     echo 'Received SIGTERM' . \PHP_EOL;
 });
 
-\P\defer(function () {
+defer(function () {
     $task = System::Process()->task(function () {
         echo 'child process:' . \posix_getpid() . \PHP_EOL;
         \sleep(1000);

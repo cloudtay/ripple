@@ -32,48 +32,35 @@
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-namespace P;
+namespace Tests;
 
-use Psc\Core\Channel\ChannelLibrary;
-use Psc\Core\FIle\File;
-use Psc\Core\Lock\LockLibrary;
-use Psc\Core\Socket\Socket;
+use P\IO;
+use PHPUnit\Framework\Attributes\RunClassInSeparateProcess;
+use PHPUnit\Framework\Attributes\Test;
+use PHPUnit\Framework\TestCase;
+use Throwable;
+
+use function md5;
+use function md5_file;
 
 /**
  * @Author cclilshy
- * @Date   2024/8/16 09:35
+ * @Date   2024/8/15 14:49
  */
-class IO
+#[RunClassInSeparateProcess]
+class FileStreamTest extends TestCase
 {
     /**
-     * @return File
+     * @Author cclilshy
+     * @Date   2024/8/15 14:49
+     * @return void
+     * @throws Throwable
      */
-    public static function File(): File
+    #[Test]
+    public function test_fileStream(): void
     {
-        return File::getInstance();
-    }
-
-    /**
-     * @return Socket
-     */
-    public static function Socket(): Socket
-    {
-        return Socket::getInstance();
-    }
-
-    /**
-     * @return ChannelLibrary
-     */
-    public static function Channel(): ChannelLibrary
-    {
-        return ChannelLibrary::getInstance();
-    }
-
-    /**
-     * @return LockLibrary
-     */
-    public static function Lock(): LockLibrary
-    {
-        return LockLibrary::getInstance();
+        $hash = md5_file(__FILE__);
+        $content = IO::File()->getContents(__FILE__)->await();
+        $this->assertEquals($hash, md5($content));
     }
 }

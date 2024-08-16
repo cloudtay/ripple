@@ -62,21 +62,21 @@ abstract class AbstractDriver implements Driver
     /** @var string Next callback identifier. */
     private string $nextId = "a";
 
-    private \Fiber $fiber;
+    private Fiber $fiber;
 
-    private \Fiber  $callbackFiber;
+    private Fiber   $callbackFiber;
     private Closure $errorCallback;
 
-    /** @var array<string, DriverCallback> */
+    /** @var array */
     private array $callbacks = array();
 
-    /** @var array<string, DriverCallback> */
+    /** @var array */
     private array $enableQueue = array();
 
-    /** @var array<string, DriverCallback> */
+    /** @var array */
     private array $enableDeferQueue = array();
 
-    /** @var null|Closure(\Throwable):void */
+    /** @var null|Closure(Throwable):void */
     private ?Closure $errorHandler = null;
 
     /** @var null|Closure():mixed */
@@ -86,7 +86,7 @@ abstract class AbstractDriver implements Driver
     private readonly Closure $queueCallback;
     private readonly Closure $runCallback;
 
-    private readonly \stdClass $internalSuspensionMarker;
+    private readonly stdClass $internalSuspensionMarker;
 
     /** @var SplQueue<array{Closure, array}> */
     private readonly SplQueue $microtaskQueue;
@@ -106,16 +106,16 @@ abstract class AbstractDriver implements Driver
 
     public function __construct()
     {
-        if (\PHP_VERSION_ID < 80117 || \PHP_VERSION_ID >= 80200 && \PHP_VERSION_ID < 80204) {
+        if (PHP_VERSION_ID < 80117 || PHP_VERSION_ID >= 80200 && PHP_VERSION_ID < 80204) {
             // PHP GC is broken on early 8.1 and 8.2 versions, see https://github.com/php/php-src/issues/10496
-            if (!\getenv('REVOLT_DRIVER_SUPPRESS_ISSUE_10496')) {
-                throw new \Error('Your version of PHP is affected by serious garbage collector bugs related to fibers. Please upgrade to a newer version of PHP, i.e. >= 8.1.17 or => 8.2.4');
+            if (!getenv('REVOLT_DRIVER_SUPPRESS_ISSUE_10496')) {
+                throw new Error('Your version of PHP is affected by serious garbage collector bugs related to fibers. Please upgrade to a newer version of PHP, i.e. >= 8.1.17 or => 8.2.4');
             }
         }
 
         $this->suspensions = new WeakMap();
 
-        $this->internalSuspensionMarker = new \stdClass();
+        $this->internalSuspensionMarker = new stdClass();
         $this->microtaskQueue = new SplQueue();
         $this->callbackQueue = new SplQueue();
 
@@ -157,11 +157,11 @@ abstract class AbstractDriver implements Driver
     public function run(): void
     {
         if ($this->fiber->isRunning()) {
-            throw new \Error("The event loop is already running");
+            throw new Error("The event loop is already running");
         }
 
-        if (\Fiber::getCurrent()) {
-            throw new \Error(\sprintf("Can't call %s() within a fiber (i.e., outside of {main})", __METHOD__));
+        if (Fiber::getCurrent()) {
+            throw new Error(sprintf("Can't call %s() within a fiber (i.e., outside of {main})", __METHOD__));
         }
 
         /**
@@ -177,7 +177,7 @@ abstract class AbstractDriver implements Driver
         if ($lambda) {
             $lambda();
 
-            throw new \Error('事件循环中断必须抛出异常: ' . ClosureHelper::getDescription($lambda));
+            throw new Error('事件循环中断必须抛出异常: ' . ClosureHelper::getDescription($lambda));
         }
     }
 
@@ -209,7 +209,7 @@ abstract class AbstractDriver implements Driver
     public function delay(float $delay, Closure $closure): string
     {
         if ($delay < 0) {
-            throw new \Error("延迟必须大于或等于零");
+            throw new Error("延迟必须大于或等于零");
         }
 
         $timerCallback = new TimerCallback($this->nextId++, $delay, $closure, $this->now() + $delay);
@@ -223,7 +223,7 @@ abstract class AbstractDriver implements Driver
     public function repeat(float $interval, Closure $closure): string
     {
         if ($interval < 0) {
-            throw new \Error("间隔必须大于或等于零");
+            throw new Error("间隔必须大于或等于零");
         }
 
         $timerCallback = new TimerCallback($this->nextId++, $interval, $closure, $this->now() + $interval, true);
@@ -349,10 +349,10 @@ abstract class AbstractDriver implements Driver
 
     public function getSuspension(): Suspension
     {
-        $fiber = \Fiber::getCurrent();
+        $fiber = Fiber::getCurrent();
 
         // 用户回调始终在事件循环纤程之外执行，因此这应该始终为 false。
-        \assert($fiber !== $this->fiber);
+        assert($fiber !== $this->fiber);
 
         // 在 {main} 的情况下使用队列关闭，在未捕获的异常后可以通过 DriverSuspension 取消设置。
         $key = $fiber ?? $this->queueCallback;
@@ -387,7 +387,7 @@ abstract class AbstractDriver implements Driver
     public function __debugInfo(): array
     {
         // @代码覆盖率忽略开始
-        return \array_map(fn (DriverCallback $callback) => [
+        return array_map(fn (DriverCallback $callback) => [
             'type' => $this->getType($callback->id),
             'enabled' => $callback->enabled,
             'referenced' => $callback->referenced,
@@ -397,7 +397,7 @@ abstract class AbstractDriver implements Driver
 
     public function getIdentifiers(): array
     {
-        return \array_keys($this->callbacks);
+        return array_keys($this->callbacks);
     }
 
     public function getType(string $callbackId): CallbackType
@@ -451,9 +451,11 @@ abstract class AbstractDriver implements Driver
     /**
      * 使用给定的异常调用错误处理程序。
      *
-     * @param \Throwable $exception 事件回调抛出的异常。
+     * @param Closure   $closure
+     * @param Throwable $exception 事件回调抛出的异常。
+     * @throws Throwable
      */
-    final protected function error(Closure $closure, \Throwable $exception): void
+    final protected function error(Closure $closure, Throwable $exception): void
     {
         if ($this->errorHandler === null) {
             // Explicitly override the previous interrupt if it exists in this case, hiding the exception is worse
@@ -463,7 +465,7 @@ abstract class AbstractDriver implements Driver
             return;
         }
 
-        $fiber = new \Fiber($this->errorCallback);
+        $fiber = new Fiber($this->errorCallback);
 
         /** @noinspection PhpUnhandledExceptionInspection */
         $fiber->start($this->errorHandler, $exception);
@@ -485,7 +487,7 @@ abstract class AbstractDriver implements Driver
             try {
                 // Clear $args to allow garbage collection
                 $callback(...$args, ...($args = []));
-            } catch (\Throwable $exception) {
+            } catch (Throwable $exception) {
                 $this->error($callback, $exception);
             } finally {
                 FiberLocal::clear();
@@ -495,7 +497,7 @@ abstract class AbstractDriver implements Driver
 
             if ($this->interrupt) {
                 /** @noinspection PhpUnhandledExceptionInspection */
-                \Fiber::suspend($this->internalSuspensionMarker);
+                Fiber::suspend($this->internalSuspensionMarker);
             }
         }
     }
@@ -574,25 +576,25 @@ abstract class AbstractDriver implements Driver
      */
     private function setInterrupt(Closure $interrupt): void
     {
-        \assert($this->interrupt === null);
+        assert($this->interrupt === null);
 
         $this->interrupt = $interrupt;
     }
 
     private function invokeInterrupt(): void
     {
-        \assert($this->interrupt !== null);
+        assert($this->interrupt !== null);
 
         $interrupt = $this->interrupt;
         $this->interrupt = null;
 
         /** @noinspection PhpUnhandledExceptionInspection */
-        \Fiber::suspend($interrupt);
+        Fiber::suspend($interrupt);
     }
 
     private function createLoopFiber(): void
     {
-        $this->fiber = new \Fiber(function (): void {
+        $this->fiber = new Fiber(function (): void {
             $this->stopped = false;
 
             // 如果我们有一些微任务，我们需要在第一个tick之前执行它们。
@@ -619,7 +621,7 @@ abstract class AbstractDriver implements Driver
 
     private function createCallbackFiber(): void
     {
-        $this->callbackFiber = new \Fiber(function (): void {
+        $this->callbackFiber = new Fiber(function (): void {
             do {
                 $this->invokeMicrotasks();
 
@@ -662,7 +664,7 @@ abstract class AbstractDriver implements Driver
                         if ($result !== null) {
                             throw InvalidCallbackError::nonNullReturn($callback->id, $callback->closure);
                         }
-                    } catch (\Throwable $exception) {
+                    } catch (Throwable $exception) {
                         $this->error($callback->closure, $exception);
                     } finally {
                         FiberLocal::clear();
@@ -672,24 +674,24 @@ abstract class AbstractDriver implements Driver
 
                     if ($this->interrupt) {
                         /** @noinspection PhpUnhandledExceptionInspection */
-                        \Fiber::suspend($this->internalSuspensionMarker);
+                        Fiber::suspend($this->internalSuspensionMarker);
                     }
 
                     $this->invokeMicrotasks();
                 }
 
                 /** @noinspection PhpUnhandledExceptionInspection */
-                \Fiber::suspend($this->internalSuspensionMarker);
+                Fiber::suspend($this->internalSuspensionMarker);
             } while (true);
         });
     }
 
     private function createErrorCallback(): void
     {
-        $this->errorCallback = function (Closure $errorHandler, \Throwable $exception): void {
+        $this->errorCallback = function (Closure $errorHandler, Throwable $exception): void {
             try {
                 $errorHandler($exception);
-            } catch (\Throwable $exception) {
+            } catch (Throwable $exception) {
                 $this->interrupt = static fn () => $exception instanceof UncaughtThrowable
                     ? throw $exception
                     : throw UncaughtThrowable::throwingErrorHandler($errorHandler, $exception);

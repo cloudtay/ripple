@@ -43,7 +43,8 @@ use function substr;
 use function unpack;
 
 /**
- *
+ * @Author cclilshy
+ * @Date   2024/8/16 09:37
  */
 class Zx7e
 {

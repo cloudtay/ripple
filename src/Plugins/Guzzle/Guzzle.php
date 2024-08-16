@@ -44,7 +44,8 @@ use Psc\Core\LibraryAbstract;
 use const PHP_SAPI;
 
 /**
- *
+ * @Author cclilshy
+ * @Date   2024/8/16 09:37
  */
 class Guzzle extends LibraryAbstract
 {

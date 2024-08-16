@@ -44,7 +44,8 @@ use function call_user_func_array;
 use function P\await;
 
 /**
- *
+ * @Author cclilshy
+ * @Date   2024/8/16 09:35
  */
 class Promise
 {

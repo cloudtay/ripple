@@ -52,7 +52,7 @@ use const LOCK_UN;
 
 class Lock
 {
-    /*** @var mixed|false|resource */
+    /*** @var resource|false */
     private mixed $resource;
 
     /*** @var string */

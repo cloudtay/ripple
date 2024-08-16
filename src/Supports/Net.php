@@ -38,7 +38,8 @@ use Psc\Core\Http\Http;
 use Psc\Core\WebSocket\WebSocket;
 
 /**
- *
+ * @Author cclilshy
+ * @Date   2024/8/16 09:35
  */
 class Net
 {

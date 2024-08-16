@@ -36,6 +36,7 @@ use P\System;
 use Psc\Core\Lock\Lock;
 
 use function P\async;
+use function P\run;
 
 include_once __DIR__ . '/../vendor/autoload.php';
 
@@ -54,4 +55,4 @@ $task = System::Process()->task(function () use ($lock) {
 
 $runtime = $task->run();
 
-\P\run();
+run();

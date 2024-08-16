@@ -46,7 +46,8 @@ use function P\promise;
 use function P\registerForkHandler;
 
 /**
- *
+ * @Author cclilshy
+ * @Date   2024/8/16 09:35
  */
 class File extends LibraryAbstract
 {

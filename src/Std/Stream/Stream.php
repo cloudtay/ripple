@@ -54,7 +54,8 @@ use function fstat;
 use const SEEK_SET;
 
 /**
- *
+ * @Author cclilshy
+ * @Date   2024/8/16 09:37
  */
 class Stream implements StreamInterface
 {

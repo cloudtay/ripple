@@ -37,7 +37,8 @@ namespace Psc\Core\Process\Exception;
 use Exception;
 
 /**
- *
+ * @Author cclilshy
+ * @Date   2024/8/16 09:36
  */
 class ProcessException extends Exception
 {
