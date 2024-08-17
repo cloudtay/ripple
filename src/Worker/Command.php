@@ -32,25 +32,55 @@
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-use P\Net;
-use Psc\Core\WebSocket\Client\Connection;
+namespace Psc\Worker;
 
-use function P\run;
+use function serialize;
+use function unserialize;
 
-include __DIR__ . '/../vendor/autoload.php';
+/**
+ * @Author cclilshy
+ * @Date   2024/8/16 12:00
+ */
+class Command
+{
+    /**
+     * @param string $name
+     * @param array  $arguments
+     */
+    public function __construct(public readonly string $name, public readonly array $arguments = [])
+    {
+    }
 
-$connection            = Net::WebSocket()->connect('wss://echo.websocket.org');
-$connection->onOpen(function (Connection $connection) {
-    $connection->send('{"action":"ping","data":[]}');
+    /**
+     * @Author cclilshy
+     * @Date   2024/8/16 11:59
+     * @return string
+     */
+    public function __toString(): string
+    {
+        return serialize($this);
+    }
 
-});
+    /**
+     * @Author cclilshy
+     * @Date   2024/8/16 11:59
+     * @param string $name
+     * @param array  $arguments
+     * @return Command
+     */
+    public static function make(string $name, array $arguments = []): Command
+    {
+        return new Command($name, $arguments);
+    }
 
-$connection->onMessage(function (string $data, Connection $connection) {
-    echo 'Received: ' . $data . \PHP_EOL;
-});
-
-$connection->onClose(function (Connection $connection) {
-    echo 'Connection closed' . \PHP_EOL;
-});
-
-run();
+    /**
+     * @Author cclilshy
+     * @Date   2024/8/16 11:59
+     * @param string $command
+     * @return Command
+     */
+    public static function fromString(string $command): Command
+    {
+        return unserialize($command);
+    }
+}
