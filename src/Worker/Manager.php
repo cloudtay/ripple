@@ -62,7 +62,7 @@ class Manager
     /**
      * @var int
      */
-    private int $index = 0;
+    private int $index = 1;
 
     /**
      * @var int
@@ -141,6 +141,14 @@ class Manager
                 $command = $workerCommand->arguments['command'];
                 $this->commandToAll($command);
                 break;
+            case Worker::COMMAND_SYNC_ID:
+                if ($stream = $this->workers[$name]?->streams[$index] ?? null) {
+                    $sync = $this->index++;
+                    $id   = $workerCommand->arguments['id'];
+                    $command = Command::make(Worker::COMMAND_SYNC_ID, ['sync' => $sync, 'id' => $id]);
+                    $stream->write($this->zx7e->encodeFrame($command->__toString()));
+                }
+                break;
         }
     }
 
@@ -152,7 +160,7 @@ class Manager
     public function run(): bool
     {
         $this->processId = posix_getpid();
-        $this->zx7e = new Zx7e();
+        $this->zx7e      = new Zx7e();
         foreach ($this->workers as $worker) {
             $worker->register($this);
             if (!$worker($this)) {
@@ -228,7 +236,7 @@ class Manager
 
     public function __destruct()
     {
-        if($this->processId === posix_getpid()) {
+        if (isset($this->processId) && $this->processId === posix_getpid()) {
             $this->stop();
         }
     }

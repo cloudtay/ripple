@@ -34,15 +34,19 @@
 
 namespace Psc\Worker;
 
+use Closure;
 use P\System;
+use Psc\Core\Coroutine\Promise;
 use Psc\Core\Process\Runtime;
 use Psc\Core\Stream\SocketStream;
 use Psc\Std\Stream\Exception\ConnectionException;
 use Psc\Utils\Output;
 use Psc\Utils\Serialization\Zx7e;
 
+use function P\promise;
 use function socket_create_pair;
 use function socket_export_stream;
+use function spl_object_hash;
 
 use const AF_UNIX;
 use const SOCK_STREAM;
@@ -53,7 +57,8 @@ use const SOCK_STREAM;
  */
 abstract class Worker
 {
-    public const COMMAND_RELOAD = 'worker.reload';
+    public const COMMAND_RELOAD  = 'worker.reload';
+    public const COMMAND_SYNC_ID = 'worker.sync.id';
 
     /**
      * @Context share
@@ -72,6 +77,11 @@ abstract class Worker
      * @var SocketStream
      */
     protected SocketStream $parentSocket;
+
+    /**
+     * @var array
+     */
+    private array $queue = [];
 
     /**
      * @Context  manager
@@ -175,6 +185,25 @@ abstract class Worker
     }
 
     /**
+     * @Author cclilshy
+     * @Date   2024/8/17 17:32
+     * @return Promise
+     */
+    protected function syncId(): Promise
+    {
+        return promise(function (Closure $resolve, Closure $reject) {
+            $id = spl_object_hash($resolve);
+            $command = Command::make(Worker::COMMAND_SYNC_ID, ['id' => $id]);
+            $this->command($command);
+
+            $this->queue[$id] = [
+                'resolve' => $resolve,
+                'reject'  => $reject
+            ];
+        });
+    }
+
+    /**
      * @Context  worker
      * @Author   cclilshy
      * @Date     2024/8/17 01:03
@@ -186,6 +215,15 @@ abstract class Worker
         switch ($workerCommand->name) {
             case Worker::COMMAND_RELOAD:
                 $this->onReload();
+                break;
+            case Worker::COMMAND_SYNC_ID:
+                $id = $workerCommand->arguments['id'];
+                $sync = $workerCommand->arguments['sync'];
+
+                if($callback = $this->queue[$id] ?? null) {
+                    unset($this->queue[$id]);
+                    $callback['resolve']($sync);
+                }
                 break;
             default:
                 $this->onCommand($workerCommand);
@@ -214,7 +252,7 @@ abstract class Worker
     public function __invoke(Manager $manager): bool
     {
         for ($index = 1; $index <= $this->getCount(); $index++) {
-            if(!$this->guard($manager, $index)) {
+            if (!$this->guard($manager, $index)) {
                 return false;
             }
         }
