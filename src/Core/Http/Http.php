@@ -40,7 +40,8 @@ use Psc\Core\LibraryAbstract;
 use Psc\Plugins\Guzzle\Guzzle;
 
 /**
- *
+ * @Author cclilshy
+ * @Date   2024/8/16 09:35
  */
 class Http extends LibraryAbstract
 {

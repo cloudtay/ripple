@@ -59,7 +59,8 @@ use const SO_SNDLOWAT;
 use const SOL_SOCKET;
 
 /**
- *
+ * @Author cclilshy
+ * @Date   2024/8/16 09:36
  */
 class SocketStream extends Stream
 {

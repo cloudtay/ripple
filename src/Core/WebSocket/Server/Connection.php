@@ -47,6 +47,10 @@ use function strlen;
 use function substr;
 use function unpack;
 
+/**
+ * @Author cclilshy
+ * @Date   2024/8/15 14:44
+ */
 class Connection
 {
     /**
@@ -89,6 +93,8 @@ class Connection
     }
 
     /**
+     * @Author cclilshy
+     * @Date   2024/8/15 14:44
      * @param Stream $stream
      * @return void
      */
@@ -107,6 +113,8 @@ class Connection
     }
 
     /**
+     * @Author cclilshy
+     * @Date   2024/8/15 14:45
      * @param string $data
      * @return void
      * @throws ConnectionException
@@ -127,6 +135,12 @@ class Connection
                 if ($this->onConnect !== null) {
                     call_user_func($this->onConnect, $this);
                 }
+
+                foreach ($this->parse() as $message) {
+                    if ($this->onMessage !== null) {
+                        call_user_func($this->onMessage, $message, $this);
+                    }
+                }
             }
         } else {
             foreach ($this->parse() as $message) {
@@ -137,9 +151,9 @@ class Connection
         }
     }
 
-
-
     /**
+     * @Author cclilshy
+     * @Date   2024/8/15 14:45
      * @param string $message
      * @return bool
      */
@@ -158,6 +172,8 @@ class Connection
     }
 
     /**
+     * @Author cclilshy
+     * @Date   2024/8/15 14:45
      * @return void
      */
     public function close(): void
@@ -169,6 +185,8 @@ class Connection
     }
 
     /**
+     * @Author cclilshy
+     * @Date   2024/8/15 14:45
      * @return bool
      */
     public function isHandshake(): bool
@@ -177,6 +195,8 @@ class Connection
     }
 
     /**
+     * @Author cclilshy
+     * @Date   2024/8/15 14:45
      * @return int
      */
     public function getId(): int
@@ -185,6 +205,8 @@ class Connection
     }
 
     /**
+     * @Author cclilshy
+     * @Date   2024/8/15 14:45
      * @return string
      */
     public function getHeaderContent(): string
@@ -193,6 +215,8 @@ class Connection
     }
 
     /**
+     * @Author cclilshy
+     * @Date   2024/8/15 14:45
      * @param Closure $onMessage
      * @return void
      */
@@ -202,6 +226,8 @@ class Connection
     }
 
     /**
+     * @Author cclilshy
+     * @Date   2024/8/15 14:45
      * @param Closure $onConnect
      * @return void
      */
@@ -211,6 +237,8 @@ class Connection
     }
 
     /**
+     * @Author cclilshy
+     * @Date   2024/8/15 14:45
      * @param Closure $onClose
      * @return void
      */
@@ -220,6 +248,8 @@ class Connection
     }
 
     /**
+     * @Author cclilshy
+     * @Date   2024/8/15 14:45
      * @param string $context
      * @param int    $opcode
      * @param bool   $fin
@@ -241,6 +271,8 @@ class Connection
     }
 
     /**
+     * @Author cclilshy
+     * @Date   2024/8/15 14:45
      * @return array
      */
     private function parse(): array

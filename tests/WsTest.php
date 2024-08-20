@@ -32,34 +32,80 @@
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-use P\IO;
-use P\System;
+namespace Tests;
 
-include_once __DIR__ . '/../vendor/autoload.php';
+use P\Net;
+use PHPUnit\Framework\Attributes\RunClassInSeparateProcess;
+use PHPUnit\Framework\Attributes\Test;
+use PHPUnit\Framework\TestCase;
+use Psc\Core\WebSocket\Server\Connection;
+use Psc\Utils\Output;
+use Throwable;
 
-$channel = IO::Channel()->make('test');
+use function md5;
+use function P\cancelAll;
+use function P\defer;
+use function P\tick;
+use function stream_context_create;
+use function uniqid;
 
 /**
- * - 向一个已关闭的通道发送数据，会抛出异常 ChannelException: Unable to send data to a closed channel
- * - 进程间通讯是基于序列化实现的,因此只能发送可序列化的数据如 resource / closure / generator/ redis对象等是无法直接发送的,会抛出一个序列化异常
+ * @Author cclilshy
+ * @Date   2024/8/15 14:49
  */
-$channel->send(new stdClass());
-$channel->send([1,2,3,4,5,6,7,8,9]);
-$channel->send('hello');
-
-$task = System::Process()->task(function () use ($channel) {
-    $channel->setBlocking(false);
-    while ($item = $channel->receive()) {
-        \var_dump($item);
-
-        \P\sleep(1);
+#[RunClassInSeparateProcess]
+class WsTest extends TestCase
+{
+    /**
+     * @Author cclilshy
+     * @Date   2024/8/15 14:49
+     * @return void
+     */
+    #[Test]
+    public function test_wsServer(): void
+    {
+        defer(function () {
+            try {
+                $this->wsTest();
+            } catch (Throwable $exception) {
+                Output::error($exception->getMessage());
+            }
+        });
+        $context = stream_context_create([
+            'socket' => [
+                'so_reuseport' => 1,
+                'so_reuseaddr' => 1,
+            ],
+        ]);
+        $server = Net::WebSocket()->server('ws://127.0.0.1:8001/', $context);
+        $server->onMessage(static function (string $data, Connection $connection) {
+            $connection->send($data);
+        });
+        $server->listen();
+        tick();
     }
 
-    $channel->close();
-    exit(0);
-});
+    /**
+     * @Author cclilshy
+     * @Date   2024/8/15 14:49
+     * @return void
+     */
+    private function wsTest(): void
+    {
+        $hash     = md5(uniqid());
+        $client   = Net::WebSocket()->connect('ws://127.0.0.1:8001/');
 
-$runtime = $task->run();
-$runtime->await();
+        $client->onOpen(static function () use ($client, $hash) {
+            \P\sleep(1);
+            $client->send($hash);
+        });
 
-echo "done\n";
+        $client->onMessage(function (string $data) use ($hash) {
+            try {
+                $this->assertEquals($hash, $data);
+            } finally {
+                cancelAll();
+            }
+        });
+    }
+}

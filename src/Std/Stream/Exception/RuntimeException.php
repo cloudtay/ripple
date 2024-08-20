@@ -35,7 +35,8 @@
 namespace Psc\Std\Stream\Exception;
 
 /**
- *
+ * @Author cclilshy
+ * @Date   2024/8/16 09:37
  */
 class RuntimeException extends Exception
 {

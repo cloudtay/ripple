@@ -48,7 +48,8 @@ use function P\cancel;
 use function stream_set_blocking;
 
 /**
- *
+ * @Author cclilshy
+ * @Date   2024/8/16 09:37
  */
 class Stream extends \Psc\Std\Stream\Stream
 {

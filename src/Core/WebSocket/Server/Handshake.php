@@ -46,15 +46,11 @@ use function substr;
 use function trim;
 
 /**
- * Websocket握手处理器
+ * @Author cclilshy
+ * @Date   2024/8/15 14:49
  */
 class Handshake
 {
-    /**
-     * Attempts to recognize handshake data when receiving a client for the first time
-     * @param Connection $client
-     * @return bool
-     */
     public const NEED_HEAD = array(
         'Host'                  => true,
         'Upgrade'               => true,
@@ -64,6 +60,8 @@ class Handshake
     );
 
     /**
+     * @Author cclilshy
+     * @Date   2024/8/15 14:49
      * @param Connection $client
      * @return bool|null
      * @throws ConnectionException
@@ -78,13 +76,13 @@ class Handshake
         } else {
             $secWebSocketAccept = Handshake::getSecWebSocketAccept($identityInfo['Sec-WebSocket-Key']);
             $client->stream->write(Handshake::generateResultContext($secWebSocketAccept));
-            $client->buffer = '';
             return true;
         }
     }
 
     /**
-     * 验证信息
+     * @Author cclilshy
+     * @Date   2024/8/15 14:49
      * @param string $buffer
      * @return array|false|null
      */
@@ -122,6 +120,8 @@ class Handshake
     }
 
     /**
+     * @Author cclilshy
+     * @Date   2024/8/15 14:48
      * @param string $key
      * @return string
      */
@@ -131,6 +131,8 @@ class Handshake
     }
 
     /**
+     * @Author cclilshy
+     * @Date   2024/8/15 14:48
      * @param string $accept
      * @return string
      */
@@ -141,7 +143,7 @@ class Handshake
             'Connection'           => 'Upgrade',
             'Sec-WebSocket-Accept' => $accept
         );
-        $context = "HTTP/1.1 101 NFS\r\n";
+        $context = "HTTP/1.1 101 Switching Protocols\r\n";
         foreach ($headers as $key => $value) {
             $context .= "{$key}: {$value} \r\n";
         }

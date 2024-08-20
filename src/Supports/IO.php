@@ -40,7 +40,8 @@ use Psc\Core\Lock\LockLibrary;
 use Psc\Core\Socket\Socket;
 
 /**
- *
+ * @Author cclilshy
+ * @Date   2024/8/16 09:35
  */
 class IO
 {

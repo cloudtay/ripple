@@ -39,7 +39,8 @@ use Psc\Core\WebSocket\Client\Connection;
 use Psc\Core\WebSocket\Server\Server;
 
 /**
- *
+ * @Author cclilshy
+ * @Date   2024/8/16 09:37
  */
 class WebSocket extends LibraryAbstract
 {

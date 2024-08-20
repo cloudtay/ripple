@@ -35,7 +35,8 @@
 namespace Psc\Core\Stream;
 
 /**
- *
+ * @Author cclilshy
+ * @Date   2024/8/16 09:36
  */
 class Exception extends \Psc\Std\Stream\Exception\Exception
 {

@@ -59,10 +59,14 @@ use function str_contains;
 use function strlen;
 use function strtolower;
 use function substr;
+use function trim;
 use function unpack;
 
+//Random\RandomException require PHP>=8.2;
+
 /**
- * [协议相关]
+ * @Author cclilshy
+ * @Date   下午2:28
  * 白皮书: https://datatracker.ietf.org/doc/html/rfc6455
  * 最新规范: https://websockets.spec.whatwg.org/
  */
@@ -112,90 +116,19 @@ class Connection
             try {
                 await($this->_handshake());
                 $this->_open();
+                $this->_tick();
             } catch (Throwable $e) {
                 $this->_error($e);
-
                 if (isset($this->stream)) {
                     $this->_close();
                 }
                 return;
             }
-
             $this->stream->onReadable(function () {
                 try {
                     $read         = $this->stream->read(8192);
                     $this->buffer .= $read;
-                    while (strlen($this->buffer) >= 2) {
-                        $firstByte     = ord($this->buffer[0]);
-                        $fin           = ($firstByte & 0x80) === 0x80;
-                        $opcode        = $firstByte & 0x0f;
-                        $secondByte    = ord($this->buffer[1]);
-                        $masked        = ($secondByte & 0x80) === 0x80;
-                        $payloadLength = $secondByte & 0x7f;
-                        $offset        = 2;
-                        if ($payloadLength === 126) {
-                            if (strlen($this->buffer) < 4) {
-                                return;
-                            }
-                            $payloadLength = unpack('n', substr($this->buffer, 2, 2))[1];
-                            $offset        += 2;
-                        } elseif ($payloadLength === 127) {
-                            if (strlen($this->buffer) < 10) {
-                                return;
-                            }
-                            $payloadLength = unpack('J', substr($this->buffer, 2, 8))[1];
-                            $offset        += 8;
-                        }
-
-                        if ($masked) {
-                            if (strlen($this->buffer) < $offset + 4) {
-                                return;
-                            }
-                            $maskingKey = substr($this->buffer, $offset, 4);
-                            $offset     += 4;
-                        }
-
-                        if (strlen($this->buffer) < $offset + $payloadLength) {
-                            return;
-                        }
-
-                        $payloadData = substr($this->buffer, $offset, $payloadLength);
-                        $offset      += $payloadLength;
-
-                        if ($masked) {
-                            $unmaskedData = '';
-                            for ($i = 0; $i < $payloadLength; $i++) {
-                                $unmaskedData .= chr(ord($payloadData[$i]) ^ ord($maskingKey[$i % 4]));
-                            }
-                        } else {
-                            $unmaskedData = $payloadData;
-                        }
-
-                        switch ($opcode) {
-                            case 0x1: // 文本
-                                break;
-                            case 0x2: // 二进制
-                                break;
-                            case 0x8: // 关闭
-                                $this->_close();
-                                if (isset($this->onClose)) {
-                                    call_user_func($this->onClose, $this);
-                                }
-                                return;
-                            case 0x9: // ping
-                                // 发送pong响应
-                                $pongFrame = chr(0x8A) . chr(0x00);
-                                $this->stream->write($pongFrame);
-                                return;
-                            case 0xA: // pong
-                                return;
-                            default:
-                                break;
-                        }
-
-                        $this->_message($unmaskedData, $opcode);
-                        $this->buffer = substr($this->buffer, $offset);
-                    }
+                    $this->_tick();
                 } catch (Throwable $e) {
                     $this->_close();
                     $this->_error($e);
@@ -206,6 +139,89 @@ class Connection
     }
 
     /**
+     * @Author cclilshy
+     * @Date   2024/8/15 14:48
+     * @return void
+     * @throws ConnectionException
+     */
+    private function _tick(): void
+    {
+        while (strlen($this->buffer) >= 2) {
+            $firstByte     = ord($this->buffer[0]);
+            $fin           = ($firstByte & 0x80) === 0x80;
+            $opcode        = $firstByte & 0x0f;
+            $secondByte    = ord($this->buffer[1]);
+            $masked        = ($secondByte & 0x80) === 0x80;
+            $payloadLength = $secondByte & 0x7f;
+            $offset        = 2;
+            if ($payloadLength === 126) {
+                if (strlen($this->buffer) < 4) {
+                    return;
+                }
+                $payloadLength = unpack('n', substr($this->buffer, 2, 2))[1];
+                $offset        += 2;
+            } elseif ($payloadLength === 127) {
+                if (strlen($this->buffer) < 10) {
+                    return;
+                }
+                $payloadLength = unpack('J', substr($this->buffer, 2, 8))[1];
+                $offset        += 8;
+            }
+
+            if ($masked) {
+                if (strlen($this->buffer) < $offset + 4) {
+                    return;
+                }
+                $maskingKey = substr($this->buffer, $offset, 4);
+                $offset     += 4;
+            }
+
+            if (strlen($this->buffer) < $offset + $payloadLength) {
+                return;
+            }
+
+            $payloadData = substr($this->buffer, $offset, $payloadLength);
+            $offset      += $payloadLength;
+
+            if ($masked) {
+                $unmaskedData = '';
+                for ($i = 0; $i < $payloadLength; $i++) {
+                    $unmaskedData .= chr(ord($payloadData[$i]) ^ ord($maskingKey[$i % 4]));
+                }
+            } else {
+                $unmaskedData = $payloadData;
+            }
+
+            switch ($opcode) {
+                case 0x1: // 文本
+                    break;
+                case 0x2: // 二进制
+                    break;
+                case 0x8: // 关闭
+                    $this->_close();
+                    if (isset($this->onClose)) {
+                        call_user_func($this->onClose, $this);
+                    }
+                    return;
+                case 0x9: // ping
+                    // 发送pong响应
+                    $pongFrame = chr(0x8A) . chr(0x00);
+                    $this->stream->write($pongFrame);
+                    return;
+                case 0xA: // pong
+                    return;
+                default:
+                    break;
+            }
+
+            $this->_message($unmaskedData, $opcode);
+            $this->buffer = substr($this->buffer, $offset);
+        }
+    }
+
+    /**
+     * @Author cclilshy
+     * @Date   2024/8/15 14:48
      * @return Promise
      */
     private function _handshake(): Promise
@@ -292,7 +308,7 @@ class Connection
                     }
 
                     $expectedSignature = base64_encode(sha1($key . '258EAFA5-E914-47DA-95CA-C5AB0DC85B11', true));
-                    if ($signature !== $expectedSignature) {
+                    if (trim($signature) !== $expectedSignature) {
                         throw new Exception('Invalid response');
                     }
 
@@ -304,6 +320,8 @@ class Connection
     }
 
     /**
+     * @Author cclilshy
+     * @Date   2024/8/15 14:48
      * @return void
      */
     private function _close(): void
@@ -322,6 +340,8 @@ class Connection
     }
 
     /**
+     * @Author cclilshy
+     * @Date   2024/8/15 14:48
      * @return void
      */
     private function _open(): void
@@ -336,6 +356,8 @@ class Connection
     }
 
     /**
+     * @Author cclilshy
+     * @Date   2024/8/15 14:47
      * @param Throwable $e
      * @return void
      */
@@ -351,6 +373,8 @@ class Connection
     }
 
     /**
+     * @Author cclilshy
+     * @Date   2024/8/15 14:47
      * @param string $unmaskedData
      * @param int    $opcode
      * @return void
@@ -367,9 +391,12 @@ class Connection
     }
 
     /**
+     * @Author cclilshy
+     * @Date   2024/8/15 14:47
      * @param string $data
      * @return void
-     * @throws ConnectionException|Throwable
+     * @throws ConnectionException
+     * @throws \Random\RandomException
      */
     public function send(string $data): void
     {
@@ -398,6 +425,8 @@ class Connection
     }
 
     /**
+     * @Author cclilshy
+     * @Date   2024/8/15 14:47
      * @param Closure $onOpen
      * @return void
      */
@@ -407,6 +436,8 @@ class Connection
     }
 
     /**
+     * @Author cclilshy
+     * @Date   2024/8/15 14:47
      * @param Closure $onMessage
      * @return void
      */
@@ -416,6 +447,8 @@ class Connection
     }
 
     /**
+     * @Author cclilshy
+     * @Date   2024/8/15 14:47
      * @param Closure $onClose
      * @return void
      */
@@ -425,6 +458,8 @@ class Connection
     }
 
     /**
+     * @Author cclilshy
+     * @Date   2024/8/15 14:47
      * @param Closure $onError
      * @return void
      */
@@ -434,6 +469,8 @@ class Connection
     }
 
     /**
+     * @Author cclilshy
+     * @Date   2024/8/15 14:47
      * @param Closure $onOpen
      * @return void
      */
@@ -443,6 +480,8 @@ class Connection
     }
 
     /**
+     * @Author cclilshy
+     * @Date   2024/8/15 14:47
      * @return void
      */
     public function close(): void

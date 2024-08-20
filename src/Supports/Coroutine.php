@@ -37,7 +37,8 @@ namespace P;
 use Psc\Core\Coroutine\Coroutine as CoroutineLibrary;
 
 /**
- *
+ * @Author cclilshy
+ * @Date   2024/8/16 09:34
  */
 class Coroutine
 {

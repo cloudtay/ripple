@@ -55,7 +55,8 @@ use function unpack;
 use function unserialize;
 
 /**
- *
+ * @Author cclilshy
+ * @Date   2024/8/16 09:35
  */
 class Channel
 {

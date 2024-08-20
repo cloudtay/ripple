@@ -42,7 +42,8 @@ use function is_resource;
 use function proc_open;
 
 /**
- *
+ * @Author cclilshy
+ * @Date   2024/8/16 09:36
  */
 class Proc extends LibraryAbstract
 {

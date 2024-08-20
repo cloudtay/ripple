@@ -32,25 +32,35 @@
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-use P\Net;
-use Psc\Core\WebSocket\Client\Connection;
+namespace Tests;
 
-use function P\run;
+use P\IO;
+use PHPUnit\Framework\Attributes\RunClassInSeparateProcess;
+use PHPUnit\Framework\Attributes\Test;
+use PHPUnit\Framework\TestCase;
+use Throwable;
 
-include __DIR__ . '/../vendor/autoload.php';
+use function md5;
+use function md5_file;
 
-$connection            = Net::WebSocket()->connect('wss://echo.websocket.org');
-$connection->onOpen(function (Connection $connection) {
-    $connection->send('{"action":"ping","data":[]}');
-
-});
-
-$connection->onMessage(function (string $data, Connection $connection) {
-    echo 'Received: ' . $data . \PHP_EOL;
-});
-
-$connection->onClose(function (Connection $connection) {
-    echo 'Connection closed' . \PHP_EOL;
-});
-
-run();
+/**
+ * @Author cclilshy
+ * @Date   2024/8/15 14:49
+ */
+#[RunClassInSeparateProcess]
+class FileStreamTest extends TestCase
+{
+    /**
+     * @Author cclilshy
+     * @Date   2024/8/15 14:49
+     * @return void
+     * @throws Throwable
+     */
+    #[Test]
+    public function test_fileStream(): void
+    {
+        $hash = md5_file(__FILE__);
+        $content = IO::File()->getContents(__FILE__)->await();
+        $this->assertEquals($hash, md5($content));
+    }
+}

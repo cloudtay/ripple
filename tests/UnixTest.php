@@ -32,106 +32,85 @@
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-namespace Psc\Core\Process;
+namespace Tests;
 
-use Closure;
-use Psc\Core\Coroutine\Promise;
+use P\IO;
+use PHPUnit\Framework\Attributes\RunClassInSeparateProcess;
+use PHPUnit\Framework\Attributes\Test;
+use PHPUnit\Framework\TestCase;
+use Psc\Core\Stream\SocketStream;
+use Psc\Utils\Output;
 use Throwable;
 
-use function posix_kill;
-
-use const SIGKILL;
-use const SIGTERM;
+use function md5;
+use function P\cancelAll;
+use function P\defer;
+use function P\main;
+use function sys_get_temp_dir;
+use function uniqid;
 
 /**
  * @Author cclilshy
- * @Date   2024/8/16 09:36
+ * @Date   2024/8/15 14:49
  */
-class Runtime
+#[RunClassInSeparateProcess]
+class UnixTest extends TestCase
 {
     /**
-     * @param int     $processId
-     * @param Promise $promise
-     */
-    public function __construct(
-        private readonly Promise $promise,
-        private readonly int     $processId,
-    ) {
-    }
-
-    /**
-     * @param bool $force
+     * @Author cclilshy
+     * @Date   2024/8/16 10:16
      * @return void
-     */
-    public function stop(bool $force = false): void
-    {
-        $force
-            ? $this->kill()
-            : $this->signal(SIGTERM);
-    }
-
-    /*** @return void */
-    public function kill(): void
-    {
-        posix_kill($this->processId, SIGKILL);
-    }
-
-    /**
-     * @param int $signal
-     * @return void
-     */
-    public function signal(int $signal): void
-    {
-        posix_kill($this->processId, $signal);
-    }
-
-    /**
-     * @return Promise
-     */
-    public function getPromise(): Promise
-    {
-        return $this->promise;
-    }
-
-    /*** @return int */
-    public function getProcessId(): int
-    {
-        return $this->processId;
-    }
-
-    /**
-     * @param Closure $then
-     * @return Promise
-     */
-    public function then(Closure $then): Promise
-    {
-        return $this->promise->then($then);
-    }
-
-    /**
-     * @param Closure $catch
-     * @return Promise
-     */
-    public function except(Closure $catch): Promise
-    {
-        return $this->promise->except($catch);
-    }
-
-    /**
-     * @param Closure $finally
-     * @return Promise
-     */
-    public function finally(Closure $finally): Promise
-    {
-        return $this->promise->finally($finally);
-    }
-
-    /***
-     * @return mixed
      * @throws Throwable
      */
-    public function await(): mixed
+    #[Test]
+    public function test_unix(): void
     {
-        return $this->getPromise()->await();
+        main(function () {
+            $path  = sys_get_temp_dir() . '/' . md5(uniqid()) . '.sock';
+            /**
+             * @var SocketStream $server
+             */
+            $server = IO::Socket()->streamSocketServer('unix://' . $path)->await();
+            $server->setBlocking(false);
+
+            $server->onReadable(function (SocketStream $stream) {
+                $client = $stream->accept();
+                $client->setBlocking(false);
+                $client->onReadable(function (SocketStream $stream) {
+                    $data = $stream->read(1024);
+                    $stream->write($data);
+                });
+            });
+
+            defer(function () use ($path) {
+                try {
+                    $this->call($path);
+                } catch (Throwable $exception) {
+                    Output::error($exception->getMessage());
+                }
+            });
+        });
+    }
+
+    /**
+     * @Author cclilshy
+     * @Date   2024/8/15 14:49
+     * @param string $path
+     * @return void
+     * @throws Throwable
+     */
+    private function call(string $path): void
+    {
+        /**
+         * @var SocketStream $client
+         */
+        $client = IO::Socket()->streamSocketClient('unix://' . $path)->await();
+        $client->write('hello');
+        $client->setBlocking(false);
+        $client->onReadable(function (SocketStream $stream) {
+            $data = $stream->read(1024);
+            $this->assertEquals('hello', $data);
+            cancelAll();
+        });
     }
 }
