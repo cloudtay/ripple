@@ -143,7 +143,7 @@ abstract class Worker
      * @param Command $command
      * @return void
      */
-    protected function command(Command $command): void
+    public function command(Command $command): void
     {
         try {
             $this->parentSocket->write($this->zx7e->encodeFrame($command->__toString()));
@@ -162,7 +162,7 @@ abstract class Worker
      * @param string  $name
      * @return void
      */
-    protected function commandToWorker(Command $command, string $name): void
+    public function commandToWorker(Command $command, string $name): void
     {
         $this->command(Command::make(Manager::COMMAND_COMMAND_TO_WORKER, [
             'command' => $command,
@@ -177,7 +177,7 @@ abstract class Worker
      * @param Command $command
      * @return void
      */
-    protected function commandToAll(Command $command): void
+    public function commandToAll(Command $command): void
     {
         $this->command(Command::make(Manager::COMMAND_COMMAND_TO_ALL, [
             'command' => $command
@@ -189,7 +189,7 @@ abstract class Worker
      * @Date   2024/8/17 17:32
      * @return Promise
      */
-    protected function syncId(): Promise
+    public function syncId(): Promise
     {
         return promise(function (Closure $resolve, Closure $reject) {
             $id = spl_object_hash($resolve);
