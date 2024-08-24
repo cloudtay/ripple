@@ -38,7 +38,7 @@ use P\IO;
 use PHPUnit\Framework\Attributes\RunClassInSeparateProcess;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
-use Psc\Core\Stream\SocketStream;
+use Psc\Core\Socket\SocketStream;
 use Psc\Utils\Output;
 use Throwable;
 

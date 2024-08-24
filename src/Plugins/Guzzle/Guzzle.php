@@ -35,10 +35,6 @@
 namespace Psc\Plugins\Guzzle;
 
 use GuzzleHttp\Client;
-use GuzzleHttp\Exception\GuzzleException;
-use GuzzleHttp\Promise\Promise;
-use GuzzleHttp\Promise\PromiseInterface;
-use GuzzleHttp\Psr7\Response;
 use Psc\Core\LibraryAbstract;
 
 use const PHP_SAPI;
@@ -65,151 +61,12 @@ class Guzzle extends LibraryAbstract
     }
 
     /**
-     * @param string $method
-     * @param string $uri
-     * @param array  $options
-     * @return PromiseInterface
+     * @Author cclilshy
+     * @Date   2024/8/24 15:02
+     * @return Client
      */
-    public function requestAsync(string $method, string $uri, array $options = array()): PromiseInterface
+    public function client(): Client
     {
-        return $this->client->requestAsync($method, $uri, $options);
-    }
-
-    /**
-     * @param string $uri
-     * @param array  $options
-     * @return Promise<Response>
-     */
-    public function getAsync(string $uri, array $options = array()): PromiseInterface
-    {
-        return $this->client->getAsync($uri, $options);
-    }
-
-    /**
-     * @param string $uri
-     * @param array  $options
-     * @return Promise<Response>
-     */
-    public function postAsync(string $uri, array $options = array()): PromiseInterface
-    {
-        return $this->client->postAsync($uri, $options);
-    }
-
-    /**
-     * @param string $uri
-     * @param array  $options
-     * @return Promise<Response>
-     */
-    public function putAsync(string $uri, array $options = array()): PromiseInterface
-    {
-        return $this->client->putAsync($uri, $options);
-    }
-
-    /**
-     * @param string $uri
-     * @param array  $options
-     * @return Promise<Response>
-     */
-    public function deleteAsync(string $uri, array $options = array()): PromiseInterface
-    {
-        return $this->client->deleteAsync($uri, $options);
-    }
-
-    /**
-     * @param string $uri
-     * @param array  $options
-     * @return Promise<Response>
-     */
-    public function headAsync(string $uri, array $options = array()): PromiseInterface
-    {
-        return $this->client->headAsync($uri, $options);
-    }
-
-    /**
-     * @param string $uri
-     * @param array  $options
-     * @return Promise<Response>
-     */
-    public function patchAsync(string $uri, array $options = array()): PromiseInterface
-    {
-        return $this->client->patchAsync($uri, $options);
-    }
-
-    /**
-     * @param string $method
-     * @param string $uri
-     * @param array  $options
-     * @return Response
-     * @throws GuzzleException
-     */
-    public function request(string $method, string $uri, array $options = array()): Response
-    {
-        return $this->client->request($method, $uri, $options);
-    }
-
-    /**
-     * @param string $uri
-     * @param array  $options
-     * @return Response
-     * @throws GuzzleException
-     */
-    public function get(string $uri, array $options = array()): Response
-    {
-        return $this->client->get($uri, $options);
-    }
-
-    /**
-     * @param string $uri
-     * @param array  $options
-     * @return Response
-     * @throws GuzzleException
-     */
-    public function post(string $uri, array $options = array()): Response
-    {
-        return $this->client->post($uri, $options);
-    }
-
-    /**
-     * @param string $uri
-     * @param array  $options
-     * @return Response
-     * @throws GuzzleException
-     */
-    public function put(string $uri, array $options = array()): Response
-    {
-        return $this->client->put($uri, $options);
-    }
-
-    /**
-     * @param string $uri
-     * @param array  $options
-     * @return Response
-     * @throws GuzzleException
-     */
-    public function delete(string $uri, array $options = array()): Response
-    {
-        return $this->client->delete($uri, $options);
-    }
-
-    /**
-     * @param string $uri
-     * @param array  $options
-     * @return Response
-     * @throws GuzzleException
-     */
-    public function head(string $uri, array $options = array()): Response
-    {
-        return $this->client->head($uri, $options);
-    }
-
-    /**
-     * @param string $uri
-     * @param array  $options
-     * @return Response
-     * @throws GuzzleException
-     */
-    public function patch(string $uri, array $options = array()): Response
-    {
-        return $this->client->patch($uri, $options);
+        return $this->client;
     }
 }

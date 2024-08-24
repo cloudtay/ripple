@@ -35,7 +35,7 @@
 namespace Psc\Core\Http\Server;
 
 use Closure;
-use Psc\Core\Stream\SocketStream;
+use Psc\Core\Socket\SocketStream;
 use Psc\Core\Stream\Stream;
 use Psc\Std\Stream\Exception\ConnectionException;
 

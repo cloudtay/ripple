@@ -36,7 +36,7 @@ namespace Psc\Core\Http\Client;
 
 use P\IO;
 use Psc\Core\Coroutine\Promise;
-use Psc\Core\Stream\SocketStream;
+use Psc\Core\Socket\SocketStream;
 use Psc\Std\Stream\Exception\ConnectionException;
 use Throwable;
 

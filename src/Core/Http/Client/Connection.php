@@ -35,7 +35,7 @@
 namespace Psc\Core\Http\Client;
 
 use GuzzleHttp\Psr7\Response;
-use Psc\Core\Stream\SocketStream;
+use Psc\Core\Socket\SocketStream;
 use Psc\Std\Stream\Exception\RuntimeException;
 use Psr\Http\Message\ResponseInterface;
 

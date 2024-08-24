@@ -40,7 +40,7 @@ use InvalidArgumentException;
 use P\IO;
 use Psc\Core\Coroutine\Promise;
 use Psc\Core\Exception\ConnectionException;
-use Psc\Core\Stream\SocketStream;
+use Psc\Core\Socket\SocketStream;
 use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\ResponseInterface;
 use Throwable;

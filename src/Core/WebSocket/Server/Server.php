@@ -36,7 +36,7 @@ namespace Psc\Core\WebSocket\Server;
 
 use Closure;
 use P\IO;
-use Psc\Core\Stream\SocketStream;
+use Psc\Core\Socket\SocketStream;
 use Psc\Std\Stream\Exception\RuntimeException;
 use Throwable;
 

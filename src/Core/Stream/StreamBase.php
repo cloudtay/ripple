@@ -32,15 +32,15 @@
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-namespace Psc\Std\Stream;
+namespace Psc\Core\Stream;
 
-use Psc\Core\Standard\StreamInterface;
 use Psc\Std\Stream\Exception\ConnectionException;
 
 use function fclose;
 use function feof;
 use function fread;
 use function fseek;
+use function fstat;
 use function ftell;
 use function fwrite;
 use function get_resource_id;
@@ -49,15 +49,13 @@ use function rewind;
 use function stream_get_contents;
 use function stream_get_meta_data;
 
-use function fstat;
-
 use const SEEK_SET;
 
 /**
  * @Author cclilshy
  * @Date   2024/8/16 09:37
  */
-class Stream implements StreamInterface
+class StreamBase implements StreamInterface
 {
     /**
      * @var resource

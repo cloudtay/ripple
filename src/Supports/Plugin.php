@@ -34,12 +34,13 @@
 
 namespace P;
 
+use GuzzleHttp\Client;
 use Psc\Plugins\Guzzle\Guzzle;
 
 class Plugin
 {
-    public static function Guzzle(): Guzzle
+    public static function Guzzle(): Client
     {
-        return Guzzle::getInstance();
+        return Guzzle::getInstance()->client();
     }
 }

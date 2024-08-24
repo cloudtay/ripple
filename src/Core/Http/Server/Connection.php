@@ -35,7 +35,7 @@
 namespace Psc\Core\Http\Server;
 
 use Psc\Core\Http\Server\Upload\MultipartHandler;
-use Psc\Core\Stream\SocketStream;
+use Psc\Core\Socket\SocketStream;
 use Psc\Std\Stream\Exception\RuntimeException;
 
 use function array_merge;

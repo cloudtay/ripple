@@ -38,7 +38,7 @@ use Closure;
 use P\System;
 use Psc\Core\Coroutine\Promise;
 use Psc\Core\Process\Runtime;
-use Psc\Core\Stream\SocketStream;
+use Psc\Core\Socket\SocketStream;
 use Psc\Std\Stream\Exception\ConnectionException;
 use Psc\Utils\Output;
 use Psc\Utils\Serialization\Zx7e;

@@ -51,7 +51,7 @@ use function stream_set_blocking;
  * @Author cclilshy
  * @Date   2024/8/16 09:37
  */
-class Stream extends \Psc\Std\Stream\Stream
+class Stream extends StreamBase
 {
     /**
      * @var string[]
@@ -171,7 +171,11 @@ class Stream extends \Psc\Std\Stream\Stream
         parent::close();
 
         foreach ($this->onCloseCallbacks as $callback) {
-            call_user_func($callback);
+            try {
+                call_user_func($callback);
+            } catch (Throwable $e) {
+                Output::error($e->getMessage());
+            }
         }
     }
 }

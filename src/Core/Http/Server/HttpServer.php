@@ -38,7 +38,7 @@ use Closure;
 use P\IO;
 use Psc\Core\Exception\ConnectionException;
 use Psc\Core\Http\Server\Exception\FormatException;
-use Psc\Core\Stream\SocketStream;
+use Psc\Core\Socket\SocketStream;
 use Psc\Std\Stream\Exception\RuntimeException;
 use Psc\Utils\Output;
 use Throwable;

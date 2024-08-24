@@ -32,28 +32,28 @@
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-namespace Psc\Core\Stream;
+namespace Psc\Core\Socket;
 
 use P\IO;
+use Psc\Core\Stream\Stream;
 use Psc\Std\Stream\Exception\ConnectionException;
 use RuntimeException;
 use Socket;
 
+use function explode;
 use function file_exists;
+use function intval;
 use function socket_get_option;
 use function socket_import_stream;
 use function socket_last_error;
 use function socket_set_option;
 use function socket_strerror;
 use function stream_socket_accept;
+use function stream_socket_get_name;
 use function substr;
 use function sys_get_temp_dir;
 use function uniqid;
 use function unlink;
-
-use function explode;
-use function intval;
-use function stream_socket_get_name;
 
 use const SO_SNDLOWAT;
 use const SOL_SOCKET;

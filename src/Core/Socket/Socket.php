@@ -38,7 +38,6 @@ use Closure;
 use Psc\Core\Coroutine\Exception;
 use Psc\Core\Coroutine\Promise;
 use Psc\Core\LibraryAbstract;
-use Psc\Core\Stream\SocketStream;
 use Throwable;
 
 use function P\async;

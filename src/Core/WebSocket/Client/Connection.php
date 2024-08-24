@@ -396,7 +396,7 @@ class Connection
      * @param string $data
      * @return void
      * @throws ConnectionException
-     * @throws \Random\RandomException
+     * @throws Throwable
      */
     public function send(string $data): void
     {
