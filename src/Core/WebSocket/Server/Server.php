@@ -82,11 +82,13 @@ class Server
      */
     private SocketStream $server;
 
+    /*** @var Options */
     private Options $options;
 
     /**
-     * @param string     $address
-     * @param mixed|null $context
+     * @param string       $address
+     * @param mixed|null   $context
+     * @param Options|null $options
      */
     public function __construct(string $address, mixed $context = null, Options $options = null)
     {
@@ -167,7 +169,7 @@ class Server
                 $client->setOption(SOL_SOCKET, SO_RCVBUF, 256000);
                 $client->setOption(SOL_SOCKET, SO_SNDBUF, 256000);
                 $client->setOption(SOL_TCP, TCP_NODELAY, 1);
-                $connection = $this->client2connection[$stream->id] = new Connection($client);
+                $connection = $this->client2connection[$stream->id] = new Connection($client, $this);
 
                 $connection->onMessage(fn (string $data, Connection $connection) => $this->_onMessage($data, $connection));
                 $connection->onConnect(fn (Connection $connection) => $this->_onConnect($connection));

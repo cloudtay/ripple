@@ -61,8 +61,9 @@ class WebSocket extends LibraryAbstract
     }
 
     /**
-     * @param string $address
-     * @param mixed  $context
+     * @param string       $address
+     * @param mixed        $context
+     * @param Options|null $options
      * @return Server
      */
     public function server(string $address, mixed $context, Options $options = null): Server

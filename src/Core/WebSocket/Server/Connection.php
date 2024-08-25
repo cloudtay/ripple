@@ -84,16 +84,14 @@ class Connection
      */
     private Closure|null $onClose = null;
 
-    private Server|null $server = null;
-
     /**
      * @param Stream $stream
+     * @param Server $server
      */
-    public function __construct(public readonly Stream $stream, Server $server)
+    public function __construct(public readonly Stream $stream, private readonly Server $server)
     {
         $this->stream->onReadable(fn (Stream $stream) => $this->handleRead($stream));
         $this->stream->onClose(fn () => $this->close());
-        $this->server = $server;
     }
 
     /**
@@ -274,6 +272,11 @@ class Connection
         return $frame;
     }
 
+    /**
+     * @Author lidongyooo
+     * @Date   2024/8/25 22:43
+     * @return void
+     */
     protected function frameType(): void
     {
         $firstByte = ord($this->buffer[0]);
@@ -292,6 +295,11 @@ class Connection
         }
     }
 
+    /**
+     * @Author lidongyooo
+     * @Date   2024/8/25 22:43
+     * @return bool
+     */
     protected function pong(): bool
     {
         if (!$this->server->getOptions()->getPingPong()) {
@@ -301,6 +309,14 @@ class Connection
         return $this->sendFrame('', opcode: TYPE::PONG);
     }
 
+    /**
+     * @Author lidongyooo
+     * @Date  2024/8/25 22:43
+     * @param string $context
+     * @param int    $opcode
+     * @param bool   $fin
+     * @return bool
+     */
     public function sendFrame(string $context, int $opcode = 0x1, bool $fin = true): bool
     {
         try {
@@ -392,6 +408,4 @@ class Connection
 
         return $results;
     }
-
-
 }
