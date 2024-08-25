@@ -37,6 +37,7 @@ namespace Psc\Core\WebSocket\Server;
 use Closure;
 use P\IO;
 use Psc\Core\Socket\SocketStream;
+use Psc\Core\WebSocket\Options;
 use Psc\Std\Stream\Exception\RuntimeException;
 use Throwable;
 
@@ -81,12 +82,16 @@ class Server
      */
     private SocketStream $server;
 
+    private Options $options;
+
     /**
      * @param string     $address
      * @param mixed|null $context
      */
-    public function __construct(string $address, mixed $context = null)
+    public function __construct(string $address, mixed $context = null, Options $options = null)
     {
+        $this->options = $options ?: new Options();
+
         async(function () use ($address, $context) {
             $addressExploded = explode('://', $address);
             if (count($addressExploded) !== 2) {
@@ -229,5 +234,10 @@ class Server
     public function onClose(Closure $onClose): void
     {
         $this->onClose = $onClose;
+    }
+
+    public function getOptions(): Options
+    {
+        return $this->options;
     }
 }

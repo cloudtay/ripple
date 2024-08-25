@@ -65,8 +65,8 @@ class WebSocket extends LibraryAbstract
      * @param mixed  $context
      * @return Server
      */
-    public function server(string $address, mixed $context): Server
+    public function server(string $address, mixed $context, Options $options = null): Server
     {
-        return new Server($address, $context);
+        return new Server($address, $context, $options);
     }
 }
