@@ -36,6 +36,7 @@ namespace Psc\Core\WebSocket\Server;
 
 use Closure;
 use Psc\Core\Stream\Stream;
+use Psc\Core\WebSocket\Frame\Type;
 use Psc\Std\Stream\Exception\ConnectionException;
 use Throwable;
 
@@ -85,8 +86,9 @@ class Connection
 
     /**
      * @param Stream $stream
+     * @param Server $server
      */
-    public function __construct(public readonly Stream $stream)
+    public function __construct(public readonly Stream $stream, private readonly Server $server)
     {
         $this->stream->onReadable(fn (Stream $stream) => $this->handleRead($stream));
         $this->stream->onClose(fn () => $this->close());
@@ -271,12 +273,74 @@ class Connection
     }
 
     /**
-     * @Author cclilshy
+     * @Author lidongyooo
+     * @Date   2024/8/25 22:43
+     * @return void
+     */
+    protected function frameType(): void
+    {
+        $firstByte = ord($this->buffer[0]);
+        $opcode = $firstByte & 0x0F;
+
+        switch ($opcode) {
+            case Type::PING:
+                $this->pong();
+                break;
+            case Type::BINARY:
+            case Type::CLOSE:
+            case Type::TEXT:
+            case Type::PONG:
+            default:
+                break;
+        }
+    }
+
+    /**
+     * @Author lidongyooo
+     * @Date   2024/8/25 22:43
+     * @return bool
+     */
+    protected function pong(): bool
+    {
+        if (!$this->server->getOptions()->getPingPong()) {
+            return false;
+        }
+
+        return $this->sendFrame('', opcode: TYPE::PONG);
+    }
+
+    /**
+     * @Author lidongyooo
+     * @Date  2024/8/25 22:43
+     * @param string $context
+     * @param int    $opcode
+     * @param bool   $fin
+     * @return bool
+     */
+    public function sendFrame(string $context, int $opcode = 0x1, bool $fin = true): bool
+    {
+        try {
+            if (!$this->isHandshake()) {
+                throw new ConnectionException('Connection is not established yet');
+            }
+            $this->stream->write($this->build($context, $opcode, $fin));
+        } catch (ConnectionException) {
+            $this->close();
+            return false;
+        }
+        return true;
+    }
+
+    /**
      * @Date   2024/8/15 14:45
      * @return array
      */
     private function parse(): array
     {
+        if (strlen($this->buffer) > 0) {
+            $this->frameType();
+        }
+
         $results = array();
         while (strlen($this->buffer) > 0) {
             $context = $this->buffer;
@@ -291,6 +355,7 @@ class Connection
             $byte = ord($context[$index++]);
             $fin = ($byte & 0x80) != 0;
             $opcode = $byte & 0x0F;
+
             $byte = ord($context[$index++]);
             $mask = ($byte & 0x80) != 0;
             $payloadLength = $byte & 0x7F;
