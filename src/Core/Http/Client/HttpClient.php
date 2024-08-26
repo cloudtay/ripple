@@ -169,7 +169,7 @@ class HttpClient
                 /**
                  * 解析响应过程
                  */
-                $connection->stream->onReadable(function (SocketStream $socketStream) use ($connection, $scheme, $r, $d) {
+                $connection->stream->onReadable(function (SocketStream $socketStream, Closure $cancel) use ($connection, $scheme, $r, $d) {
                     try {
                         $content = $socketStream->read(1024);
                         if($content === '') {
@@ -182,6 +182,7 @@ class HttpClient
                                  * 推入连接池
                                  */
                                 $this->pushConnection($connection, $scheme === 'https');
+                                $cancel();
                             } else {
                                 $socketStream->close();
                             }
