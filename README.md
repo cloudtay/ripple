@@ -22,18 +22,23 @@ composer require cclilshy/p-ripple-core
 
 你可以访问PRipple的[文档](https://p-ripple.cloudtay.com/)开始阅读
 
-我们建议你从[手动安装](https://p-ripple.cloudtay.com/docs/install/professional)开始
-
-更好地理解PRipple的工作流程
+我们建议你从[手动安装](https://p-ripple.cloudtay.com/docs/install/professional)开始, 便于更好地理解PRipple的工作流程
 
 如果你想快速部署并使用PRipple的服务，你可以直接访问[快速部署](https://p-ripple.cloudtay.com/docs/install/server)
 
-### 致谢
+### 特别致谢
 
-- Jetbrains：[https://www.jetbrains.com/](https://www.jetbrains.com/)
-- OpenAI：[https://www.openai.com/](https://www.openai.com/)
-- W3C：[https://www.w3.org/](https://www.w3.org/)
+![Jetbrains](https://camo.githubusercontent.com/ef5715f23c3d4ff8a6ff7ddbe022ee2e2c80ba191756e8994c1e32ba5b48da5f/68747470733a2f2f73657475702d7068702e636f6d2f73706f6e736f72732f6a6574627261696e732e737667)
+
+[Jetbrains](https://www.jetbrains.com/?from=p-ripple-core) 为本项目提供了免费的开发工具
 
 ### 联系方式
 
-联系方式： jingnigg@gmail.com
+`电邮` jingnigg@gmail.com
+
+`微信` jingnigg
+
+| 群聊直通车                                                                                                               | 作者微信(邀请入群)                                                                                                          |
+|---------------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------|
+| <img src="https://cdn.learnku.com/uploads/images/202408/26/114411/Dwy8v4gzjL.jpg!large" width="200" height="200" /> | <img src="https://cdn.learnku.com/uploads/images/202408/26/114411/h2nOpetJb0.jpg!large" width="200" height="200" /> |
+
