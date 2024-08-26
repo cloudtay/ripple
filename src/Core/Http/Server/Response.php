@@ -36,9 +36,8 @@ namespace Psc\Core\Http\Server;
 
 use Closure;
 use Psc\Core\Socket\SocketStream;
+use Psc\Core\Stream\Exception\ConnectionException;
 use Psc\Core\Stream\Stream;
-use Psc\Std\Stream\Exception\ConnectionException;
-
 use function basename;
 use function call_user_func;
 use function filesize;

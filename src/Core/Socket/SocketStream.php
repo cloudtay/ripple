@@ -35,11 +35,10 @@
 namespace Psc\Core\Socket;
 
 use P\IO;
+use Psc\Core\Stream\Exception\ConnectionException;
 use Psc\Core\Stream\Stream;
-use Psc\Std\Stream\Exception\ConnectionException;
 use RuntimeException;
 use Socket;
-
 use function explode;
 use function file_exists;
 use function intval;
@@ -54,7 +53,6 @@ use function substr;
 use function sys_get_temp_dir;
 use function uniqid;
 use function unlink;
-
 use const SO_SNDLOWAT;
 use const SOL_SOCKET;
 

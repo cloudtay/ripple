@@ -34,8 +34,7 @@
 
 namespace Psc\Core\Stream;
 
-use Psc\Std\Stream\Exception\ConnectionException;
-
+use Psc\Core\Stream\Exception\ConnectionException;
 use function fclose;
 use function feof;
 use function fread;
@@ -48,7 +47,6 @@ use function is_resource;
 use function rewind;
 use function stream_get_contents;
 use function stream_get_meta_data;
-
 use const SEEK_SET;
 
 /**

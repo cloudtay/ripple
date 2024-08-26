@@ -36,9 +36,8 @@ namespace Psc\Core\Http\Client;
 
 use GuzzleHttp\Psr7\Response;
 use Psc\Core\Socket\SocketStream;
-use Psc\Std\Stream\Exception\RuntimeException;
+use Psc\Core\Stream\Exception\RuntimeException;
 use Psr\Http\Message\ResponseInterface;
-
 use function count;
 use function explode;
 use function fwrite;

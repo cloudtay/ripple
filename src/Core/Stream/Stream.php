@@ -35,11 +35,10 @@
 namespace Psc\Core\Stream;
 
 use Closure;
-use Psc\Std\Stream\Exception\ConnectionException;
+use Psc\Core\Stream\Exception\ConnectionException;
 use Psc\Utils\Output;
 use Revolt\EventLoop;
 use Throwable;
-
 use function array_search;
 use function call_user_func;
 use function call_user_func_array;

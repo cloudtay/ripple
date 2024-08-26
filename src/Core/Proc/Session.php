@@ -35,10 +35,9 @@
 namespace Psc\Core\Proc;
 
 use Closure;
-use Psc\Std\Stream\Exception\ConnectionException;
+use Psc\Core\Stream\Exception\ConnectionException;
 use Psc\Utils\Output;
 use Throwable;
-
 use function call_user_func;
 use function implode;
 use function is_array;

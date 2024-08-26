@@ -39,11 +39,10 @@ use Exception;
 use P\IO;
 use Psc\Core\Coroutine\Promise;
 use Psc\Core\Exception\HandshakeException;
+use Psc\Core\Stream\Exception\ConnectionException;
 use Psc\Core\Stream\Stream;
-use Psc\Std\Stream\Exception\ConnectionException;
 use Psc\Utils\Output;
 use Throwable;
-
 use function base64_encode;
 use function call_user_func;
 use function chr;

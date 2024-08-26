@@ -38,6 +38,6 @@ namespace Psc\Core\Exception;
  * @Author cclilshy
  * @Date   2024/8/16 09:35
  */
-class ConnectionException extends \Psc\Std\Stream\Exception\ConnectionException
+class ConnectionException extends \Psc\Core\Stream\Exception\ConnectionException
 {
 }

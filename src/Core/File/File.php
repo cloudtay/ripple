@@ -32,14 +32,13 @@
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-namespace Psc\Core\FIle;
+namespace Psc\Core\File;
 
 use Closure;
 use Psc\Core\Coroutine\Promise;
 use Psc\Core\LibraryAbstract;
+use Psc\Core\Stream\Exception\Exception;
 use Psc\Core\Stream\Stream;
-use Psc\Std\Stream\Exception\Exception;
-
 use function array_shift;
 use function fopen;
 use function P\promise;
@@ -101,27 +100,11 @@ class File extends LibraryAbstract
     }
 
     /**
-     * @param string       $path
-     * @param array|string $extensions
-     * @param bool         $tree
-     * @param bool         $withDirectory
-     * @param int|float    $frequency
      * @return Monitor
      */
-    public function watch(
-        string       $path,
-        array|string $extensions = '*',
-        bool         $tree = true,
-        bool         $withDirectory = false,
-        int|float    $frequency = 1
-    ): Monitor {
-        $this->monitors[] = $monitor = new Monitor(
-            $path,
-            $extensions,
-            $tree,
-            $withDirectory,
-            $frequency,
-        );
+    public function watch(): Monitor
+    {
+        $this->monitors[] = $monitor = new Monitor();
         return $monitor;
     }
 

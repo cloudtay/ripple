@@ -34,10 +34,9 @@
 
 namespace Psc\Worker;
 
-use Psc\Std\Stream\Exception\ConnectionException;
+use Psc\Core\Stream\Exception\ConnectionException;
 use Psc\Utils\Output;
 use Psc\Utils\Serialization\Zx7e;
-
 use function posix_getpid;
 
 /**

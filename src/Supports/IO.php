@@ -35,7 +35,7 @@
 namespace P;
 
 use Psc\Core\Channel\ChannelLibrary;
-use Psc\Core\FIle\File;
+use Psc\Core\File\File;
 use Psc\Core\Lock\LockLibrary;
 use Psc\Core\Socket\Socket;
 

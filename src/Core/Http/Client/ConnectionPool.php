@@ -37,9 +37,8 @@ namespace Psc\Core\Http\Client;
 use P\IO;
 use Psc\Core\Coroutine\Promise;
 use Psc\Core\Socket\SocketStream;
-use Psc\Std\Stream\Exception\ConnectionException;
+use Psc\Core\Stream\Exception\ConnectionException;
 use Throwable;
-
 use function array_pop;
 use function P\async;
 use function P\await;

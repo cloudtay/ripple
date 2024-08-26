@@ -39,10 +39,9 @@ use P\IO;
 use Psc\Core\Exception\ConnectionException;
 use Psc\Core\Http\Server\Exception\FormatException;
 use Psc\Core\Socket\SocketStream;
-use Psc\Std\Stream\Exception\RuntimeException;
+use Psc\Core\Stream\Exception\RuntimeException;
 use Psc\Utils\Output;
 use Throwable;
-
 use function call_user_func_array;
 use function count;
 use function explode;
@@ -51,7 +50,6 @@ use function P\await;
 use function str_contains;
 use function strlen;
 use function strtolower;
-
 use const SO_KEEPALIVE;
 use const SO_RCVBUF;
 use const SO_REUSEADDR;

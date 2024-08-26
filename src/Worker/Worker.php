@@ -39,15 +39,13 @@ use P\System;
 use Psc\Core\Coroutine\Promise;
 use Psc\Core\Process\Runtime;
 use Psc\Core\Socket\SocketStream;
-use Psc\Std\Stream\Exception\ConnectionException;
+use Psc\Core\Stream\Exception\ConnectionException;
 use Psc\Utils\Output;
 use Psc\Utils\Serialization\Zx7e;
-
 use function P\promise;
 use function socket_create_pair;
 use function socket_export_stream;
 use function spl_object_hash;
-
 use const AF_UNIX;
 use const SOCK_STREAM;
 
