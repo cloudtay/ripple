@@ -39,6 +39,7 @@ use Psc\Core\Coroutine\Promise;
 use Psc\Core\LibraryAbstract;
 use Psc\Core\Stream\Exception\Exception;
 use Psc\Core\Stream\Stream;
+
 use function array_shift;
 use function fopen;
 use function P\promise;

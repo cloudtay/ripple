@@ -28,7 +28,9 @@ composer require cclilshy/p-ripple-core
 
 ### 特别致谢
 
-![Jetbrains](https://camo.githubusercontent.com/ef5715f23c3d4ff8a6ff7ddbe022ee2e2c80ba191756e8994c1e32ba5b48da5f/68747470733a2f2f73657475702d7068702e636f6d2f73706f6e736f72732f6a6574627261696e732e737667)
+<a href="https://www.jetbrains.com/?from=p-ripple-core" target="__blank">
+    <img src="https://www.jetbrains.com/company/brand/img/jetbrains_logo.png" width="200">
+</a>
 
 [Jetbrains](https://www.jetbrains.com/?from=p-ripple-core) 为本项目提供了免费的开发工具
 

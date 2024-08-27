@@ -18,23 +18,26 @@ By using PRipple, you will experience the advantages of managing tasks from a gl
 composer require cclilshy/p-ripple-core
 ````
 
-### Start learning
+### Learning
 
 You can visit PRipple’s [Documentation](https://p-ripple.cloudtay.com/) to start reading
 
-We recommend you start with [Manual Installation](https://p-ripple.cloudtay.com/docs/install/professional)
-
-Better understand PRipple’s workflow
+We recommend that you start with [Manual Installation](https://p-ripple.cloudtay.com/docs/install/professional) to
+better understand PRipple’s workflow
 
 If you want to quickly deploy and use PRipple's services, you can directly
 visit [Quick Deployment](https://p-ripple.cloudtay.com/docs/install/server)
 
-### Acknowledgments
+### Special thanks
 
-- Jetbrains: [https://www.jetbrains.com/](https://www.jetbrains.com/)
-- OpenAI: [https://www.openai.com/](https://www.openai.com/)
-- W3C: [https://www.w3.org/](https://www.w3.org/)
+<a href="https://www.jetbrains.com/?from=p-ripple-core" target="__blank">
+    <img src="https://www.jetbrains.com/company/brand/img/jetbrains_logo.png" width="200">
+</a>
+
+[Jetbrains](https://www.jetbrains.com/?from=p-ripple-core) provides free development tools for this project
 
 ### Contact information
 
-Contact information: jingnigg@gmail.com
+`Email` jingnigg@gmail.com
+
+`WeChat` jingnigg

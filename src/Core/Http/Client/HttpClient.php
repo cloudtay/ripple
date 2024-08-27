@@ -171,7 +171,7 @@ class HttpClient
                  */
                 $connection->stream->onReadable(function (SocketStream $socketStream, Closure $cancel) use ($connection, $scheme, $r, $d) {
                     try {
-                        $content = $socketStream->read(1024);
+                        $content = $socketStream->read(8192);
                         if($content === '') {
                             throw new ConnectionException('');
                         }

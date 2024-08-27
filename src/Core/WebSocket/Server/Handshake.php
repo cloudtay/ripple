@@ -35,6 +35,7 @@
 namespace Psc\Core\WebSocket\Server;
 
 use Psc\Core\Stream\Exception\ConnectionException;
+
 use function array_shift;
 use function base64_encode;
 use function count;

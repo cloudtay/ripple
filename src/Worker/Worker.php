@@ -42,10 +42,12 @@ use Psc\Core\Socket\SocketStream;
 use Psc\Core\Stream\Exception\ConnectionException;
 use Psc\Utils\Output;
 use Psc\Utils\Serialization\Zx7e;
+
 use function P\promise;
 use function socket_create_pair;
 use function socket_export_stream;
 use function spl_object_hash;
+
 use const AF_UNIX;
 use const SOCK_STREAM;
 
@@ -274,6 +276,7 @@ abstract class Worker
         $streamB = new SocketStream(socket_export_stream($sockets[1]));
         $streamA->setBlocking(false);
         $streamB->setBlocking(false);
+        $streamA->onClose(fn () => $streamB->close());
 
         $zx7e                  = new Zx7e();
         $this->streams[$index] = $streamA;
@@ -296,7 +299,17 @@ abstract class Worker
             });
         })->run();
 
-        $runtime->finally(fn () => $this->guard($manager, $index));
+        $runtime->finally(function () use ($manager, $index) {
+            if (isset($this->streams[$index])) {
+                $this->streams[$index]->close();
+                unset($this->streams[$index]);
+            }
+
+            if(isset($this->runtimes[$index])) {
+                unset($this->runtimes[$index]);
+            }
+            $this->guard($manager, $index);
+        });
         return true;
     }
 }

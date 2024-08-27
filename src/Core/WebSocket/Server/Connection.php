@@ -39,6 +39,7 @@ use Psc\Core\Stream\Exception\ConnectionException;
 use Psc\Core\Stream\Stream;
 use Psc\Core\WebSocket\Frame\Type;
 use Throwable;
+
 use function call_user_func;
 use function chr;
 use function ord;

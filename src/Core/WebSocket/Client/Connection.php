@@ -43,6 +43,7 @@ use Psc\Core\Stream\Exception\ConnectionException;
 use Psc\Core\Stream\Stream;
 use Psc\Utils\Output;
 use Throwable;
+
 use function base64_encode;
 use function call_user_func;
 use function chr;

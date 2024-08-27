@@ -38,6 +38,7 @@ use Closure;
 use Psc\Core\Socket\SocketStream;
 use Psc\Core\Stream\Exception\ConnectionException;
 use Psc\Core\Stream\Stream;
+
 use function basename;
 use function call_user_func;
 use function filesize;

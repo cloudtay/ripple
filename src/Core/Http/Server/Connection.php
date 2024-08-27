@@ -37,6 +37,7 @@ namespace Psc\Core\Http\Server;
 use Psc\Core\Http\Server\Upload\MultipartHandler;
 use Psc\Core\Socket\SocketStream;
 use Psc\Core\Stream\Exception\RuntimeException;
+
 use function array_merge;
 use function count;
 use function explode;
@@ -56,6 +57,7 @@ use function strpos;
 use function strtok;
 use function strtoupper;
 use function substr;
+
 use const PHP_URL_PATH;
 
 class Connection

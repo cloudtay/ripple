@@ -37,6 +37,7 @@ namespace Psc\Worker;
 use Psc\Core\Stream\Exception\ConnectionException;
 use Psc\Utils\Output;
 use Psc\Utils\Serialization\Zx7e;
+
 use function posix_getpid;
 
 /**
@@ -209,7 +210,8 @@ class Manager
      */
     public function commandToAll(Command $command): void
     {
-        foreach ($this->workers as $worker) {
+        $workers = $this->workers;
+        foreach ($workers as $worker) {
             foreach ($worker->streams as $stream) {
                 $stream->write($this->zx7e->encodeFrame($command->__toString()));
             }
