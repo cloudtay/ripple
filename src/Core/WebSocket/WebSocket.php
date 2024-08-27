@@ -37,6 +37,7 @@ namespace Psc\Core\WebSocket;
 use Psc\Core\LibraryAbstract;
 use Psc\Core\WebSocket\Client\Connection;
 use Psc\Core\WebSocket\Server\Server;
+use Throwable;
 
 /**
  * @Author cclilshy
@@ -65,6 +66,7 @@ class WebSocket extends LibraryAbstract
      * @param mixed        $context
      * @param Options|null $options
      * @return Server
+     * @throws Throwable
      */
     public function server(string $address, mixed $context, Options $options = null): Server
     {

@@ -89,6 +89,7 @@ class Server
      * @param string       $address
      * @param mixed|null   $context
      * @param Options|null $options
+     * @throws Throwable
      */
     public function __construct(string $address, mixed $context = null, Options $options = null)
     {
@@ -112,7 +113,7 @@ class Server
             $this->server->setOption(SOL_SOCKET, SO_REUSEPORT, 1);
             $this->server->setOption(SOL_SOCKET, SO_KEEPALIVE, 1);
             $this->server->setBlocking(false);
-        });
+        })->await();
     }
 
     /**

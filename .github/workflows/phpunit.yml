@@ -23,7 +23,7 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: ${{ matrix.php-version }}
-          extensions: posix,sockets,pcntl,openssl,parallel,curl
+          extensions: posix,sockets,pcntl,openssl,parallel,curl,ev
         env:
           phpts: ts
 

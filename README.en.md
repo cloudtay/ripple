@@ -18,6 +18,21 @@ By using PRipple, you will experience the advantages of managing tasks from a gl
 composer require cclilshy/p-ripple-core
 ````
 
+### Event Selection Guide
+
+| Extension Types | Recommended Use | Compatibility |                                                             Description                                                              |
+|:---------------:|:---------------:|:-------------:|:------------------------------------------------------------------------------------------------------------------------------------:|
+|     `libev`     |       🟢        |      🟢️      | Event extension `Ev` is a more efficient event extension that performs consistently in various systems and is recommended to be used |
+|    `Native`     |        ️        |      🟢       |                                                 Support pure PHP without extensions                                                  |
+|     `event`     |                 |      🌗       |                  The event characteristics under different systems are not uniform, and its use is not recommended                   |
+|    `swoole`     |                 |       ❌       |                        Incompatible with multi-threading model, not recommended, but can coexist with PRipple                        |
+
+### Ev extension installation
+
+```bash
+pecl install ev
+```
+
 ### Learning
 
 You can visit PRipple’s [Documentation](https://p-ripple.cloudtay.com/) to start reading

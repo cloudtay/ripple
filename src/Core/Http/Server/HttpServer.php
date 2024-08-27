@@ -76,6 +76,7 @@ class HttpServer
     /**
      * @param string     $address
      * @param mixed|null $context
+     * @throws Throwable
      */
     public function __construct(string $address, mixed $context = null)
     {
@@ -111,7 +112,7 @@ class HttpServer
             $this->server->setOption(SOL_SOCKET, SO_REUSEPORT, 1);
             $this->server->setOption(SOL_SOCKET, SO_KEEPALIVE, 1);
             $this->server->setBlocking(false);
-        });
+        })->await();
     }
 
     /**

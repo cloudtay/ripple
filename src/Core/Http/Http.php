@@ -38,6 +38,7 @@ use Psc\Core\Http\Client\HttpClient;
 use Psc\Core\Http\Server\HttpServer;
 use Psc\Core\LibraryAbstract;
 use Psc\Plugins\Guzzle\Guzzle;
+use Throwable;
 
 /**
  * @Author cclilshy
@@ -62,6 +63,7 @@ class Http extends LibraryAbstract
      * @param string $address
      * @param mixed  $context
      * @return HttpServer
+     * @throws Throwable
      */
     public function server(string $address, mixed $context = null): HttpServer
     {
