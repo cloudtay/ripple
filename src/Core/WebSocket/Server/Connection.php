@@ -105,7 +105,10 @@ class Connection
         try {
             $data = $stream->read(8192);
             if ($data === '') {
-                throw new ConnectionException();
+                if ($stream->eof()) {
+                    throw new ConnectionException('Connection closed by peer');
+                }
+                return;
             }
             $this->push($data);
         } catch (Throwable) {

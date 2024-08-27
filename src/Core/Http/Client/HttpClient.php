@@ -173,7 +173,10 @@ class HttpClient
                     try {
                         $content = $socketStream->read(8192);
                         if($content === '') {
-                            throw new ConnectionException('');
+                            if ($socketStream->eof()) {
+                                throw new ConnectionException('Connection closed by peer');
+                            }
+                            return;
                         }
                         if ($response = $connection->tick($content)) {
                             $k = implode(', ', $response->getHeader('Connection'));

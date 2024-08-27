@@ -169,7 +169,9 @@ class HttpServer
         $stream->onReadable(function (SocketStream $stream) use ($client) {
             $content = $stream->read(1024);
             if ($content === '') {
-                $stream->close();
+                if($stream->eof()) {
+                    $stream->close();
+                }
                 return;
             }
 

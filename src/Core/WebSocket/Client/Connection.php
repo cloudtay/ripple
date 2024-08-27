@@ -275,7 +275,10 @@ class Connection
             ) {
                 $response = $this->stream->read(8192);
                 if ($response === '') {
-                    throw new HandshakeException('Connection closed');
+                    if ($this->stream->eof()) {
+                        throw new ConnectionException('Connection closed by peer');
+                    }
+                    return;
                 }
 
                 $buffer .= $response;

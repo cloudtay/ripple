@@ -133,7 +133,10 @@ class ConnectionPool
             $this->listenEventMap[$connection->stream->id] = $connection->stream->onReadable(function (SocketStream $stream) use ($key, $connection) {
                 try {
                     if($stream->read(1) === '') {
-                        throw new ConnectionException('Connection closed by peer');
+                        if ($stream->eof()) {
+                            throw new ConnectionException('Connection closed by peer');
+                        }
+                        return;
                     }
                 } catch (Throwable) {
                     if (isset($this->idleSSL[$key])) {

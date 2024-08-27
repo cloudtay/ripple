@@ -86,7 +86,9 @@ class Session
                 return;
             }
             if ($content === '') {
-                $this->close();
+                if ($this->streamStdOutput->eof()) {
+                    $this->close();
+                }
                 return;
             }
 
@@ -103,7 +105,9 @@ class Session
                 return;
             }
             if ($content === '') {
-                $this->close();
+                if ($this->streamStdError->eof()) {
+                    $this->close();
+                }
                 return;
             }
 

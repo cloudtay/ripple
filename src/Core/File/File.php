@@ -75,8 +75,10 @@ class File extends LibraryAbstract
             $stream->onReadable(function (Stream $stream) use ($r, $d, &$content) {
                 $fragment = $stream->read(8192);
                 if ($fragment === '') {
-                    $stream->close();
-                    $r($content);
+                    if ($stream->eof()) {
+                        $stream->close();
+                        $r($content);
+                    }
                     return;
                 }
 
