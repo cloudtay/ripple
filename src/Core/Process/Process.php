@@ -48,7 +48,7 @@ use Throwable;
 use function call_user_func;
 use function P\cancel;
 use function P\cancelAll;
-use function P\defer;
+use function P\getIdentities;
 use function P\promise;
 use function P\tick;
 use function pcntl_fork;
@@ -235,16 +235,11 @@ class Process extends LibraryAbstract
                 /**
                  * It is necessary to ensure that the final closure cannot be escaped by any means.
                  */
-
-                // forget all events
                 cancelAll();
 
                 $this->forked();
 
-                // mouth user func
-                defer(function () use ($closure, $args) {
-                    call_user_func($closure, ...$args);
-                });
+                call_user_func($closure, ...$args);
 
                 // Whether it belongs to the PRipple coroutine space
                 if(Coroutine::Coroutine()->isCoroutine()) {
@@ -256,20 +251,6 @@ class Process extends LibraryAbstract
                     tick();
                     exit(0);
                 }
-
-                //                // call user mount
-                //                try {
-                //                    call_user_func($closure, ...$args);
-                //                } catch (Throwable) {
-                //                    exit(1);
-                //                }
-                //
-                //                // Determine whether the event list is empty
-                //                if(count(getIdentities()) === 0) {
-                //                    exit(0);
-                //                }
-                //
-                //                throw new EscapeException('The process is abnormal.');
             }
 
             if(empty($this->process2runtime)) {

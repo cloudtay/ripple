@@ -43,6 +43,7 @@ use Psc\Core\Stream\Exception\ConnectionException;
 use Psc\Utils\Output;
 use Psc\Utils\Serialization\Zx7e;
 
+use function P\delay;
 use function P\promise;
 use function socket_create_pair;
 use function socket_export_stream;
@@ -192,7 +193,7 @@ abstract class Worker
     public function syncId(): Promise
     {
         return promise(function (Closure $resolve, Closure $reject) {
-            $id = spl_object_hash($resolve);
+            $id      = spl_object_hash($resolve);
             $command = Command::make(Worker::COMMAND_SYNC_ID, ['id' => $id]);
             $this->command($command);
 
@@ -217,10 +218,10 @@ abstract class Worker
                 $this->onReload();
                 break;
             case Worker::COMMAND_SYNC_ID:
-                $id = $workerCommand->arguments['id'];
+                $id   = $workerCommand->arguments['id'];
                 $sync = $workerCommand->arguments['sync'];
 
-                if($callback = $this->queue[$id] ?? null) {
+                if ($callback = $this->queue[$id] ?? null) {
                     unset($this->queue[$id]);
                     $callback['resolve']($sync);
                 }
@@ -305,10 +306,12 @@ abstract class Worker
                 unset($this->streams[$index]);
             }
 
-            if(isset($this->runtimes[$index])) {
+            if (isset($this->runtimes[$index])) {
                 unset($this->runtimes[$index]);
             }
-            $this->guard($manager, $index);
+            \P\delay(function () use ($manager, $index) {
+                $this->guard($manager, $index);
+            }, 0.1);
         });
         return true;
     }
