@@ -47,7 +47,12 @@ use function strlen;
 use function strpos;
 use function strtok;
 use function substr;
+use function hexdec;
 
+/**
+ * @Author cclilshy
+ * @Date   2024/8/27 21:47
+ */
 class Connection
 {
     /**
@@ -64,9 +69,13 @@ class Connection
     private int    $contentLength = 0;
     private array  $headers       = [];
     private string $content       = '';
-    private int $bodyLength    = 0;
+    private int    $bodyLength    = 0;
     private string $versionString = '';
-    private string $buffer = '';
+    private string $buffer        = '';
+
+    private bool $chunk       = false;
+    private int  $chunkLength = 0;
+    private int  $chunkStep   = 0;
 
     /**
      * @param string $content
@@ -83,9 +92,9 @@ class Connection
                 /**
                  * 切割解析head与body部分
                  */
-                $this->step       = 1;
-                $header           = substr($buffer, 0, $headerEnd);
-                $base             = strtok($header, "\r\n");
+                $this->step = 1;
+                $header     = substr($buffer, 0, $headerEnd);
+                $base       = strtok($header, "\r\n");
 
                 if (count($base = explode(' ', $base)) < 3) {
                     throw new RuntimeException('Request head is not match');
@@ -105,34 +114,67 @@ class Connection
                     }
                 }
 
-                $contentLength = $this->headers['Content-Length'] ?? 0;
-
-                //                if($this->statusCode === 200) {
-                //                    if($contentLength === null) {
-                //                        throw new RuntimeException('Response content length is required');
-                //                    }
-                //                }
-
-                $this->contentLength = intval($contentLength);
-                $body = substr($buffer, $headerEnd + 4);
-                $this->output($body);
-                $this->bodyLength += strlen($body);
-                if($this->bodyLength === $this->contentLength) {
-                    $this->step = 2;
+                if ($this->chunk = isset($this->headers['Transfer-Encoding']) && $this->headers['Transfer-Encoding'] === 'chunked') {
+                    $this->step   = 3;
+                    $this->buffer = substr($buffer, $headerEnd + 4);
+                } else {
+                    $contentLength = $this->headers['Content-Length'] ?? null;
+                    if ($this->statusCode === 200) {
+                        if ($contentLength === null) {
+                            throw new RuntimeException('Response content length is required');
+                        }
+                    }
+                    $this->contentLength = intval($contentLength);
+                    $buffer              = substr($buffer, $headerEnd + 4);
+                    $this->output($buffer);
+                    $this->bodyLength += strlen($buffer);
+                    if ($this->bodyLength === $this->contentLength) {
+                        $this->step = 2;
+                    }
                 }
             }
         }
 
-        if($this->step === 1 && $buffer = $this->freeBuffer()) {
+        if ($this->step === 1 && $buffer = $this->freeBuffer()) {
             $this->output($buffer);
             $this->bodyLength += strlen($buffer);
-            if($this->bodyLength === $this->contentLength) {
+            if ($this->bodyLength === $this->contentLength) {
                 $this->step = 2;
             }
         }
 
-        if($this->step === 2) {
-            $response =  new Response(
+        if ($this->step === 3 && $buffer = $this->freeBuffer()) {
+            do {
+                if ($this->chunkStep === 0) {
+                    $chunkEnd = strpos($buffer, "\r\n");
+                    if ($chunkEnd === false) {
+                        break;
+                    } else {
+                        $this->chunkStep   = 1;
+                        $this->chunkLength = intval(hexdec(substr($buffer, 0, $chunkEnd)));
+                        $buffer            = substr($buffer, $chunkEnd + 2);
+                        if ($this->chunkLength === 0) {
+                            $buffer          = substr($buffer, $this->chunkLength + 2);
+                            $this->step = 2;
+                            break;
+                        }
+                    }
+                } else {
+                    if (strlen($buffer) >= $this->chunkLength + 2) {
+                        $this->output(substr($buffer, 0, $this->chunkLength));
+                        $buffer          = substr($buffer, $this->chunkLength + 2);
+                        $this->chunkStep = 0;
+                    } else {
+                        break;
+                    }
+                }
+            } while ($this->step !== 2);
+
+            $this->buffer = $buffer;
+        }
+
+        if ($this->step === 2) {
+            $response = new Response(
                 $this->statusCode,
                 $this->headers,
                 $this->content,
@@ -146,6 +188,12 @@ class Connection
         return null;
     }
 
+    /**
+     * @Author cclilshy
+     * @Date   2024/8/27 21:47
+     * @param string $content
+     * @return void
+     */
     private function output(string $content): void
     {
         if ($this->output) {
@@ -191,5 +239,9 @@ class Connection
         $this->bodyLength    = 0;
         $this->versionString = '';
         $this->output        = null;
+        $this->chunk         = false;
+        $this->chunkLength   = 0;
+        $this->chunkStep     = 0;
+        $this->buffer        = '';
     }
 }
