@@ -35,7 +35,6 @@
 namespace Tests;
 
 use P\IO;
-use PHPUnit\Framework\Attributes\RunClassInSeparateProcess;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 use Psc\Core\Socket\SocketStream;
@@ -45,7 +44,7 @@ use Throwable;
 use function md5;
 use function P\cancelAll;
 use function P\defer;
-use function P\main;
+use function P\tick;
 use function sys_get_temp_dir;
 use function uniqid;
 
@@ -64,31 +63,30 @@ class UnixTest extends TestCase
     #[Test]
     public function test_unix(): void
     {
-        main(function () {
-            $path  = sys_get_temp_dir() . '/' . md5(uniqid()) . '.sock';
-            /**
-             * @var SocketStream $server
-             */
-            $server = IO::Socket()->streamSocketServer('unix://' . $path)->await();
-            $server->setBlocking(false);
+        $path  = sys_get_temp_dir() . '/' . md5(uniqid()) . '.sock';
+        /**
+         * @var SocketStream $server
+         */
+        $server = IO::Socket()->streamSocketServer('unix://' . $path)->await();
+        $server->setBlocking(false);
 
-            $server->onReadable(function (SocketStream $stream) {
-                $client = $stream->accept();
-                $client->setBlocking(false);
-                $client->onReadable(function (SocketStream $stream) {
-                    $data = $stream->read(1024);
-                    $stream->write($data);
-                });
-            });
-
-            defer(function () use ($path) {
-                try {
-                    $this->call($path);
-                } catch (Throwable $exception) {
-                    Output::error($exception->getMessage());
-                }
+        $server->onReadable(function (SocketStream $stream) {
+            $client = $stream->accept();
+            $client->setBlocking(false);
+            $client->onReadable(function (SocketStream $stream) {
+                $data = $stream->read(1024);
+                $stream->write($data);
             });
         });
+
+        defer(function () use ($path) {
+            try {
+                $this->call($path);
+            } catch (Throwable $exception) {
+                Output::error($exception->getMessage());
+            }
+        });
+        tick();
     }
 
     /**
@@ -100,7 +98,6 @@ class UnixTest extends TestCase
      */
     private function call(string $path): void
     {
-
         /**
          * @var SocketStream $client
          */

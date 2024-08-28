@@ -35,8 +35,8 @@
 namespace Psc\Core\Process;
 
 use Closure;
-use Fiber;
 use Co\Coroutine;
+use Fiber;
 use Psc\Core\Coroutine\EscapeException;
 use Psc\Core\LibraryAbstract;
 use Psc\Core\Process\Exception\ProcessException;
@@ -47,8 +47,6 @@ use Throwable;
 
 use function call_user_func;
 use function Co\cancel;
-use function Co\cancelAll;
-use function Co\getIdentities;
 use function Co\promise;
 use function Co\tick;
 use function pcntl_fork;
@@ -92,7 +90,7 @@ class Process extends LibraryAbstract
     public function __construct()
     {
         $this->rootProcessId = posix_getpid();
-        $this->processId = posix_getpid();
+        $this->processId     = posix_getpid();
     }
 
 
@@ -156,7 +154,7 @@ class Process extends LibraryAbstract
         unset($this->process2promiseCallback[$processId]);
         unset($this->process2runtime[$processId]);
 
-        if(empty($this->process2runtime)) {
+        if (empty($this->process2runtime)) {
             $this->unregisterSignalHandler();
         }
     }
@@ -235,25 +233,43 @@ class Process extends LibraryAbstract
                 /**
                  * It is necessary to ensure that the final closure cannot be escaped by any means.
                  */
-                cancelAll();
-
-                $this->forked();
-
-                call_user_func($closure, ...$args);
-
-                // Whether it belongs to the PRipple coroutine space
-                if(Coroutine::Coroutine()->isCoroutine()) {
-                    throw new EscapeException('The process is abnormal.');
-                } else {
-                    if(Fiber::getCurrent()) {
-                        Fiber::suspend();
+                foreach (EventLoop::getIdentifiers() as $identifier) {
+                    try {
+                        EventLoop::cancel($identifier);
+                    } catch (Throwable $e) {
+                        Output::error($e->getMessage());
                     }
+                }
+
+                if (Coroutine::Coroutine()->isCoroutine()) {
+                    // Whether it belongs to the PRipple coroutine space
+                    // forked and user actions need to be deferred because they clear the coroutine hash table
+                    // If you don't do this, fiber escape will occur
+
+                    EventLoop::defer(function () use ($closure, $args) {
+                        $this->forked();
+                        call_user_func($closure, ...$args);
+                    });
+
+                    throw new EscapeException('The process is abnormal.');
+                } elseif (Fiber::getCurrent()) {
+                    // Whether it belongs to the PHP space
+
+                    $this->forked();
+                    call_user_func($closure, ...$args);
+                    tick();
+                    exit(0);
+                } else {
+                    // Whether it belongs to the PHP space
+
+                    $this->forked();
+                    call_user_func($closure, ...$args);
                     tick();
                     exit(0);
                 }
             }
 
-            if(empty($this->process2runtime)) {
+            if (empty($this->process2runtime)) {
                 $this->registerSignalHandler();
             }
 

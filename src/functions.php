@@ -37,6 +37,7 @@ namespace P;
 use Closure;
 use Psc\Core\Coroutine\Promise;
 use Psc\Core\Parallel\Thread;
+use Revolt\EventLoop;
 use Revolt\EventLoop\UnsupportedFeatureException;
 use Throwable;
 
@@ -79,6 +80,7 @@ function sleep(int|float $second): void
     \Co\sleep($second);
 }
 
+
 /**
  * @param Closure   $closure
  * @param int|float $second
@@ -87,6 +89,28 @@ function sleep(int|float $second): void
 function delay(Closure $closure, int|float $second): string
 {
     return \Co\delay($closure, $second);
+}
+
+
+/**
+ * @param Closure(Closure):void $closure
+ * @param int|float             $second
+ * @return string
+ */
+function repeat(Closure $closure, int|float $second): string
+{
+    return \Co\repeat($closure, $second);
+}
+
+/**
+ * @Author cclilshy
+ * @Date   2024/8/29 00:07
+ * @param Closure $closure
+ * @return void
+ */
+function queue(Closure $closure): void
+{
+    EventLoop::queue($closure);
 }
 
 /**
@@ -99,6 +123,15 @@ function defer(Closure $closure): void
 }
 
 /**
+ * @param Closure $closure
+ * @return Thread
+ */
+function thread(Closure $closure): Thread
+{
+    return \Co\thread($closure);
+}
+
+/**
  * @param string $id
  * @return void
  */
@@ -108,22 +141,20 @@ function cancel(string $id): void
 }
 
 /**
- * @param Closure(Closure):void $closure
- * @param int|float             $second
- * @return string
+ * @param int $index
+ * @return void
  */
-function repeat(Closure $closure, int|float $second): string
+function cancelForkHandler(int $index): void
 {
-    return  \Co\repeat($closure, $second);
+    \Co\cancelForkHandler($index);
 }
 
 /**
- * @param Closure $closure
- * @return Thread
+ * @return void
  */
-function thread(Closure $closure): Thread
+function cancelAll(): void
 {
-    return \Co\thread($closure);
+    \Co\cancelAll();
 }
 
 /**
@@ -146,56 +177,14 @@ function registerForkHandler(Closure $closure): int
     return \Co\registerForkHandler($closure);
 }
 
-/**
- * @param int $index
- * @return void
- */
-function cancelForkHandler(int $index): void
-{
-    \Co\cancelForkHandler($index);
-}
 
 /**
+ * @param Closure|null $closure
  * @return void
  */
-function run(): void
+function tick(Closure|null $closure = null): void
 {
-    \Co\run();
-}
-
-/**
- * @Author cclilshy
- * @Date   2024/8/16 09:40
- * @param Closure $closure
- * @return void
- */
-function main(Closure $closure): void
-{
-    \Co\main($closure);
-}
-
-/**
- * @return void
- */
-function tick(): void
-{
-    \Co\tick();
-}
-
-/**
- * @return void
- */
-function cancelAll(): void
-{
-    \Co\cancelAll();
-}
-
-/**
- * @return array
- */
-function getIdentities(): array
-{
-    return \Co\getIdentities();
+    \Co\tick($closure);
 }
 
 /**

@@ -37,6 +37,7 @@ namespace Psc;
 use Closure;
 use Co\Coroutine;
 use Co\System;
+use Fiber;
 use Psc\Core\Coroutine\Promise;
 use Revolt\EventLoop;
 use Revolt\EventLoop\UnsupportedFeatureException;
@@ -44,7 +45,6 @@ use Throwable;
 
 use function call_user_func;
 use function extension_loaded;
-use function usleep;
 
 class Kernel
 {
@@ -60,7 +60,7 @@ class Kernel
     public function __construct()
     {
         $this->mainSuspension = EventLoop::getSuspension();
-        $this->parallel = extension_loaded('parallel');
+        $this->parallel       = extension_loaded('parallel');
     }
 
     /**
@@ -131,11 +131,11 @@ class Kernel
     public function defer(Closure $closure): void
     {
         if (!$callback = Coroutine::Coroutine()->getCoroutine()) {
-            EventLoop::defer($closure);
+            EventLoop::queue($closure);
             return;
         }
 
-        $callback['promise']->finally(fn () => EventLoop::defer($closure));
+        $callback['promise']->finally(fn () => EventLoop::queue($closure));
     }
 
     /**
@@ -189,38 +189,44 @@ class Kernel
     }
 
     /**
-     * @return void
+     * @var bool
      */
-    public function run(): void
-    {
-        while (1) {
-            if ($this->tick()) {
-                continue;
-            }
-
-            usleep(10_0000);
-        }
-    }
-
-    private bool $running = false;
+    private bool $running = true;
 
     /**
+     * @param Closure|null $result
      * @return bool
      */
-    public function tick(): mixed
+    public function tick(Closure|null $result = null): bool
     {
-        if ($this->running) {
-            $this->mainSuspension->resume();
+        if (!isset($this->mainSuspension)) {
+            $this->mainSuspension = EventLoop::getSuspension();
+        }
+
+        if (!$this->running) {
+            $this->mainSuspension->resume($result);
+            try {
+                Fiber::suspend();
+            } catch (Throwable) {
+                exit(1);
+            }
         }
 
         try {
+            $this->running = false;
+            $result        = $this->mainSuspension->suspend();
             $this->running = true;
-            return $this->mainSuspension->suspend();
+            if ($result instanceof Closure) {
+                $result();
+            }
+
+            /**
+             * 在$result运行过程中可能会重置Event对象因此需要重新获取mainSuspension
+             */
+            $this->mainSuspension = EventLoop::getSuspension();
+            return $this->tick();
         } catch (Throwable) {
             return false;
-        } finally {
-            $this->running = false;
-            $this->mainSuspension = EventLoop::getSuspension();
         }
     }
 
@@ -237,17 +243,9 @@ class Kernel
      */
     public function cancelAll(): void
     {
-        foreach ($this->getIdentities() as $identifier) {
+        foreach (EventLoop::getIdentifiers() as $identifier) {
             $this->cancel($identifier);
         }
-    }
-
-    /**
-     * @return array
-     */
-    public function getIdentities(): array
-    {
-        return EventLoop::getIdentifiers();
     }
 
     /**

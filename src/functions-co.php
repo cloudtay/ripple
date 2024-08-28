@@ -38,6 +38,7 @@ use Closure;
 use Psc\Core\Coroutine\Promise;
 use Psc\Core\Parallel\Thread;
 use Psc\Kernel;
+use Revolt\EventLoop;
 use Revolt\EventLoop\UnsupportedFeatureException;
 use Throwable;
 
@@ -80,6 +81,7 @@ function sleep(int|float $second): void
     Coroutine::Coroutine()->sleep($second);
 }
 
+
 /**
  * @param Closure   $closure
  * @param int|float $second
@@ -90,23 +92,6 @@ function delay(Closure $closure, int|float $second): string
     return Kernel::getInstance()->delay($closure, $second);
 }
 
-/**
- * @param Closure $closure
- * @return void
- */
-function defer(Closure $closure): void
-{
-    Kernel::getInstance()->defer($closure);
-}
-
-/**
- * @param string $id
- * @return void
- */
-function cancel(string $id): void
-{
-    Kernel::getInstance()->cancel($id);
-}
 
 /**
  * @param Closure(Closure):void $closure
@@ -119,12 +104,58 @@ function repeat(Closure $closure, int|float $second): string
 }
 
 /**
+ * @Author cclilshy
+ * @Date   2024/8/29 00:07
+ * @param Closure $closure
+ * @return void
+ */
+function queue(Closure $closure): void
+{
+    EventLoop::queue($closure);
+}
+
+/**
+ * @param Closure $closure
+ * @return void
+ */
+function defer(Closure $closure): void
+{
+    Kernel::getInstance()->defer($closure);
+}
+
+/**
  * @param Closure $closure
  * @return Thread
  */
 function thread(Closure $closure): Thread
 {
     return System::Parallel()->thread($closure);
+}
+
+/**
+ * @param string $id
+ * @return void
+ */
+function cancel(string $id): void
+{
+    Kernel::getInstance()->cancel($id);
+}
+
+/**
+ * @param int $index
+ * @return void
+ */
+function cancelForkHandler(int $index): void
+{
+    Kernel::getInstance()->cancelForkHandler($index);
+}
+
+/**
+ * @return void
+ */
+function cancelAll(): void
+{
+    Kernel::getInstance()->cancelAll();
 }
 
 /**
@@ -147,57 +178,14 @@ function registerForkHandler(Closure $closure): int
     return Kernel::getInstance()->registerForkHandler($closure);
 }
 
-/**
- * @param int $index
- * @return void
- */
-function cancelForkHandler(int $index): void
-{
-    Kernel::getInstance()->cancelForkHandler($index);
-}
 
 /**
+ * @param Closure|null $closure
  * @return void
  */
-function run(): void
+function tick(Closure|null $closure = null): void
 {
-    Kernel::getInstance()->run();
-}
-
-/**
- * @Author cclilshy
- * @Date   2024/8/16 09:40
- * @param Closure $closure
- * @return void
- */
-function main(Closure $closure): void
-{
-    $closure();
-    tick();
-}
-
-/**
- * @return void
- */
-function tick(): void
-{
-    Kernel::getInstance()->tick();
-}
-
-/**
- * @return void
- */
-function cancelAll(): void
-{
-    Kernel::getInstance()->cancelAll();
-}
-
-/**
- * @return array
- */
-function getIdentities(): array
-{
-    return Kernel::getInstance()->getIdentities();
+    Kernel::getInstance()->tick($closure);
 }
 
 /**

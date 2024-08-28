@@ -108,8 +108,7 @@ class Coroutine extends LibraryAbstract
         if (!$callback = $this->fiber2callback[spl_object_hash($fiber)] ?? null) {
             $promise->then(fn ($result) => $fiber->resume($result));
             $promise->except(
-                fn (mixed $e) =>
-                $e instanceof Throwable
+                fn (mixed $e) => $e instanceof Throwable
                     ? $fiber->throw($e)
                     : $fiber->throw(new Exception('An exception occurred in the awaited Promise'))
             );
@@ -240,7 +239,6 @@ class Coroutine extends LibraryAbstract
     {
         registerForkHandler(function () {
             $this->fiber2callback = array();
-
             $this->registerOnFork();
         });
     }
