@@ -42,9 +42,9 @@ use Psc\Kernel;
 use Revolt\EventLoop;
 use Throwable;
 
-use function P\delay;
-use function P\registerForkHandler;
-use function P\tick;
+use function Co\delay;
+use function Co\registerForkHandler;
+use function Co\tick;
 use function spl_object_hash;
 
 /**
@@ -64,6 +64,11 @@ class Coroutine extends LibraryAbstract
      * @var LibraryAbstract
      */
     protected static LibraryAbstract $instance;
+
+    public function __construct()
+    {
+        $this->registerOnFork();
+    }
 
     /**
      * @param Promise $promise
@@ -240,11 +245,6 @@ class Coroutine extends LibraryAbstract
         });
     }
 
-    public function __construct()
-    {
-        $this->registerOnFork();
-    }
-
     /**
      * @param float|int $second
      * @return void
@@ -298,7 +298,7 @@ class Coroutine extends LibraryAbstract
     /**
      * @return bool
      */
-    public function isCoroutine(): bool
+    public function hasCallback(): bool
     {
         if (!$fiber = Fiber::getCurrent()) {
             return false;
@@ -331,12 +331,32 @@ class Coroutine extends LibraryAbstract
      */
     public function handleEscapeException(EscapeException $exception): void
     {
-        if (!Fiber::getCurrent() || !$this->isCoroutine()) {
+        if (!Fiber::getCurrent() || !$this->hasCallback()) {
             $this->fiber2callback = array();
             tick();
             exit(0);
         } else {
             throw $exception;
         }
+    }
+
+    /**
+     * @Author cclilshy
+     * @Date   2024/8/28 10:24
+     * @return array|null
+     */
+    public static function getCurrent(): array|null
+    {
+        return Coroutine::getInstance()->getCoroutine();
+    }
+
+    /**
+     * @Author cclilshy
+     * @Date   2024/8/28 10:25
+     * @return bool
+     */
+    public static function isCoroutine(): bool
+    {
+        return Coroutine::getInstance()->hasCallback();
     }
 }

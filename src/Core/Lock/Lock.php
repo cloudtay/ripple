@@ -40,8 +40,8 @@ use function flock;
 use function fopen;
 use function is_resource;
 use function md5;
-use function P\cancelForkHandler;
-use function P\registerForkHandler;
+use function Co\cancelForkHandler;
+use function Co\registerForkHandler;
 use function sys_get_temp_dir;
 use function touch;
 
@@ -66,7 +66,7 @@ class Lock
      */
     public function __construct(private readonly string $name = 'default')
     {
-        $this->path = self::generateFilePathByChannelName($this->name);
+        $this->path = Lock::generateFilePathByChannelName($this->name);
 
         if(!file_exists($this->path)) {
             touch($this->path);

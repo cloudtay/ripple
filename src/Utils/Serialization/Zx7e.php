@@ -67,11 +67,11 @@ class Zx7e
         $length   = strlen($data);
         $checksum = $this->calculateChecksum($data);
 
-        $frame = chr(self::FRAME_HEADER);
+        $frame = chr(Zx7e::FRAME_HEADER);
         $frame .= pack('n', $length);
         $frame .= $data;
         $frame .= chr($checksum);
-        $frame .= chr(self::FRAME_FOOTER);
+        $frame .= chr(Zx7e::FRAME_FOOTER);
 
         return $frame;
     }
@@ -97,7 +97,7 @@ class Zx7e
      */
     private function extractFrame(): string|null
     {
-        $startPos = strpos($this->buffer, chr(self::FRAME_HEADER));
+        $startPos = strpos($this->buffer, chr(Zx7e::FRAME_HEADER));
 
         if ($startPos === false) {
             $this->buffer = '';
@@ -122,7 +122,7 @@ class Zx7e
         $checksum = ord($this->buffer[3 + $length]);
         $endPos   = 4 + $length;
 
-        if ($endPos >= strlen($this->buffer) || ord($this->buffer[$endPos]) !== self::FRAME_FOOTER) {
+        if ($endPos >= strlen($this->buffer) || ord($this->buffer[$endPos]) !== Zx7e::FRAME_FOOTER) {
             $this->buffer = substr($this->buffer, $endPos);
             return null;
         }

@@ -41,11 +41,14 @@ use Throwable;
 use function array_reverse;
 use function call_user_func;
 use function call_user_func_array;
-use function P\await;
+use function Co\await;
 
 /**
  * @Author cclilshy
  * @Date   2024/8/16 09:35
+ *
+ * 严格遵循ES6-Promise/A+的设计哲学
+ * @see https://promisesaplus.com/
  */
 class Promise
 {
@@ -66,12 +69,21 @@ class Promise
     private array $onRejected = array();
 
     /*** @param Closure $closure */
+
+    /**
+     *
+     * 创建的Promise实例将立即执行传入的闭包,而非推入到队列的下一步
+     *
+     * @param Closure $closure
+     */
     public function __construct(Closure $closure)
     {
         $this->execute($closure);
     }
 
     /**
+     * 执行闭包
+     *
      * @param Closure $closure
      * @return void
      */
@@ -93,6 +105,9 @@ class Promise
     }
 
     /**
+     * 将承诺状态更改为已完成,并将结果传递给后续行为,
+     * 无法更改已完成的状态,第二次调用将被忽略
+     *
      * @param mixed $value
      * @return void
      */
@@ -110,6 +125,7 @@ class Promise
         if ($this->status !== Promise::PENDING) {
             return;
         }
+
         $this->status = Promise::FULFILLED;
         $this->result = $value;
 
@@ -124,6 +140,9 @@ class Promise
     }
 
     /**
+     * 将承诺状态更改为已拒绝,并将原因传递给后续行为,
+     * 无法更改已拒绝的状态,第二次调用将被忽略
+     *
      * @param Throwable $reason
      * @return void
      */
@@ -149,11 +168,14 @@ class Promise
     }
 
     /**
-     * @param callable|null $onFulfilled
-     * @param callable|null $onRejected
+     * 定义后续行为,当Promise状态改变时,会按照then方法的顺序调用
+     * 若Promise已经完成,则立即执行
+     *
+     * @param Closure|null $onFulfilled
+     * @param Closure|null $onRejected
      * @return $this
      */
-    public function then(?callable $onFulfilled = null, ?callable $onRejected = null): Promise
+    public function then(Closure|null $onFulfilled = null, Closure|null $onRejected = null): Promise
     {
         if($onFulfilled) {
             if ($this->status === Promise::FULFILLED) {
@@ -175,6 +197,8 @@ class Promise
     }
 
     /**
+     * 定义后续行为,当Promise状态改变时,会按照then方法的顺序调用
+     *
      * @param Closure $onFinally
      * @return $this
      */
@@ -196,6 +220,9 @@ class Promise
     }
 
     /**
+     * 定义拒绝后的行为,当Promise状态改变时,会按照catch方法的顺序调用
+     * 若Promise已经拒绝,则立即执行
+     *
      * @param Closure $onRejected
      * @return $this
      * @deprecated 你应该使用except方法,因为该方法是一个保留关键字
@@ -206,6 +233,9 @@ class Promise
     }
 
     /**
+     * 定义拒绝后的行为,当Promise状态改变时,会按照except方法的顺序调用
+     * 若Promise已经拒绝,则立即执行
+     *
      * @param Closure $onRejected
      * @return $this
      */
@@ -241,20 +271,20 @@ class Promise
     }
 
     /**
+     * @return string
+     */
+    public function getState(): string
+    {
+        return $this->status;
+    }
+
+    /**
      * @return mixed
      * @throws Throwable
      */
     public function await(): mixed
     {
         return await($this);
-    }
-
-    /**
-     * @return string
-     */
-    public function getState(): string
-    {
-        return $this->status;
     }
 
     /**

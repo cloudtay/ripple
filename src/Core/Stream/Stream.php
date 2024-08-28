@@ -44,7 +44,7 @@ use function array_search;
 use function call_user_func;
 use function call_user_func_array;
 use function is_resource;
-use function P\cancel;
+use function Co\cancel;
 use function stream_set_blocking;
 
 /**

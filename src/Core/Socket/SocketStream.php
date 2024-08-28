@@ -34,7 +34,7 @@
 
 namespace Psc\Core\Socket;
 
-use P\IO;
+use Co\IO;
 use Psc\Core\Stream\Exception\ConnectionException;
 use Psc\Core\Stream\Stream;
 use RuntimeException;

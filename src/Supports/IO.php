@@ -34,46 +34,10 @@
 
 namespace P;
 
-use Psc\Core\Channel\ChannelLibrary;
-use Psc\Core\File\File;
-use Psc\Core\Lock\LockLibrary;
-use Psc\Core\Socket\Socket;
-
 /**
  * @Author cclilshy
  * @Date   2024/8/16 09:35
  */
-class IO
+class IO extends \Co\IO
 {
-    /**
-     * @return File
-     */
-    public static function File(): File
-    {
-        return File::getInstance();
-    }
-
-    /**
-     * @return Socket
-     */
-    public static function Socket(): Socket
-    {
-        return Socket::getInstance();
-    }
-
-    /**
-     * @return ChannelLibrary
-     */
-    public static function Channel(): ChannelLibrary
-    {
-        return ChannelLibrary::getInstance();
-    }
-
-    /**
-     * @return LockLibrary
-     */
-    public static function Lock(): LockLibrary
-    {
-        return LockLibrary::getInstance();
-    }
 }

@@ -32,12 +32,21 @@
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-namespace P;
+namespace Co;
+
+use Psc\Core\Coroutine\Coroutine as CoroutineLibrary;
 
 /**
  * @Author cclilshy
- * @Date   2024/8/16 09:35
+ * @Date   2024/8/16 09:34
  */
-class Net extends \Co\Net
+class Coroutine
 {
+    /**
+     * @return CoroutineLibrary
+     */
+    public static function Coroutine(): CoroutineLibrary
+    {
+        return CoroutineLibrary::getInstance();
+    }
 }

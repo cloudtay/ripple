@@ -37,7 +37,7 @@ namespace Psc\Core\Http\Client;
 use Closure;
 use GuzzleHttp\Psr7\MultipartStream;
 use InvalidArgumentException;
-use P\IO;
+use Co\IO;
 use Psc\Core\Coroutine\Promise;
 use Psc\Core\Exception\ConnectionException;
 use Psc\Core\Socket\SocketStream;
@@ -49,11 +49,11 @@ use function fclose;
 use function fopen;
 use function implode;
 use function in_array;
-use function P\async;
-use function P\await;
-use function P\cancel;
-use function P\delay;
-use function P\repeat;
+use function Co\async;
+use function Co\await;
+use function Co\cancel;
+use function Co\delay;
+use function Co\repeat;
 use function str_contains;
 use function strtolower;
 
@@ -101,7 +101,8 @@ class HttpClient
                 $connection = await($this->pullConnection(
                     $host,
                     $port,
-                    $scheme === 'https'
+                    $scheme === 'https',
+                    $option['timeout'] ?? 0
                 ));
 
                 $header = "{$method} {$path}{$query} HTTP/1.1\r\n";
@@ -205,18 +206,18 @@ class HttpClient
      * @param string $host
      * @param int    $port
      * @param bool   $ssl
+     * @param int    $timeout
      * @return Promise<Connection>
-     * @throws Throwable
      */
-    private function pullConnection(string $host, int $port, bool $ssl): Promise
+    private function pullConnection(string $host, int $port, bool $ssl, int $timeout = 0): Promise
     {
-        return async(function () use ($host, $port, $ssl) {
+        return async(function () use ($host, $port, $ssl, $timeout) {
             if ($this->pool) {
-                $connection =  await($this->connectionPool->pullConnection($host, $port, $ssl));
+                $connection =  await($this->connectionPool->pullConnection($host, $port, $ssl, $timeout));
             } else {
                 $connection =  $ssl
-                    ? new Connection(await(IO::Socket()->streamSocketClientSSL("ssl://{$host}:{$port}")))
-                    : new Connection(await(IO::Socket()->streamSocketClient("tcp://{$host}:{$port}")));
+                    ? new Connection(await(IO::Socket()->streamSocketClientSSL("ssl://{$host}:{$port}", $timeout)))
+                    : new Connection(await(IO::Socket()->streamSocketClient("tcp://{$host}:{$port}", $timeout)));
             }
 
             $connection->stream->setBlocking(false);

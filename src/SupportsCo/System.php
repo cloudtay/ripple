@@ -32,86 +32,40 @@
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-namespace Tests;
+namespace Co;
 
-use P\IO;
-use PHPUnit\Framework\Attributes\RunClassInSeparateProcess;
-use PHPUnit\Framework\Attributes\Test;
-use PHPUnit\Framework\TestCase;
-use Psc\Core\Socket\SocketStream;
-use Psc\Utils\Output;
-use Throwable;
-
-use function md5;
-use function P\cancelAll;
-use function P\defer;
-use function P\main;
-use function sys_get_temp_dir;
-use function uniqid;
+use Psc\Core\Parallel\Parallel;
+use Psc\Core\Proc\Proc;
+use Psc\Core\Process\Process;
 
 /**
  * @Author cclilshy
- * @Date   2024/8/15 14:49
+ * @Date   2024/8/16 09:35
  */
-class UnixTest extends TestCase
+class System
 {
     /**
-     * @Author cclilshy
-     * @Date   2024/8/16 10:16
-     * @return void
-     * @throws Throwable
+     * @return Process
      */
-    #[Test]
-    public function test_unix(): void
+    public static function Process(): Process
     {
-        main(function () {
-            $path  = sys_get_temp_dir() . '/' . md5(uniqid()) . '.sock';
-            /**
-             * @var SocketStream $server
-             */
-            $server = IO::Socket()->streamSocketServer('unix://' . $path)->await();
-            $server->setBlocking(false);
-
-            $server->onReadable(function (SocketStream $stream) {
-                $client = $stream->accept();
-                $client->setBlocking(false);
-                $client->onReadable(function (SocketStream $stream) {
-                    $data = $stream->read(1024);
-                    $stream->write($data);
-                });
-            });
-
-            defer(function () use ($path) {
-                try {
-                    $this->call($path);
-                } catch (Throwable $exception) {
-                    Output::error($exception->getMessage());
-                }
-            });
-        });
+        return Process::getInstance();
     }
 
     /**
-     * @Author cclilshy
-     * @Date   2024/8/15 14:49
-     * @param string $path
-     * @return void
-     * @throws Throwable
+     * @return Proc
      */
-    private function call(string $path): void
+    public static function Proc(): Proc
     {
+        return Proc::getInstance();
+    }
 
-        /**
-         * @var SocketStream $client
-         */
-        $client = IO::Socket()->streamSocketClient('unix://' . $path)->await();
-        $client->setBlocking(false);
-
-        $client->write('hello');
-        $client->onReadable(function (SocketStream $stream) {
-            $data = $stream->read(1024);
-            $this->assertEquals('hello', $data);
-            cancelAll();
-        });
+    /**
+     * @Description 未通过测试
+     * @return Parallel
+     */
+    public static function Parallel(): Parallel
+    {
+        return Parallel::getInstance();
     }
 }

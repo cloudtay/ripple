@@ -32,12 +32,15 @@
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-namespace Psc\Core\Stream;
+namespace Co;
 
-/**
- * @Author cclilshy
- * @Date   2024/8/16 09:36
- */
-class Exception extends Exception\Exception
+use GuzzleHttp\Client;
+use Psc\Plugins\Guzzle\Guzzle;
+
+class Plugin
 {
+    public static function Guzzle(): Client
+    {
+        return Guzzle::getInstance()->client();
+    }
 }

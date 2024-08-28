@@ -40,10 +40,11 @@ use Psc\Core\Coroutine\Promise;
 use Psc\Core\LibraryAbstract;
 use Throwable;
 
-use function P\async;
-use function P\await;
-use function P\delay;
-use function P\promise;
+use function Co\async;
+use function Co\await;
+use function Co\cancel;
+use function Co\delay;
+use function Co\promise;
 use function str_replace;
 use function stream_socket_accept;
 use function stream_socket_client;
@@ -119,9 +120,20 @@ class Socket extends LibraryAbstract
             }
 
             $stream = new SocketStream($connection, $address);
-            $stream->onWritable(function (SocketStream $stream, Closure $cancel) use ($r) {
+
+            if($timeout > 0) {
+                $timeoutEventId = delay(function () use ($stream) {
+                    $stream->close();
+                }, $timeout);
+                $timeoutEventCancel = fn () => cancel($timeoutEventId);
+            } else {
+                $timeoutEventCancel = fn () => null;
+            }
+
+            $stream->onWritable(function (SocketStream $stream, Closure $cancel) use ($r, $timeoutEventCancel) {
                 $cancel();
                 $r($stream);
+                $timeoutEventCancel();
             });
         });
     }

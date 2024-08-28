@@ -35,7 +35,7 @@
 namespace Psc\Core\WebSocket\Server;
 
 use Closure;
-use P\IO;
+use Co\IO;
 use Psc\Core\Socket\SocketStream;
 use Psc\Core\Stream\Exception\RuntimeException;
 use Psc\Core\WebSocket\Options;
@@ -43,8 +43,8 @@ use Throwable;
 
 use function count;
 use function explode;
-use function P\async;
-use function P\await;
+use function Co\async;
+use function Co\await;
 
 use const SO_KEEPALIVE;
 use const SO_RCVBUF;

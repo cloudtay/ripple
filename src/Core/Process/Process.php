@@ -36,7 +36,7 @@ namespace Psc\Core\Process;
 
 use Closure;
 use Fiber;
-use P\Coroutine;
+use Co\Coroutine;
 use Psc\Core\Coroutine\EscapeException;
 use Psc\Core\LibraryAbstract;
 use Psc\Core\Process\Exception\ProcessException;
@@ -46,11 +46,11 @@ use Revolt\EventLoop\UnsupportedFeatureException;
 use Throwable;
 
 use function call_user_func;
-use function P\cancel;
-use function P\cancelAll;
-use function P\getIdentities;
-use function P\promise;
-use function P\tick;
+use function Co\cancel;
+use function Co\cancelAll;
+use function Co\getIdentities;
+use function Co\promise;
+use function Co\tick;
 use function pcntl_fork;
 use function pcntl_wait;
 use function pcntl_wexitstatus;

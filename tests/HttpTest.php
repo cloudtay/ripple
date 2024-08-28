@@ -64,6 +64,7 @@ class HttpTest extends TestCase
 {
     /**
      * @return void
+     * @throws Throwable
      */
     #[Test]
     public function test_httpServer(): void

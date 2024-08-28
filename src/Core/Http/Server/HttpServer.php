@@ -35,7 +35,7 @@
 namespace Psc\Core\Http\Server;
 
 use Closure;
-use P\IO;
+use Co\IO;
 use Psc\Core\Exception\ConnectionException;
 use Psc\Core\Http\Server\Exception\FormatException;
 use Psc\Core\Socket\SocketStream;
@@ -46,8 +46,8 @@ use Throwable;
 use function call_user_func_array;
 use function count;
 use function explode;
-use function P\async;
-use function P\await;
+use function Co\async;
+use function Co\await;
 use function str_contains;
 use function strlen;
 use function strtolower;

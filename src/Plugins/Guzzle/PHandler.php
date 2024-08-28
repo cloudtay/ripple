@@ -39,7 +39,7 @@ use GuzzleHttp\Promise\PromiseInterface;
 use Psc\Core\Http\Client\HttpClient;
 use Psr\Http\Message\RequestInterface;
 
-use function P\await;
+use function Co\await;
 
 class PHandler
 {

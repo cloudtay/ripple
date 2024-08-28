@@ -32,11 +32,12 @@
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-namespace P;
+namespace Co;
 
 use Closure;
 use Psc\Core\Coroutine\Promise;
 use Psc\Core\Parallel\Thread;
+use Psc\Kernel;
 use Revolt\EventLoop\UnsupportedFeatureException;
 use Throwable;
 
@@ -47,7 +48,7 @@ use Throwable;
  */
 function await(Promise $promise): mixed
 {
-    return \Co\await($promise);
+    return Kernel::getInstance()->await($promise);
 }
 
 /**
@@ -57,7 +58,7 @@ function await(Promise $promise): mixed
  */
 function async(Closure $closure): Promise
 {
-    return \Co\async($closure);
+    return Kernel::getInstance()->async($closure);
 }
 
 /**
@@ -66,7 +67,7 @@ function async(Closure $closure): Promise
  */
 function promise(Closure $closure): Promise
 {
-    return \Co\promise($closure);
+    return Kernel::getInstance()->promise($closure);
 }
 
 /**
@@ -76,7 +77,7 @@ function promise(Closure $closure): Promise
  */
 function sleep(int|float $second): void
 {
-    \Co\sleep($second);
+    Coroutine::Coroutine()->sleep($second);
 }
 
 /**
@@ -86,7 +87,7 @@ function sleep(int|float $second): void
  */
 function delay(Closure $closure, int|float $second): string
 {
-    return \Co\delay($closure, $second);
+    return Kernel::getInstance()->delay($closure, $second);
 }
 
 /**
@@ -95,7 +96,7 @@ function delay(Closure $closure, int|float $second): string
  */
 function defer(Closure $closure): void
 {
-    \Co\defer($closure);
+    Kernel::getInstance()->defer($closure);
 }
 
 /**
@@ -104,7 +105,7 @@ function defer(Closure $closure): void
  */
 function cancel(string $id): void
 {
-    \Co\cancel($id);
+    Kernel::getInstance()->cancel($id);
 }
 
 /**
@@ -114,7 +115,7 @@ function cancel(string $id): void
  */
 function repeat(Closure $closure, int|float $second): string
 {
-    return  \Co\repeat($closure, $second);
+    return Kernel::getInstance()->repeat($closure, $second);
 }
 
 /**
@@ -123,7 +124,7 @@ function repeat(Closure $closure, int|float $second): string
  */
 function thread(Closure $closure): Thread
 {
-    return \Co\thread($closure);
+    return System::Parallel()->thread($closure);
 }
 
 /**
@@ -134,7 +135,7 @@ function thread(Closure $closure): Thread
  */
 function onSignal(int $signal, Closure $closure): string
 {
-    return \Co\onSignal($signal, $closure);
+    return Kernel::getInstance()->onSignal($signal, $closure);
 }
 
 /**
@@ -143,7 +144,7 @@ function onSignal(int $signal, Closure $closure): string
  */
 function registerForkHandler(Closure $closure): int
 {
-    return \Co\registerForkHandler($closure);
+    return Kernel::getInstance()->registerForkHandler($closure);
 }
 
 /**
@@ -152,7 +153,7 @@ function registerForkHandler(Closure $closure): int
  */
 function cancelForkHandler(int $index): void
 {
-    \Co\cancelForkHandler($index);
+    Kernel::getInstance()->cancelForkHandler($index);
 }
 
 /**
@@ -160,7 +161,7 @@ function cancelForkHandler(int $index): void
  */
 function run(): void
 {
-    \Co\run();
+    Kernel::getInstance()->run();
 }
 
 /**
@@ -171,7 +172,8 @@ function run(): void
  */
 function main(Closure $closure): void
 {
-    \Co\main($closure);
+    $closure();
+    tick();
 }
 
 /**
@@ -179,7 +181,7 @@ function main(Closure $closure): void
  */
 function tick(): void
 {
-    \Co\tick();
+    Kernel::getInstance()->tick();
 }
 
 /**
@@ -187,7 +189,7 @@ function tick(): void
  */
 function cancelAll(): void
 {
-    \Co\cancelAll();
+    Kernel::getInstance()->cancelAll();
 }
 
 /**
@@ -195,7 +197,7 @@ function cancelAll(): void
  */
 function getIdentities(): array
 {
-    return \Co\getIdentities();
+    return Kernel::getInstance()->getIdentities();
 }
 
 /**
@@ -203,5 +205,5 @@ function getIdentities(): array
  */
 function stop(): void
 {
-    \Co\stop();
+    Kernel::getInstance()->stop();
 }

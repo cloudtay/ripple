@@ -42,8 +42,8 @@ use Psc\Core\Stream\Stream;
 
 use function array_shift;
 use function fopen;
-use function P\promise;
-use function P\registerForkHandler;
+use function Co\promise;
+use function Co\registerForkHandler;
 
 /**
  * @Author cclilshy

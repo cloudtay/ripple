@@ -34,18 +34,18 @@
 
 namespace Psc\Core\Http\Client;
 
-use P\IO;
+use Co\IO;
 use Psc\Core\Coroutine\Promise;
 use Psc\Core\Socket\SocketStream;
 use Psc\Core\Stream\Exception\ConnectionException;
 use Throwable;
 
 use function array_pop;
-use function P\async;
-use function P\await;
-use function P\cancel;
-use function P\cancelForkHandler;
-use function P\registerForkHandler;
+use function Co\async;
+use function Co\await;
+use function Co\cancel;
+use function Co\cancelForkHandler;
+use function Co\registerForkHandler;
 
 class ConnectionPool
 {
@@ -75,19 +75,21 @@ class ConnectionPool
      * @param string $host
      * @param int    $port
      * @param bool   $ssl
+     * @param int    $timeout
      * @return Promise<Connection>
      */
-    public function pullConnection(string $host, int $port, bool $ssl = false): Promise
+    public function pullConnection(string $host, int $port, bool $ssl = false, int $timeout = 0): Promise
     {
         return async(function () use (
             $ssl,
             $host,
             $port,
+            $timeout
         ) {
             $key = "tcp://{$host}:{$port}";
             if ($ssl) {
                 if (!isset($this->idleSSL[$key]) || empty($this->idleSSL[$key])) {
-                    $connection = new Connection(await(IO::Socket()->streamSocketClientSSL("ssl://{$host}:{$port}")));
+                    $connection = new Connection(await(IO::Socket()->streamSocketClientSSL("ssl://{$host}:{$port}", $timeout)));
                     $this->pushConnection($connection, $ssl);
                 } else {
                     /**
@@ -100,7 +102,7 @@ class ConnectionPool
                 }
             } else {
                 if (!isset($this->idleTCP[$key]) || empty($this->idleTCP[$key])) {
-                    $connection = new Connection(await(IO::Socket()->streamSocketClient("tcp://{$host}:{$port}")));
+                    $connection = new Connection(await(IO::Socket()->streamSocketClient("tcp://{$host}:{$port}", $timeout)));
                     $this->pushConnection($connection, $ssl);
                 } else {
                     $connection = array_pop($this->idleTCP[$key]);

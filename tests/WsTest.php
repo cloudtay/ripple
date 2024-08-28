@@ -60,6 +60,7 @@ class WsTest extends TestCase
      * @Author cclilshy
      * @Date   2024/8/15 14:49
      * @return void
+     * @throws Throwable
      */
     #[Test]
     public function test_wsServer(): void

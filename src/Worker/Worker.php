@@ -35,7 +35,7 @@
 namespace Psc\Worker;
 
 use Closure;
-use P\System;
+use Co\System;
 use Psc\Core\Coroutine\Promise;
 use Psc\Core\Process\Runtime;
 use Psc\Core\Socket\SocketStream;
@@ -43,8 +43,8 @@ use Psc\Core\Stream\Exception\ConnectionException;
 use Psc\Utils\Output;
 use Psc\Utils\Serialization\Zx7e;
 
-use function P\delay;
-use function P\promise;
+use function Co\delay;
+use function Co\promise;
 use function socket_create_pair;
 use function socket_export_stream;
 use function spl_object_hash;

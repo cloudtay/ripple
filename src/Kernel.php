@@ -35,8 +35,8 @@
 namespace Psc;
 
 use Closure;
-use P\Coroutine;
-use P\System;
+use Co\Coroutine;
+use Co\System;
 use Psc\Core\Coroutine\Promise;
 use Revolt\EventLoop;
 use Revolt\EventLoop\UnsupportedFeatureException;
@@ -68,10 +68,10 @@ class Kernel
      */
     public static function getInstance(): Kernel
     {
-        if (!isset(self::$instance)) {
-            self::$instance = new self();
+        if (!isset(Kernel::$instance)) {
+            Kernel::$instance = new self();
         }
-        return self::$instance;
+        return Kernel::$instance;
     }
 
     /**
