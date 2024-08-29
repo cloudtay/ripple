@@ -32,80 +32,82 @@
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-namespace Tests;
+namespace Psc\Core\Socket\Proxy;
 
-use P\Net;
-use PHPUnit\Framework\Attributes\Test;
-use PHPUnit\Framework\TestCase;
-use Psc\Core\WebSocket\Server\Connection;
-use Psc\Utils\Output;
+use Co\IO;
+use Psc\Core\Coroutine\Promise;
+use Psc\Core\Socket\SocketStream;
 use Throwable;
 
-use function md5;
-use function P\cancelAll;
-use function P\defer;
-use function P\tick;
+use function Co\await;
 use function stream_context_create;
-use function uniqid;
+use function stream_context_set_option;
 
 /**
+ * 该标准适用于透传模式的所有代理,通过该方法创建的套接字可以直接作为目标套接字访问
+ * 需要注意getMeta的url部分不能表示为目标地址,使用者应手动做映射
+ *
  * @Author cclilshy
- * @Date   2024/8/15 14:49
+ * @Date   2024/8/29 11:28
  */
-class WsTest extends TestCase
+abstract class Base
 {
     /**
-     * @Author cclilshy
-     * @Date   2024/8/15 14:49
-     * @return void
+     * 与代理之间的套接字连接
+     * @var SocketStream
+     */
+    protected SocketStream $proxy;
+
+    /**
+     * @param string $address
+     * @param array  $payload
+     * @param bool   $ssl
      * @throws Throwable
      */
-    #[Test]
-    public function test_wsServer(): void
+    public function __construct(protected string $address, protected array $payload, bool $ssl = false)
     {
-        defer(function () {
-            try {
-                $this->wsTest();
-            } catch (Throwable $exception) {
-                Output::error($exception->getMessage());
-            }
-        });
+        $context = stream_context_create();
+        stream_context_set_option($context, 'ssl', 'verify_peer', false);
+        stream_context_set_option($context, 'ssl', 'verify_peer_name', false);
 
-        $context = stream_context_create([
-            'socket' => [
-                'so_reuseport' => 1,
-                'so_reuseaddr' => 1,
-            ],
-        ]);
-        $server = Net::WebSocket()->server('ws://127.0.0.1:8001/', $context);
-        $server->onMessage(static function (string $data, Connection $connection) {
-            $connection->send($data);
-        });
-        $server->listen();
-        tick();
+        if ($ssl) {
+            $this->proxy = await(IO::Socket()->streamSocketClientSSL($address, 10, $context));
+        } else {
+            $this->proxy = await(IO::Socket()->streamSocketClient($address, 10, $context));
+        }
+
+        $this->proxy->setBlocking(false);
+        await($this->handshake());
     }
 
     /**
      * @Author cclilshy
-     * @Date   2024/8/15 14:49
-     * @return void
+     * @Date   2024/8/29 12:33
+     * @return SocketStream
      */
-    private function wsTest(): void
+    public function getSocketStream(): SocketStream
     {
-        $hash     = md5(uniqid());
-        $client   = Net::WebSocket()->connect('ws://127.0.0.1:8001/');
+        return $this->proxy;
+    }
 
-        $client->onOpen(static function () use ($client, $hash) {
-            \P\sleep(1);
-            $client->send($hash);
-        });
+    /**
+     * @Author cclilshy
+     * @Date   2024/8/29 11:34
+     * @return Promise<bool>
+     */
+    abstract protected function handshake(): Promise;
 
-        $client->onMessage(function (string $data) use ($hash) {
-            try {
-                $this->assertEquals($hash, $data);
-            } finally {
-                cancelAll();
-            }
-        });
+    /**
+     * @Author cclilshy
+     * @Date   2024/8/29 12:38
+     * @param string $address
+     * @param array  $payload
+     * @param bool   $ssl
+     * @return static
+     * @throws Throwable
+     */
+    public static function connect(string $address, array $payload, bool $ssl = false): static
+    {
+        return new static($address, $payload,$ssl);
     }
 }

@@ -48,15 +48,14 @@ use function Co\tick;
 use function spl_object_hash;
 
 /**
- * 原则性
- * 2024-07-13
- * async独立于EventLoop之外的单线Fiber, 对Fiber的操作必须考虑到EventLoop的协程空间
- * 任何suspend/resume都应该对当前操作的Fiber负责, 包括结果的返回处理
+ * 2024-07-13 principle
+ *
+ * async is a single-line Fiber independent of EventLoop. Operations on Fiber must take into account the coroutine space of EventLoop.
+ * Any suspend/resume should be responsible for the Fiber of the current operation, including the return processing of the results
  */
 
 /**
- * 兼容性:Process模块
- * 2024-07-13
+ * 2024-07-13 Compatible with Process module
  */
 class Coroutine extends LibraryAbstract
 {

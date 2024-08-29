@@ -220,12 +220,17 @@ class Socket extends LibraryAbstract
     public function streamSocketServer(string $address, mixed $context = null): Promise
     {
         return promise(function (Closure $r, Closure $d) use ($address, $context) {
-            $server = stream_socket_server($address, $_errCode, $_errMsg, STREAM_SERVER_BIND | STREAM_SERVER_LISTEN, $context);
+            $server = stream_socket_server(
+                $address,
+                $_errCode,
+                $_errMsg,
+                STREAM_SERVER_BIND | STREAM_SERVER_LISTEN,
+                $context
+            );
             if (!$server) {
                 $d(new Exception($_errMsg, $_errCode));
                 return;
             }
-
             $r(new SocketStream($server));
         });
     }

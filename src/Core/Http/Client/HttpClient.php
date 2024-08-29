@@ -35,9 +35,9 @@
 namespace Psc\Core\Http\Client;
 
 use Closure;
+use Co\IO;
 use GuzzleHttp\Psr7\MultipartStream;
 use InvalidArgumentException;
-use Co\IO;
 use Psc\Core\Coroutine\Promise;
 use Psc\Core\Exception\ConnectionException;
 use Psc\Core\Socket\SocketStream;
@@ -45,15 +45,15 @@ use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\ResponseInterface;
 use Throwable;
 
-use function fclose;
-use function fopen;
-use function implode;
-use function in_array;
 use function Co\async;
 use function Co\await;
 use function Co\cancel;
 use function Co\delay;
 use function Co\repeat;
+use function fclose;
+use function fopen;
+use function implode;
+use function in_array;
 use function str_contains;
 use function strtolower;
 
@@ -95,6 +95,7 @@ class HttpClient
                 $query = $uri->getQuery();
                 $query = $query ? "?{$query}" : '';
 
+
                 /**
                  * @var Connection $connection
                  */
@@ -102,7 +103,8 @@ class HttpClient
                     $host,
                     $port,
                     $scheme === 'https',
-                    $option['timeout'] ?? 0
+                    $option['timeout'] ?? 0,
+                    $option['proxy'] ?? null
                 ));
 
                 $header = "{$method} {$path}{$query} HTTP/1.1\r\n";
@@ -170,7 +172,14 @@ class HttpClient
                 /**
                  * 解析响应过程
                  */
-                $connection->stream->onReadable(function (SocketStream $socketStream, Closure $cancel) use ($connection, $scheme, $r, $d) {
+                $connection->stream->onReadable(function (SocketStream $socketStream, Closure $cancel) use (
+                    $host,
+                    $port,
+                    $connection,
+                    $scheme,
+                    $r,
+                    $d
+                ) {
                     try {
                         $content = $socketStream->read(8192);
                         if($content === '') {
@@ -185,7 +194,11 @@ class HttpClient
                                 /**
                                  * 推入连接池
                                  */
-                                $this->pushConnection($connection, $scheme === 'https');
+                                $this->pushConnection(
+                                    $connection,
+                                    ConnectionPool::generateConnectionKey($host, $port, $scheme === 'https'),
+                                    $scheme === 'https'
+                                );
                                 $cancel();
                             } else {
                                 $socketStream->close();
@@ -203,17 +216,18 @@ class HttpClient
     }
 
     /**
-     * @param string $host
-     * @param int    $port
-     * @param bool   $ssl
-     * @param int    $timeout
+     * @param string      $host
+     * @param int         $port
+     * @param bool        $ssl
+     * @param int         $timeout
+     * @param string|null $proxy
      * @return Promise<Connection>
      */
-    private function pullConnection(string $host, int $port, bool $ssl, int $timeout = 0): Promise
+    private function pullConnection(string $host, int $port, bool $ssl, int $timeout = 0, string|null $proxy = null): Promise
     {
-        return async(function () use ($host, $port, $ssl, $timeout) {
+        return async(function () use ($host, $port, $ssl, $timeout, $proxy) {
             if ($this->pool) {
-                $connection =  await($this->connectionPool->pullConnection($host, $port, $ssl, $timeout));
+                $connection =  await($this->connectionPool->pullConnection($host, $port, $ssl, $timeout, $proxy));
             } else {
                 $connection =  $ssl
                     ? new Connection(await(IO::Socket()->streamSocketClientSSL("ssl://{$host}:{$port}", $timeout)))
@@ -227,13 +241,14 @@ class HttpClient
 
     /**
      * @param Connection $connection
+     * @param string     $key
      * @param bool       $ssl
      * @return void
      */
-    private function pushConnection(Connection $connection, bool $ssl): void
+    private function pushConnection(Connection $connection, string $key, bool $ssl): void
     {
         if ($this->pool) {
-            $this->connectionPool->pushConnection($connection, $ssl);
+            $this->connectionPool->pushConnection($connection, $key, $ssl);
         }
     }
 }

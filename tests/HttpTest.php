@@ -34,10 +34,10 @@
 
 namespace Tests;
 
+use GuzzleHttp\Client;
 use GuzzleHttp\Exception\GuzzleException;
 use P\Net;
 use P\Plugin;
-use PHPUnit\Framework\Attributes\RunClassInSeparateProcess;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 use Psc\Core\Http\Server\Request;
@@ -46,6 +46,7 @@ use Psc\Utils\Output;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Throwable;
 
+use function Co\async;
 use function file_put_contents;
 use function fopen;
 use function md5;
@@ -54,12 +55,11 @@ use function P\cancelAll;
 use function P\defer;
 use function P\tick;
 use function str_repeat;
+use function stream_context_create;
 use function sys_get_temp_dir;
 use function tempnam;
 use function uniqid;
-use function stream_context_create;
 
-#[RunClassInSeparateProcess]
 class HttpTest extends TestCase
 {
     /**
@@ -88,6 +88,12 @@ class HttpTest extends TestCase
                 Output::exception($exception);
             }
 
+            try {
+                $this->httpClient();
+            } catch (Throwable $exception) {
+                Output::exception($exception);
+            }
+
             cancelAll();
         });
         $context = stream_context_create([
@@ -106,7 +112,6 @@ class HttpTest extends TestCase
                 $hash = $request->request->get('hash');
                 $this->assertEquals($hash, md5_file($file->getRealPath()));
                 $response->setContent(fopen($file->getRealPath(), 'r'))->respond();
-
 
                 return;
             }
@@ -143,7 +148,6 @@ class HttpTest extends TestCase
 
         $result = $response->getBody()->getContents();
         $this->assertEquals($hash, $result);
-
     }
 
     /**
@@ -162,7 +166,6 @@ class HttpTest extends TestCase
         ]);
 
         $this->assertEquals($hash, $response->getBody()->getContents());
-
     }
 
     /**
@@ -191,5 +194,69 @@ class HttpTest extends TestCase
             'sink'     => $path . '.bak'
         ]);
         $this->assertEquals($hash, md5_file($path . '.bak'));
+    }
+
+    /**
+     * @Author cclilshy
+     * @Date   2024/8/29 10:01
+     * @return void
+     * @throws Throwable
+     */
+    private function httpClient(): void
+    {
+        $urls = [
+            'https://www.baidu.com/',
+            'https://www.qq.com/',
+            'https://www.zhihu.com/',
+            'https://www.taobao.com/',
+            'https://www.jd.com/',
+            'https://www.163.com/',
+            'https://www.sina.com.cn/',
+            'https://www.sohu.com/',
+            'https://www.ifeng.com/',
+            'https://juejin.cn',
+            'https://www.csdn.net',
+            'https://www.cnblogs.com/',
+            'https://business.oceanengine.com/login',
+            'https://www.laruence.com/'
+        ];
+
+        $x = 0;
+        $y = 0;
+
+        foreach ($urls as $i => $url) {
+            try {
+                async(function () use ($i, $urls, &$x, &$y) {
+                    try {
+                        $response = \Co\Plugin::Guzzle()->get($urls[$i], ['timeout' => 5]);
+                        if($response->getStatusCode() === 200) {
+                            $x++;
+                        }
+
+                        // echo "Request ({$i}){$urls[$i]} response: {$response->getStatusCode()}\n";
+                    } catch (Throwable $e) {
+                        echo "\n";
+                        echo "Request ({$i}){$urls[$i]} error: {$e->getMessage()}\n";
+                    }
+
+                    try {
+                        $guzzleResponse = (new Client())->get($urls[$i], ['timeout' => 5]);
+                        if($guzzleResponse->getStatusCode() === 200) {
+                            $y++;
+                        }
+
+                        // echo "GuzzleRequest ({$i}){$urls[$i]} response: {$guzzleResponse->getStatusCode()}\n";
+                    } catch (Throwable $e) {
+                        echo "\n";
+                        echo "GuzzleRequest ({$i}){$urls[$i]} error: {$e->getMessage()}\n";
+                    }
+                })->await();
+            } catch (Throwable $e) {
+                Output::error($e->getMessage());
+            }
+        }
+
+        echo "\n";
+        echo("Request success: {$x}, GuzzleRequest success: {$y}\n");
     }
 }

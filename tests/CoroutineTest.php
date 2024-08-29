@@ -45,7 +45,6 @@ use function P\async;
 use function P\tick;
 use function str_contains;
 
-#[RunClassInSeparateProcess]
 class CoroutineTest extends TestCase
 {
     /**

@@ -36,6 +36,8 @@ namespace Psc\Core\Http\Client;
 
 use Co\IO;
 use Psc\Core\Coroutine\Promise;
+use Psc\Core\Socket\Proxy\ProxyHttp;
+use Psc\Core\Socket\Proxy\ProxySocks5;
 use Psc\Core\Socket\SocketStream;
 use Psc\Core\Stream\Exception\ConnectionException;
 use Throwable;
@@ -46,6 +48,7 @@ use function Co\await;
 use function Co\cancel;
 use function Co\cancelForkHandler;
 use function Co\registerForkHandler;
+use function parse_url;
 
 class ConnectionPool
 {
@@ -72,25 +75,68 @@ class ConnectionPool
     }
 
     /**
-     * @param string $host
-     * @param int    $port
-     * @param bool   $ssl
-     * @param int    $timeout
+     * @param string      $host
+     * @param int         $port
+     * @param bool        $ssl
+     * @param int         $timeout
+     * @param string|null $proxy  http://username:password@proxy.example.com:8080
      * @return Promise<Connection>
      */
-    public function pullConnection(string $host, int $port, bool $ssl = false, int $timeout = 0): Promise
-    {
+    public function pullConnection(
+        string $host,
+        int $port,
+        bool $ssl = false,
+        int $timeout = 0,
+        string|null $proxy = null,
+    ): Promise {
         return async(function () use (
             $ssl,
             $host,
             $port,
-            $timeout
+            $timeout,
+            $proxy
         ) {
-            $key = "tcp://{$host}:{$port}";
+            $key = ConnectionPool::generateConnectionKey($host, $port, $ssl);
             if ($ssl) {
                 if (!isset($this->idleSSL[$key]) || empty($this->idleSSL[$key])) {
-                    $connection = new Connection(await(IO::Socket()->streamSocketClientSSL("ssl://{$host}:{$port}", $timeout)));
-                    $this->pushConnection($connection, $ssl);
+                    if($proxy) {
+                        $parse = parse_url($proxy);
+                        if (!isset($parse['host'],$parse['port'])) {
+                            throw new ConnectionException('Invalid proxy address');
+                        }
+                        $payload = [
+                            'host' => $host,
+                            'port' => $port,
+                        ];
+                        if (isset($parse['user'], $parse['pass'])) {
+                            $payload['username'] = $parse['user'];
+                            $payload['password'] = $parse['pass'];
+                        }
+
+                        switch ($parse['scheme']) {
+                            case 'socks':
+                            case 'socks5':
+                                $proxySocket = ProxySocks5::connect("tcp://{$parse['host']}:{$parse['port']}", $payload)->getSocketStream();
+                                await(IO::Socket()->streamEnableCrypto($proxySocket));
+                                $connection = new Connection($proxySocket);
+                                break;
+                            case 'http':
+                                $proxySocket = ProxyHttp::connect("tcp://{$parse['host']}:{$parse['port']}", $payload)->getSocketStream();
+                                await(IO::Socket()->streamEnableCrypto($proxySocket));
+                                $connection = new Connection($proxySocket);
+                                break;
+                            case 'https':
+                                $proxySocket = ProxyHttp::connect("tcp://{$parse['host']}:{$parse['port']}", $payload, true)->getSocketStream();
+                                await(IO::Socket()->streamEnableCrypto($proxySocket));
+                                $connection = new Connection($proxySocket);
+                                break;
+                            default:
+                                throw new ConnectionException('Unsupported proxy protocol');
+                        }
+                    } else {
+                        $connection = new Connection(await(IO::Socket()->streamSocketClientSSL("ssl://{$host}:{$port}", $timeout)));
+                    }
+                    $this->pushConnection($connection, $key, $ssl);
                 } else {
                     /**
                      * @var Connection $connection
@@ -102,8 +148,40 @@ class ConnectionPool
                 }
             } else {
                 if (!isset($this->idleTCP[$key]) || empty($this->idleTCP[$key])) {
-                    $connection = new Connection(await(IO::Socket()->streamSocketClient("tcp://{$host}:{$port}", $timeout)));
-                    $this->pushConnection($connection, $ssl);
+                    if($proxy) {
+                        $parse = parse_url($proxy);
+                        if (!isset($parse['host'],$parse['port'])) {
+                            throw new ConnectionException('Invalid proxy address');
+                        }
+                        $payload = [
+                            'host' => $host,
+                            'port' => $port,
+                        ];
+                        if (isset($parse['user'], $parse['pass'])) {
+                            $payload['username'] = $parse['user'];
+                            $payload['password'] = $parse['pass'];
+                        }
+                        switch ($parse['scheme']) {
+                            case 'socks':
+                            case 'socks5':
+                                $proxySocket = ProxySocks5::connect("tcp://{$parse['host']}:{$parse['port']}", $payload)->getSocketStream();
+                                $connection = new Connection($proxySocket);
+                                break;
+                            case 'http':
+                                $proxySocket = ProxyHttp::connect("tcp://{$parse['host']}:{$parse['port']}", $payload)->getSocketStream();
+                                $connection = new Connection($proxySocket);
+                                break;
+                            case 'https':
+                                $proxySocket = ProxyHttp::connect("tcp://{$parse['host']}:{$parse['port']}", $payload, true)->getSocketStream();
+                                $connection = new Connection($proxySocket);
+                                break;
+                            default:
+                                throw new ConnectionException('Unsupported proxy protocol');
+                        }
+                    } else {
+                        $connection = new Connection(await(IO::Socket()->streamSocketClient("tcp://{$host}:{$port}", $timeout)));
+                    }
+                    $this->pushConnection($connection, $key, $ssl);
                 } else {
                     $connection = array_pop($this->idleTCP[$key]);
                     cancel($this->listenEventMap[$connection->stream->id]);
@@ -117,12 +195,12 @@ class ConnectionPool
 
     /**
      * @param Connection $connection
-     * @param bool         $ssl
+     * @param string     $key
+     * @param bool       $ssl
      * @return void
      */
-    public function pushConnection(Connection $connection, bool $ssl): void
+    public function pushConnection(Connection $connection, string $key, bool $ssl): void
     {
-        $key = "{$connection->stream->getAddress()}";
         if ($ssl) {
             if (!isset($this->idleSSL[$key])) {
                 $this->idleSSL[$key] = [];
@@ -205,5 +283,18 @@ class ConnectionPool
         // Clear and close all TCP connections
         $closeConnections($this->idleTCP);
         $closeConnections($this->busyTCP);
+    }
+
+    /**
+     * @Author cclilshy
+     * @Date   2024/8/29 09:43
+     * @param string $host
+     * @param int    $port
+     * @param bool   $ssl
+     * @return string
+     */
+    public static function generateConnectionKey(string $host, int $port, bool $ssl): string
+    {
+        return ($ssl ? 'ssl://' : 'tcp://') . $host . ':' . $port;
     }
 }

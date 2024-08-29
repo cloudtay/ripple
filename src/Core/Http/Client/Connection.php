@@ -48,6 +48,8 @@ use function strpos;
 use function strtok;
 use function substr;
 use function hexdec;
+use function var_dump;
+use function ctype_xdigit;
 
 /**
  * @Author cclilshy
@@ -149,24 +151,35 @@ class Connection
                     $chunkEnd = strpos($buffer, "\r\n");
                     if ($chunkEnd === false) {
                         break;
-                    } else {
-                        $this->chunkStep   = 1;
-                        $this->chunkLength = intval(hexdec(substr($buffer, 0, $chunkEnd)));
-                        $buffer            = substr($buffer, $chunkEnd + 2);
-                        if ($this->chunkLength === 0) {
-                            $buffer          = substr($buffer, $this->chunkLength + 2);
-                            $this->step = 2;
+                    }
+
+                    $chunkLengthHex = substr($buffer, 0, $chunkEnd);
+                    if (!ctype_xdigit($chunkLengthHex)) {
+                        throw new RuntimeException("Invalid chunk length: " . $chunkLengthHex);
+                    }
+
+                    $this->chunkLength = hexdec($chunkLengthHex);
+                    $buffer = substr($buffer, $chunkEnd + 2);
+
+                    if ($this->chunkLength === 0) {
+                        if (strlen($buffer) < 2) {
                             break;
                         }
-                    }
-                } else {
-                    if (strlen($buffer) >= $this->chunkLength + 2) {
-                        $this->output(substr($buffer, 0, $this->chunkLength));
-                        $buffer          = substr($buffer, $this->chunkLength + 2);
-                        $this->chunkStep = 0;
-                    } else {
+                        $buffer = substr($buffer, 2);
+                        $this->step = 2;
                         break;
                     }
+
+                    $this->chunkStep = 1;
+                } else {
+                    if (strlen($buffer) < $this->chunkLength + 2) {
+                        break;
+                    }
+
+                    $chunkData = substr($buffer, 0, $this->chunkLength);
+                    $this->output($chunkData);
+                    $buffer = substr($buffer, $this->chunkLength + 2); // 跳过数据和尾部 CRLF
+                    $this->chunkStep = 0;
                 }
             } while ($this->step !== 2);
 
