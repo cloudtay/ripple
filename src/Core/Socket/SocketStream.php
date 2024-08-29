@@ -101,7 +101,10 @@ class SocketStream extends Stream
     {
         parent::__construct($resource);
 
-        $this->socket = socket_import_stream($this->stream);
+        if(!$socket = socket_import_stream($this->stream)) {
+            throw new RuntimeException('Failed to import stream');
+        }
+        $this->socket = $socket;
 
         if (!$peerName) {
             $peerName = stream_socket_get_name($this->stream, true);

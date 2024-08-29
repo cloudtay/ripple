@@ -237,6 +237,7 @@ class HttpTest extends TestCase
                     } catch (Throwable $e) {
                         echo "\n";
                         echo "Request ({$i}){$urls[$i]} error: {$e->getMessage()}\n";
+                        Output::exception($e);
                     }
 
                     try {

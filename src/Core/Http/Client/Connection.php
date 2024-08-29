@@ -40,16 +40,17 @@ use Psc\Core\Stream\Exception\RuntimeException;
 use Psr\Http\Message\ResponseInterface;
 
 use function count;
+use function ctype_xdigit;
 use function explode;
+use function fclose;
 use function fwrite;
+use function hexdec;
 use function intval;
 use function strlen;
 use function strpos;
 use function strtok;
 use function substr;
-use function hexdec;
-use function var_dump;
-use function ctype_xdigit;
+use function is_resource;
 
 /**
  * @Author cclilshy
@@ -74,7 +75,6 @@ class Connection
     private int    $bodyLength    = 0;
     private string $versionString = '';
     private string $buffer        = '';
-
     private bool $chunk       = false;
     private int  $chunkLength = 0;
     private int  $chunkStep   = 0;
@@ -243,6 +243,12 @@ class Connection
      */
     private function reset(): void
     {
+        if ($this->output) {
+            if (is_resource($this->output)) {
+                fclose($this->output);
+            }
+        }
+
         $this->step          = 0;
         $this->statusCode    = 0;
         $this->statusMessage = '';
@@ -251,10 +257,9 @@ class Connection
         $this->content       = '';
         $this->bodyLength    = 0;
         $this->versionString = '';
-        $this->output        = null;
-        $this->chunk         = false;
-        $this->chunkLength   = 0;
-        $this->chunkStep     = 0;
-        $this->buffer        = '';
+        $this->buffer = '';
+        $this->chunk = false;
+        $this->chunkLength = 0;
+        $this->chunkStep = 0;
     }
 }

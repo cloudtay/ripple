@@ -86,7 +86,7 @@ class Socket extends LibraryAbstract
             $promise      = $this->streamEnableCrypto($streamSocket)->then($r)->except($d);
 
             if ($timeout > 0) {
-                delay(function () use ($promise, $streamSocket, $d) {
+                delay(static function () use ($promise, $streamSocket, $d) {
                     if ($promise->getStatus() === Promise::PENDING) {
                         $streamSocket->close();
                         $d(new Exception('Connection timeout.'));
@@ -104,7 +104,7 @@ class Socket extends LibraryAbstract
      */
     public function streamSocketClient(string $address, int $timeout = 0, mixed $context = null): Promise
     {
-        return promise(function (Closure $r, Closure $d) use ($address, $timeout, $context) {
+        return promise(static function (Closure $r, Closure $d) use ($address, $timeout, $context) {
             $connection = stream_socket_client(
                 $address,
                 $_,
@@ -122,15 +122,16 @@ class Socket extends LibraryAbstract
             $stream = new SocketStream($connection, $address);
 
             if($timeout > 0) {
-                $timeoutEventId = delay(function () use ($stream) {
+                $timeoutEventId = delay(static function () use ($stream, $d) {
                     $stream->close();
+                    $d(new Exception('Connection timeout.'));
                 }, $timeout);
                 $timeoutEventCancel = fn () => cancel($timeoutEventId);
             } else {
                 $timeoutEventCancel = fn () => null;
             }
 
-            $stream->onWritable(function (SocketStream $stream, Closure $cancel) use ($r, $timeoutEventCancel) {
+            $stream->onWritable(static function (SocketStream $stream, Closure $cancel) use ($r, $timeoutEventCancel) {
                 $cancel();
                 $r($stream);
                 $timeoutEventCancel();
@@ -144,7 +145,7 @@ class Socket extends LibraryAbstract
      */
     public function streamEnableCrypto(SocketStream $stream): Promise
     {
-        return new Promise(function ($r, $d) use ($stream) {
+        return new Promise(static function ($r, $d) use ($stream) {
             $handshakeResult = stream_socket_enable_crypto($stream->stream, true, STREAM_CRYPTO_METHOD_SSLv23_CLIENT);
 
             if ($handshakeResult === false) {
@@ -159,7 +160,7 @@ class Socket extends LibraryAbstract
             }
 
             if ($handshakeResult === 0) {
-                $stream->onReadable(function (SocketStream $stream, Closure $cancel) use ($r, $d) {
+                $stream->onReadable(static function (SocketStream $stream, Closure $cancel) use ($r, $d) {
                     try {
                         $handshakeResult = stream_socket_enable_crypto($stream->stream, true, STREAM_CRYPTO_METHOD_SSLv23_CLIENT);
                     } catch (Throwable $exception) {
@@ -219,7 +220,7 @@ class Socket extends LibraryAbstract
      */
     public function streamSocketServer(string $address, mixed $context = null): Promise
     {
-        return promise(function (Closure $r, Closure $d) use ($address, $context) {
+        return promise(static function (Closure $r, Closure $d) use ($address, $context) {
             $server = stream_socket_server(
                 $address,
                 $_errCode,
@@ -241,8 +242,8 @@ class Socket extends LibraryAbstract
      */
     public function streamSocketAccept(SocketStream $server): Promise
     {
-        return new Promise(function ($r, $d) use ($server) {
-            $server->onReadable(function (SocketStream $server, Closure $cancel) use ($r, $d) {
+        return new Promise(static function ($r, $d) use ($server) {
+            $server->onReadable(static function (SocketStream $server, Closure $cancel) use ($r, $d) {
                 $connection = stream_socket_accept($server->stream, 0);
                 if (!$connection) {
                     $d(new Exception('Failed to accept connection.'));

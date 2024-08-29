@@ -46,6 +46,10 @@ use Throwable;
 use function call_user_func;
 use function extension_loaded;
 
+/**
+ * @Author cclilshy
+ * @Date   2024/8/29 23:28
+ */
 class Kernel
 {
     /*** @var Kernel */

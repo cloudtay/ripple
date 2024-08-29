@@ -39,6 +39,7 @@ use Fiber;
 use FiberError;
 use Psc\Core\LibraryAbstract;
 use Psc\Kernel;
+use Psc\Utils\Output;
 use Revolt\EventLoop;
 use Throwable;
 
@@ -91,17 +92,13 @@ class Coroutine extends LibraryAbstract
         if (!$fiber = Fiber::getCurrent()) {
             $suspend = EventLoop::getSuspension();
             $promise->then(fn ($result) => $suspend->resume($result));
-            $promise->except(fn (mixed $e) => $suspend->resume($e));
+            $promise->except(fn (mixed $e) => $suspend->throw($e));
 
-            try {
-                $result = $suspend->suspend();
-                if ($result instanceof Promise) {
-                    return $this->await($result);
-                }
-                return $result;
-            } catch (Throwable) {
-                return false;
+            $result = $suspend->suspend();
+            if ($result instanceof Promise) {
+                return $this->await($result);
             }
+            return $result;
         }
 
         if (!$callback = $this->fiber2callback[spl_object_hash($fiber)] ?? null) {
@@ -123,7 +120,7 @@ class Coroutine extends LibraryAbstract
          * To determine your own control over preparing Fiber, you must be responsible for the subsequent status of Fiber.
          */
         // When the status of the awaited Promise is completed
-        $promise->then(function (mixed $result) use ($fiber, $callback) {
+        $promise->then(static function (mixed $result) use ($fiber, $callback) {
             try {
                 // Try to resume Fiber operation
                 $fiber->resume($result);
@@ -150,7 +147,7 @@ class Coroutine extends LibraryAbstract
         });
 
         // When rejected by the status of the awaited Promise
-        $promise->except(function (mixed $e) use ($fiber, $callback) {
+        $promise->except(static function (mixed $e) use ($fiber, $callback) {
             try {
                 // Try to notice Fiber: An exception occurred in the awaited Promise
                 $e instanceof Throwable
@@ -245,7 +242,6 @@ class Coroutine extends LibraryAbstract
     /**
      * @param float|int $second
      * @return void
-     * @throws Throwable
      */
     public function sleep(float|int $second): void
     {
@@ -288,7 +284,11 @@ class Coroutine extends LibraryAbstract
                 }
             }, $second);
 
-            $fiber->suspend();
+            try {
+                $fiber->suspend();
+            } catch (Throwable $e) {
+                Output::exception($e);
+            }
         }
     }
 

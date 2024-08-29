@@ -34,12 +34,15 @@
 
 namespace Psc\Plugins\Guzzle;
 
+use GuzzleHttp\Exception\ClientException;
+use GuzzleHttp\Exception\GuzzleException;
+use GuzzleHttp\Exception\TransferException;
 use GuzzleHttp\Promise\Promise;
 use GuzzleHttp\Promise\PromiseInterface;
 use Psc\Core\Http\Client\HttpClient;
 use Psr\Http\Message\RequestInterface;
-
-use function Co\await;
+use Psr\Http\Message\ResponseInterface;
+use Throwable;
 
 class PHandler
 {
@@ -62,8 +65,18 @@ class PHandler
     public function __invoke(RequestInterface $request, array $options): PromiseInterface
     {
         $async   = $this->httpClient->request($request, $options);
-        $promise = new Promise(function () use ($async, &$promise) {
-            $promise->resolve(await($async));
+        $promise = new Promise(static function () use ($request, $async, &$promise) {
+            try {
+                $result = $async->await();
+                if (!$result instanceof ResponseInterface) {
+                    throw new TransferException('Invalid response');
+                }
+                $promise->resolve($result);
+            } catch (GuzzleException $exception) {
+                $promise->reject($exception);
+            } catch (Throwable $exception) {
+                $promise->reject(new TransferException($exception->getMessage()));
+            }
         });
         return $promise;
     }

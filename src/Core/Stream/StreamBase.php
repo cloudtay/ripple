@@ -115,7 +115,7 @@ class StreamBase implements StreamInterface
      */
     public function write(string $string): int
     {
-        $result = fwrite($this->stream, $string);
+        $result = @fwrite($this->stream, $string);
         if ($result === false) {
             throw new ConnectionException('Unable to write to stream');
         }
