@@ -62,7 +62,17 @@ use function substr;
 use function trim;
 use function unpack;
 
+use function array_merge;
+use function inflate_add;
+use function inflate_init;
+use function stripos;
+
+use function deflate_add;
+use function deflate_init;
+
 use const PHP_URL_PATH;
+use const ZLIB_DEFAULT_STRATEGY;
+use const ZLIB_ENCODING_RAW;
 
 /**
  * @Author cclilshy
@@ -80,6 +90,10 @@ class Connection
         'Sec-WebSocket-Key'     => true,
         'Sec-WebSocket-Version' => true
     );
+
+    private const EXTEND_HEAD = 'Sec-WebSocket-Extensions';
+
+    private bool $isDeflate = false;
 
     /**
      * @var string
@@ -144,7 +158,7 @@ class Connection
                 return;
             }
             $this->push($data);
-        } catch (ConnectionException) {
+        } catch (ConnectionException $exception) {
             $this->close();
             return;
         } catch (Throwable $exception) {
@@ -202,6 +216,11 @@ class Connection
     private function build(string $context, int $opcode = 0x1, bool $fin = true): string
     {
         $frame      = chr(($fin ? 0x80 : 0) | $opcode);
+        if ($this->isDeflate && $opcode === 0x1) {
+            $frame[0] = chr(ord($frame[0]) | 0x40);
+            $context = $this->deflate($context);
+        }
+
         $contextLen = strlen($context);
         if ($contextLen < 126) {
             $frame .= chr($contextLen);
@@ -211,6 +230,7 @@ class Connection
             $frame .= chr(127) . pack('J', $contextLen);
         }
         $frame .= $context;
+
         return $frame;
     }
 
@@ -264,6 +284,7 @@ class Connection
         }
 
         $results = array();
+        $prevPayload = '';
         while (strlen($this->buffer) > 0) {
             $context = $this->buffer;
             $dataLength = strlen($context);
@@ -278,6 +299,7 @@ class Connection
             $byte = ord($context[$index++]);
             $fin = ($byte & 0x80) != 0;
             $opcode = $byte & 0x0F;
+            $rsv1 = 64 === ($byte & 64);
 
             $byte = ord($context[$index++]);
             $mask = ($byte & 0x80) != 0;
@@ -329,11 +351,60 @@ class Connection
                 }
             }
 
+            if ($rsv1) {
+                $payload = $this->inflate($payload, $fin);
+            }
+
             $this->buffer = substr($context, $index + $payloadLength);
-            $results[] = $payload;
+
+            $prevPayload .= $payload;
+            if ($fin) {
+                $results[] = $prevPayload;
+                $prevPayload = '';
+            }
         }
 
         return $results;
+    }
+
+    // 解压
+    protected function inflate($payload, $fin): bool|string
+    {
+        if (!isset($this->inflator)) {
+            $this->inflator = inflate_init(
+                ZLIB_ENCODING_RAW,
+                [
+                    'level'    => -1,
+                    'memory'   => 8,
+                    'window'   => 9,
+                    'strategy' => ZLIB_DEFAULT_STRATEGY
+                ]
+            );
+        }
+
+        if ($fin) {
+            $payload .= "\x00\x00\xff\xff";
+        }
+
+        return inflate_add($this->inflator, $payload);
+    }
+
+    //压缩
+    protected function deflate($payload): string
+    {
+        if (!isset($this->deflator)) {
+            $this->deflator = deflate_init(
+                ZLIB_ENCODING_RAW,
+                [
+                    'level'    => -1,
+                    'memory'   => 8,
+                    'window'   => 9,
+                    'strategy' => ZLIB_DEFAULT_STRATEGY
+                ]
+            );
+        }
+
+        return substr(deflate_add($this->deflator, $payload), 0, -4);
     }
 
     /**
@@ -462,18 +533,43 @@ class Connection
      */
     private function generateResponseContent(string $accept): string
     {
-        $headers = array(
+        $headers = array_merge(array(
             'Upgrade'              => 'websocket',
             'Connection'           => 'Upgrade',
-            'Sec-WebSocket-Accept' => $accept
-        );
+            'Sec-WebSocket-Accept' => $accept,
+        ), $this->extensions());
         $context = "HTTP/1.1 101 Switching Protocols\r\n";
         foreach ($headers as $key => $value) {
             $context .= "{$key}: {$value} \r\n";
         }
         $context .= "\r\n";
+
         return $context;
     }
+
+    private function extensions(): array
+    {
+        $extendHeaders = [];
+        $clientExtendHead = $this->getRequest()->headers->get(Connection::EXTEND_HEAD);
+        if (!$clientExtendHead) {
+            return $extendHeaders;
+        }
+
+        $value = '';
+        $isDeflate = stripos($clientExtendHead, 'permessage-deflate') !== false;
+        if ($isDeflate && $this->server->getOptions()->getDeflate()) {
+            $value .= 'permessage-deflate; server_no_context_takeover; client_max_window_bits=15';
+            $this->isDeflate = true;
+        }
+        //其他扩展，如：加密……
+
+        if ($value) {
+            $extendHeaders[Connection::EXTEND_HEAD] = $value;
+        }
+
+        return $extendHeaders;
+    }
+
 
     /**
      * @Author cclilshy
