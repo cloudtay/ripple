@@ -40,8 +40,11 @@ use Throwable;
 
 use function posix_kill;
 
+use function getmypid;
+
 use const SIGKILL;
 use const SIGTERM;
+use const PHP_OS_FAMILY;
 
 /**
  * @Author cclilshy
@@ -65,6 +68,13 @@ class Runtime
      */
     public function stop(bool $force = false): void
     {
+        /**
+         * @compatible:Windows
+         */
+        if (PHP_OS_FAMILY === 'Windows') {
+            exit(0);
+        }
+
         $force
             ? $this->kill()
             : $this->signal(SIGTERM);
@@ -73,6 +83,14 @@ class Runtime
     /*** @return void */
     public function kill(): void
     {
+        /**
+         * @compatible:Windows
+         */
+        if (PHP_OS_FAMILY === 'Windows') {
+            exit(0);
+        }
+
+
         posix_kill($this->processId, SIGKILL);
     }
 
@@ -82,6 +100,13 @@ class Runtime
      */
     public function signal(int $signal): void
     {
+        /**
+         * @compatible:Windows
+         */
+        if (PHP_OS_FAMILY === 'Windows') {
+            return;
+        }
+
         posix_kill($this->processId, $signal);
     }
 
@@ -96,6 +121,13 @@ class Runtime
     /*** @return int */
     public function getProcessId(): int
     {
+        /**
+         * @compatible:Windows
+         */
+        if (PHP_OS_FAMILY === 'Windows') {
+            return getmypid();
+        }
+
         return $this->processId;
     }
 

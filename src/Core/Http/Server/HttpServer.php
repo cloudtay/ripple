@@ -42,16 +42,15 @@ use Psc\Core\Socket\SocketStream;
 use Psc\Core\Stream\Exception\RuntimeException;
 use Psc\Utils\Output;
 use Throwable;
-
 use function call_user_func_array;
-use function count;
-use function explode;
 use function Co\async;
 use function Co\await;
+use function count;
+use function explode;
 use function str_contains;
 use function strlen;
 use function strtolower;
-
+use const PHP_OS_FAMILY;
 use const SO_KEEPALIVE;
 use const SO_RCVBUF;
 use const SO_REUSEADDR;
@@ -109,7 +108,14 @@ class HttpServer
             };
 
             $this->server->setOption(SOL_SOCKET, SO_REUSEADDR, 1);
-            $this->server->setOption(SOL_SOCKET, SO_REUSEPORT, 1);
+
+            /**
+             * @compatible:Windows
+             */
+            if (PHP_OS_FAMILY !== 'Windows') {
+                $this->server->setOption(SOL_SOCKET, SO_REUSEPORT, 1);
+            }
+
             $this->server->setOption(SOL_SOCKET, SO_KEEPALIVE, 1);
             $this->server->setBlocking(false);
         })->await();
@@ -181,10 +187,10 @@ class HttpServer
                     return;
                 }
 
-                $keepAlive = false;
+                $keepAlive = true;
                 if($connection = $symfonyRequest->headers->get('Connection')) {
-                    if (str_contains(strtolower($connection), 'keep-alive')) {
-                        $keepAlive = true;
+                    if (str_contains(strtolower($connection), 'close')) {
+                        $keepAlive = false;
                     }
                 }
 

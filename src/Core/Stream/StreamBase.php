@@ -101,7 +101,7 @@ class StreamBase implements StreamInterface
      */
     public function read(int|null $length): string
     {
-        $content = fread($this->stream, $length);
+        $content = @fread($this->stream, $length);
         if ($content === false) {
             throw new ConnectionException('Unable to read from stream');
         }

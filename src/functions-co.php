@@ -41,6 +41,7 @@ use Psc\Kernel;
 use Revolt\EventLoop;
 use Revolt\EventLoop\UnsupportedFeatureException;
 use Throwable;
+use RuntimeException;
 
 /**
  * @param Promise $promise
@@ -125,6 +126,7 @@ function defer(Closure $closure): void
 /**
  * @param Closure $closure
  * @return Thread
+ * @throws RuntimeException
  */
 function thread(Closure $closure): Thread
 {

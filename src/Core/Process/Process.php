@@ -249,10 +249,16 @@ class Process extends LibraryAbstract
             /**
              * @compatible:Windows
              * windows 不支持pcntl扩展
+             *
+             * Windows允许使用Process模块模拟一个Runtime
+             * 但Runtime并非真正的子进程
+             *
+             * 由于__destruct与Fiber生命周期的原因
+             * Windows下的Runtime一旦被销毁,会导致整个进程退出, 并且不会触发任何promise回调
              */
             if (PHP_OS_FAMILY === 'Windows') {
                 call_user_func($closure, ...$args);
-                return true;
+                return new Runtime(promise(static function () {}), getmypid());
             }
 
             $processId = pcntl_fork();

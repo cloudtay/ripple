@@ -44,6 +44,8 @@ use ReflectionClass;
 use Revolt\EventLoop;
 use Throwable;
 
+use RuntimeException;
+
 use function Co\cancel;
 use function Co\defer;
 use function Co\onSignal;
@@ -57,6 +59,7 @@ use function posix_getpid;
 use function posix_kill;
 use function preg_match;
 use function shell_exec;
+
 use function strval;
 
 use const SIGUSR2;
@@ -125,6 +128,24 @@ class Parallel extends LibraryAbstract
     protected function __construct()
     {
         $this->initialize();
+    }
+
+    /**
+     * @Author cclilshy
+     * @Date   2024/8/30 22:11
+     * @return static
+     * @throws RuntimeException
+     */
+    public static function getInstance(): static
+    {
+        /**
+         * @compatible:Windows
+         */
+        if (PHP_OS_FAMILY === 'Windows') {
+            throw new RuntimeException('Parallel is not supported on Windows');
+        }
+
+        return parent::getInstance();
     }
 
     /**

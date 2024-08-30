@@ -53,6 +53,7 @@ use const SO_SNDBUF;
 use const SOL_SOCKET;
 use const SOL_TCP;
 use const TCP_NODELAY;
+use const PHP_OS_FAMILY;
 
 /**
  * [协议相关]
@@ -116,7 +117,14 @@ class Server
         $this->server = IO::Socket()->streamSocketServer("tcp://{$host}:{$port}", $context)->await();
 
         $this->server->setOption(SOL_SOCKET, SO_REUSEADDR, 1);
-        $this->server->setOption(SOL_SOCKET, SO_REUSEPORT, 1);
+
+        /**
+         * @compatible:Windows
+         */
+        if (PHP_OS_FAMILY !== 'Windows') {
+            $this->server->setOption(SOL_SOCKET, SO_REUSEPORT, 1);
+        }
+
         $this->server->setOption(SOL_SOCKET, SO_KEEPALIVE, 1);
         $this->server->setBlocking(false);
     }

@@ -45,6 +45,7 @@ use Psc\Utils\Output;
 use Psc\Utils\Serialization\Zx7e;
 
 use function Co\promise;
+use function P\delay;
 use function socket_create_pair;
 use function socket_export_stream;
 use function spl_object_hash;
@@ -52,6 +53,7 @@ use function spl_object_hash;
 use const AF_UNIX;
 use const SOCK_STREAM;
 use const PHP_OS_FAMILY;
+use const AF_INET;
 
 /**
  * @Author cclilshy
@@ -274,7 +276,12 @@ abstract class Worker
      */
     private function guard(Manager $manager, int $index): bool
     {
-        if (!socket_create_pair(AF_UNIX, SOCK_STREAM, 0, $sockets)) {
+        /**
+         * @compatible:Windows
+         */
+        $domain = PHP_OS_FAMILY === 'Windows' ? AF_INET : AF_UNIX;
+
+        if (!socket_create_pair($domain, SOCK_STREAM, 0, $sockets)) {
             return false;
         }
 
@@ -314,7 +321,7 @@ abstract class Worker
             if (isset($this->runtimes[$index])) {
                 unset($this->runtimes[$index]);
             }
-            \P\delay(function () use ($manager, $index) {
+            delay(function () use ($manager, $index) {
                 $this->guard($manager, $index);
             }, 0.1);
         });

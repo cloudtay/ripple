@@ -37,6 +37,7 @@ namespace Co;
 use Psc\Core\Parallel\Parallel;
 use Psc\Core\Proc\Proc;
 use Psc\Core\Process\Process;
+use RuntimeException;
 
 /**
  * @Author cclilshy
@@ -63,6 +64,7 @@ class System
     /**
      * @Description 未通过测试
      * @return Parallel
+     * @throws RuntimeException
      */
     public static function Parallel(): Parallel
     {
