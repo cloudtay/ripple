@@ -35,18 +35,34 @@
 namespace Psc\Core\WebSocket\Server;
 
 use Closure;
+use Psc\Core\Socket\SocketStream;
 use Psc\Core\Stream\Exception\ConnectionException;
 use Psc\Core\Stream\Stream;
 use Psc\Core\WebSocket\Frame\Type;
+use Psc\Utils\Output;
+use Symfony\Component\HttpFoundation\Request;
 use Throwable;
 
+use function array_shift;
+use function base64_encode;
 use function call_user_func;
 use function chr;
+use function count;
+use function explode;
 use function ord;
 use function pack;
+use function parse_url;
+use function rawurldecode;
+use function sha1;
+use function str_replace;
 use function strlen;
+use function strpos;
+use function strtoupper;
 use function substr;
+use function trim;
 use function unpack;
+
+use const PHP_URL_PATH;
 
 /**
  * @Author cclilshy
@@ -55,14 +71,31 @@ use function unpack;
 class Connection
 {
     /**
-     * @var string
+     *
      */
-    public string $buffer = '';
+    private const NEED_HEAD = array(
+        'Host'                  => true,
+        'Upgrade'               => true,
+        'Connection'            => true,
+        'Sec-WebSocket-Key'     => true,
+        'Sec-WebSocket-Version' => true
+    );
 
     /**
      * @var string
      */
+    private string $buffer = '';
+
+    /**
+     * @Description 已使用Request装载
+     * @var string
+     */
     private string $headerContent = '';
+
+    /**
+     * @var Request
+     */
+    private Request $request;
 
     /**
      * @var int
@@ -85,12 +118,12 @@ class Connection
     private Closure|null $onClose = null;
 
     /**
-     * @param Stream $stream
-     * @param Server $server
+     * @param SocketStream $stream
+     * @param Server       $server
      */
-    public function __construct(public readonly Stream $stream, private readonly Server $server)
+    public function __construct(public readonly SocketStream $stream, private readonly Server $server)
     {
-        $this->stream->onReadable(fn (Stream $stream) => $this->handleRead($stream));
+        $this->stream->onReadable(fn (SocketStream $stream) => $this->handleRead($stream));
         $this->stream->onClose(fn () => $this->close());
     }
 
@@ -111,7 +144,11 @@ class Connection
                 return;
             }
             $this->push($data);
-        } catch (Throwable) {
+        } catch (ConnectionException) {
+            $this->close();
+            return;
+        } catch (Throwable $exception) {
+            Output::warning($exception->getMessage());
             $this->close();
             return;
         }
@@ -124,14 +161,12 @@ class Connection
      * @return void
      * @throws ConnectionException
      */
-    public function push(string $data): void
+    private function push(string $data): void
     {
         $this->buffer .= $data;
-
         if ($this->step === 0) {
-            $handshake = Handshake::accept($this);
-
-            if($handshake === null) {
+            $handshake = $this->accept();
+            if ($handshake === null) {
                 return;
             } elseif ($handshake === false) {
                 throw new ConnectionException('Handshake failed');
@@ -159,34 +194,285 @@ class Connection
     /**
      * @Author cclilshy
      * @Date   2024/8/15 14:45
-     * @param string $message
+     * @param string $context
+     * @param int    $opcode
+     * @param bool   $fin
+     * @return string
+     */
+    private function build(string $context, int $opcode = 0x1, bool $fin = true): string
+    {
+        $frame      = chr(($fin ? 0x80 : 0) | $opcode);
+        $contextLen = strlen($context);
+        if ($contextLen < 126) {
+            $frame .= chr($contextLen);
+        } elseif ($contextLen <= 0xFFFF) {
+            $frame .= chr(126) . pack('n', $contextLen);
+        } else {
+            $frame .= chr(127) . pack('J', $contextLen);
+        }
+        $frame .= $context;
+        return $frame;
+    }
+
+    /**
+     * @Author lidongyooo
+     * @Date   2024/8/25 22:43
+     * @return void
+     */
+    private function frameType(): void
+    {
+        $firstByte = ord($this->buffer[0]);
+        $opcode = $firstByte & 0x0F;
+
+        switch ($opcode) {
+            case Type::PING:
+                $this->pong();
+                break;
+            case Type::BINARY:
+            case Type::CLOSE:
+            case Type::TEXT:
+            case Type::PONG:
+            default:
+                break;
+        }
+    }
+
+    /**
+     * @Author lidongyooo
+     * @Date   2024/8/25 22:43
      * @return bool
      */
-    public function send(string $message): bool
+    private function pong(): bool
     {
-        try {
-            if (!$this->isHandshake()) {
-                throw new ConnectionException('Connection is not established yet');
-            }
-            $this->stream->write($this->build($message));
-        } catch (ConnectionException) {
-            $this->close();
+        if (!$this->server->getOptions()->getPingPong()) {
             return false;
         }
-        return true;
+
+        return $this->sendFrame('', opcode: TYPE::PONG);
     }
+
 
     /**
      * @Author cclilshy
      * @Date   2024/8/15 14:45
-     * @return void
+     * @return array
      */
-    public function close(): void
+    private function parse(): array
     {
-        $this->stream->close();
-        if ($this->onClose !== null) {
-            call_user_func($this->onClose, $this);
+        if (strlen($this->buffer) > 0) {
+            $this->frameType();
         }
+
+        $results = array();
+        while (strlen($this->buffer) > 0) {
+            $context = $this->buffer;
+            $dataLength = strlen($context);
+            $index = 0;
+
+            // 验证足够的数据来读取第一个字节
+            if ($dataLength < 2) {
+                // 等待更多数据...
+                break;
+            }
+
+            $byte = ord($context[$index++]);
+            $fin = ($byte & 0x80) != 0;
+            $opcode = $byte & 0x0F;
+
+            $byte = ord($context[$index++]);
+            $mask = ($byte & 0x80) != 0;
+            $payloadLength = $byte & 0x7F;
+
+            // 处理 2 or 8 字节的长度字段
+            if ($payloadLength > 125) {
+                if ($payloadLength == 126) {
+                    // 验证足够的数据来读取 2 字节的长度字段
+                    if ($dataLength < $index + 2) {
+                        // 等待更多数据...
+                        break;
+                    }
+                    $payloadLength = unpack('n', substr($context, $index, 2))[1];
+                    $index += 2;
+                } else {
+                    // 验证足够的数据来读取 8 字节的长度字段
+                    if ($dataLength < $index + 8) {
+                        // 等待更多数据...
+                        break;
+                    }
+                    $payloadLength = unpack('J', substr($context, $index, 8))[1];
+                    $index += 8;
+                }
+            }
+
+            // 处理掩码密钥
+            if ($mask) {
+                // 验证足够的数据来读取掩码密钥
+                if ($dataLength < $index + 4) {
+                    // 等待更多数据...
+                    break;
+                }
+                $maskingKey = substr($context, $index, 4);
+                $index += 4;
+            }
+
+            // 验证足够的数据来读取负载数据
+            if ($dataLength < $index + $payloadLength) {
+                // 等待更多数据...
+                break;
+            }
+
+            // 处理负载数据
+            $payload = substr($context, $index, $payloadLength);
+            if ($mask) {
+                for ($i = 0; $i < strlen($payload); $i++) {
+                    $payload[$i] = chr(ord($payload[$i]) ^ ord($maskingKey[$i % 4]));
+                }
+            }
+
+            $this->buffer = substr($context, $index + $payloadLength);
+            $results[] = $payload;
+        }
+
+        return $results;
+    }
+
+    /**
+     * @Author cclilshy
+     * @Date   2024/8/15 14:49
+     * @return bool|null 返回null表示未完成握手, 返回false表示握手失败, 返回true表示握手成功
+     * @throws ConnectionException
+     */
+    private function accept(): bool|null
+    {
+        $identityInfo = $this->tick();
+        if ($identityInfo === null) {
+            return null;
+        } elseif ($identityInfo === false) {
+            return false;
+        } else {
+            $secWebSocketAccept = $this->getSecWebSocketAccept($identityInfo->headers->get('Sec-WebSocket-Key'));
+            $this->stream->write($this->generateResponseContent($secWebSocketAccept));
+            return true;
+        }
+    }
+
+    /**
+     * @Author cclilshy
+     * @Date   2024/8/15 14:49
+     * @return Request|false|null
+     */
+    private function tick(): Request|false|null
+    {
+        if ($index = strpos($this->buffer, "\r\n\r\n")) {
+            $verify = Connection::NEED_HEAD;
+            $lines  = explode("\r\n", $this->buffer);
+            $header = array();
+
+            if (count($firstLineInfo = explode(" ", array_shift($lines))) !== 3) {
+                return false;
+            } else {
+                $header['method']  = $firstLineInfo[0];
+                $header['url']     = $firstLineInfo[1];
+                $header['version'] = $firstLineInfo[2];
+            }
+
+            foreach ($lines as $line) {
+                if ($_ = explode(":", $line)) {
+                    $header[trim($_[0])] = trim($_[1] ?? '');
+                    unset($verify[trim($_[0])]);
+                }
+            }
+
+            if (count($verify) > 0) {
+                return false;
+            } else {
+                $this->buffer = substr($this->buffer, $index + 4);
+                // 到此处表示Request完毕可以触发onRequest事件
+
+                # query
+                $query       = [];
+                $queryStr    = $header['url'];
+                $urlExploded = explode('?', $queryStr);
+                $path        = parse_url($queryStr, PHP_URL_PATH);
+
+                if (isset($urlExploded[1])) {
+                    $queryArray = explode('&', $urlExploded[1]);
+                    foreach ($queryArray as $item) {
+                        $item = explode('=', $item);
+                        if (count($item) === 2) {
+                            $query[$item[0]] = $item[1];
+                        }
+                    }
+                }
+
+                # server
+                $server = [
+                    'REQUEST_METHOD'  => $header['method'],
+                    'REQUEST_URI'     => $path,
+                    'SERVER_PROTOCOL' => $header['version'],
+
+                    'REMOTE_ADDR' => $this->stream->getHost(),
+                    'REMOTE_PORT' => $this->stream->getPort(),
+                    'HTTP_HOST'   => $header['Host'],
+                ];
+
+                # cookie
+                $cookies = [];
+                foreach ($header as $key => $value) {
+                    $server['HTTP_' . strtoupper(str_replace('-', '_', $key))] = $value;
+                }
+
+                if (isset($server['HTTP_COOKIE'])) {
+                    $cookie = $server['HTTP_COOKIE'];
+                    $cookie = explode('; ', $cookie);
+                    foreach ($cookie as $item) {
+                        $item              = explode('=', $item);
+                        $cookies[$item[0]] = rawurldecode($item[1]);
+                    }
+                }
+
+                $this->request = new Request($query, [], [], $cookies, [], $server);
+
+                if ($this->onRequest) {
+                    call_user_func($this->onRequest, $this->request, $this);
+                }
+                return $this->request;
+            }
+        } else {
+            return null;
+        }
+    }
+
+    /**
+     * @Author cclilshy
+     * @Date   2024/8/15 14:48
+     * @param string $key
+     * @return string
+     */
+    private function getSecWebSocketAccept(string $key): string
+    {
+        return base64_encode(sha1($key . '258EAFA5-E914-47DA-95CA-C5AB0DC85B11', true));
+    }
+
+    /**
+     * @Author cclilshy
+     * @Date   2024/8/15 14:48
+     * @param string $accept
+     * @return string
+     */
+    private function generateResponseContent(string $accept): string
+    {
+        $headers = array(
+            'Upgrade'              => 'websocket',
+            'Connection'           => 'Upgrade',
+            'Sec-WebSocket-Accept' => $accept
+        );
+        $context = "HTTP/1.1 101 Switching Protocols\r\n";
+        foreach ($headers as $key => $value) {
+            $context .= "{$key}: {$value} \r\n";
+        }
+        $context .= "\r\n";
+        return $context;
     }
 
     /**
@@ -210,13 +496,79 @@ class Connection
     }
 
     /**
-     * @Author cclilshy
-     * @Date   2024/8/15 14:45
+     * @Description 已使用Request对象装载请求信息
+     * @Author      cclilshy
+     * @Date        2024/8/15 14:45
      * @return string
      */
     public function getHeaderContent(): string
     {
         return $this->headerContent;
+    }
+
+    /**
+     * @Author cclilshy
+     * @Date   2024/8/15 14:45
+     * @param string $message
+     * @return bool
+     */
+    public function send(string $message): bool
+    {
+        try {
+            if (!$this->isHandshake()) {
+                throw new ConnectionException('Connection is not established yet');
+            }
+            $this->stream->write($this->build($message));
+        } catch (ConnectionException) {
+            $this->close();
+            return false;
+        }
+        return true;
+    }
+
+    /**
+     * @Author lidongyooo
+     * @Date   2024/8/25 22:43
+     * @param string $context
+     * @param int    $opcode
+     * @param bool   $fin
+     * @return bool
+     */
+    public function sendFrame(string $context, int $opcode = 0x1, bool $fin = true): bool
+    {
+        try {
+            if (!$this->isHandshake()) {
+                throw new ConnectionException('Connection is not established yet');
+            }
+            $this->stream->write($this->build($context, $opcode, $fin));
+        } catch (ConnectionException) {
+            $this->close();
+            return false;
+        }
+        return true;
+    }
+
+    /**
+     * @Author cclilshy
+     * @Date   2024/8/15 14:45
+     * @return void
+     */
+    public function close(): void
+    {
+        $this->stream->close();
+        if ($this->onClose !== null) {
+            call_user_func($this->onClose, $this);
+        }
+    }
+
+    /**
+     * @Author cclilshy
+     * @Date   2024/8/30 14:51
+     * @return Request
+     */
+    public function getRequest(): Request
+    {
+        return $this->request;
     }
 
     /**
@@ -252,163 +604,17 @@ class Connection
         $this->onClose = $onClose;
     }
 
+    /*** @var Closure|null */
+    private Closure|null $onRequest = null;
+
     /**
      * @Author cclilshy
-     * @Date   2024/8/15 14:45
-     * @param string $context
-     * @param int    $opcode
-     * @param bool   $fin
-     * @return string
-     */
-    private function build(string $context, int $opcode = 0x1, bool $fin = true): string
-    {
-        $frame      = chr(($fin ? 0x80 : 0) | $opcode);
-        $contextLen = strlen($context);
-        if ($contextLen < 126) {
-            $frame .= chr($contextLen);
-        } elseif ($contextLen <= 0xFFFF) {
-            $frame .= chr(126) . pack('n', $contextLen);
-        } else {
-            $frame .= chr(127) . pack('J', $contextLen);
-        }
-        $frame .= $context;
-        return $frame;
-    }
-
-    /**
-     * @Author lidongyooo
-     * @Date   2024/8/25 22:43
+     * @Date   2024/8/30 15:13
+     * @param Closure $onRequest
      * @return void
      */
-    protected function frameType(): void
+    public function onRequest(Closure $onRequest): void
     {
-        $firstByte = ord($this->buffer[0]);
-        $opcode = $firstByte & 0x0F;
-
-        switch ($opcode) {
-            case Type::PING:
-                $this->pong();
-                break;
-            case Type::BINARY:
-            case Type::CLOSE:
-            case Type::TEXT:
-            case Type::PONG:
-            default:
-                break;
-        }
-    }
-
-    /**
-     * @Author lidongyooo
-     * @Date   2024/8/25 22:43
-     * @return bool
-     */
-    protected function pong(): bool
-    {
-        if (!$this->server->getOptions()->getPingPong()) {
-            return false;
-        }
-
-        return $this->sendFrame('', opcode: TYPE::PONG);
-    }
-
-    /**
-     * @Author lidongyooo
-     * @Date  2024/8/25 22:43
-     * @param string $context
-     * @param int    $opcode
-     * @param bool   $fin
-     * @return bool
-     */
-    public function sendFrame(string $context, int $opcode = 0x1, bool $fin = true): bool
-    {
-        try {
-            if (!$this->isHandshake()) {
-                throw new ConnectionException('Connection is not established yet');
-            }
-            $this->stream->write($this->build($context, $opcode, $fin));
-        } catch (ConnectionException) {
-            $this->close();
-            return false;
-        }
-        return true;
-    }
-
-    /**
-     * @Date   2024/8/15 14:45
-     * @return array
-     */
-    private function parse(): array
-    {
-        if (strlen($this->buffer) > 0) {
-            $this->frameType();
-        }
-
-        $results = array();
-        while (strlen($this->buffer) > 0) {
-            $context = $this->buffer;
-            $dataLength = strlen($context);
-            $index = 0;
-
-            // 验证足够的数据来读取第一个字节
-            if ($dataLength < 2) {
-                break; // 不够用
-            }
-
-            $byte = ord($context[$index++]);
-            $fin = ($byte & 0x80) != 0;
-            $opcode = $byte & 0x0F;
-
-            $byte = ord($context[$index++]);
-            $mask = ($byte & 0x80) != 0;
-            $payloadLength = $byte & 0x7F;
-
-            // 处理 2 字节或 8 字节的长度字段
-            if ($payloadLength > 125) {
-                if ($payloadLength == 126) {
-                    // 验证足够的数据来读取 2 字节的长度字段
-                    if ($dataLength < $index + 2) {
-                        break; // 不够用
-                    }
-                    $payloadLength = unpack('n', substr($context, $index, 2))[1];
-                    $index += 2;
-                } else {
-                    // 验证足够的数据来读取 8 字节的长度字段
-                    if ($dataLength < $index + 8) {
-                        break; // 不够用
-                    }
-                    $payloadLength = unpack('J', substr($context, $index, 8))[1];
-                    $index += 8;
-                }
-            }
-
-            // 处理掩码密钥
-            if ($mask) {
-                // 验证足够的数据来读取掩码密钥
-                if ($dataLength < $index + 4) {
-                    break; // 不够用
-                }
-                $maskingKey = substr($context, $index, 4);
-                $index += 4;
-            }
-
-            // 验证足够的数据来读取负载数据
-            if ($dataLength < $index + $payloadLength) {
-                break; // 不够用
-            }
-
-            // 处理负载数据
-            $payload = substr($context, $index, $payloadLength);
-            if ($mask) {
-                for ($i = 0; $i < strlen($payload); $i++) {
-                    $payload[$i] = chr(ord($payload[$i]) ^ ord($maskingKey[$i % 4]));
-                }
-            }
-
-            $this->buffer = substr($context, $index + $payloadLength);
-            $results[] = $payload;
-        }
-
-        return $results;
+        $this->onRequest = $onRequest;
     }
 }

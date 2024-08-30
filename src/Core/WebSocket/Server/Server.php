@@ -39,12 +39,11 @@ use Co\IO;
 use Psc\Core\Socket\SocketStream;
 use Psc\Core\Stream\Exception\RuntimeException;
 use Psc\Core\WebSocket\Options;
+use Symfony\Component\HttpFoundation\Request;
 use Throwable;
 
 use function count;
 use function explode;
-use function Co\async;
-use function Co\await;
 
 use const SO_KEEPALIVE;
 use const SO_RCVBUF;
@@ -77,6 +76,9 @@ class Server
      */
     private Closure $onClose;
 
+    /*** @var Closure */
+    private Closure $onRequest;
+
     /**
      * @var SocketStream
      */
@@ -84,6 +86,11 @@ class Server
 
     /*** @var Options */
     private Options $options;
+
+    /**
+     * @var Connection[]
+     */
+    private array $client2connection = array();
 
     /**
      * @param string       $address
@@ -95,31 +102,24 @@ class Server
     {
         $this->options = $options ?: new Options();
 
-        async(function () use ($address, $context) {
-            $addressExploded = explode('://', $address);
-            if (count($addressExploded) !== 2) {
-                throw new RuntimeException('Address format error');
-            }
+        $addressExploded = explode('://', $address);
+        if (count($addressExploded) !== 2) {
+            throw new RuntimeException('Address format error');
+        }
 
-            $scheme = $addressExploded[0];
-            $tcpAddress = $addressExploded[1];
-            $tcpAddressExploded = explode(':', $tcpAddress);
-            $host = $tcpAddressExploded[0];
-            $port = $tcpAddressExploded[1] ?? 80;
+        $scheme             = $addressExploded[0];
+        $tcpAddress         = $addressExploded[1];
+        $tcpAddressExploded = explode(':', $tcpAddress);
+        $host               = $tcpAddressExploded[0];
+        $port               = $tcpAddressExploded[1] ?? 80;
 
-            $this->server = await(IO::Socket()->streamSocketServer("tcp://{$host}:{$port}", $context));
+        $this->server = IO::Socket()->streamSocketServer("tcp://{$host}:{$port}", $context)->await();
 
-            $this->server->setOption(SOL_SOCKET, SO_REUSEADDR, 1);
-            $this->server->setOption(SOL_SOCKET, SO_REUSEPORT, 1);
-            $this->server->setOption(SOL_SOCKET, SO_KEEPALIVE, 1);
-            $this->server->setBlocking(false);
-        })->await();
+        $this->server->setOption(SOL_SOCKET, SO_REUSEADDR, 1);
+        $this->server->setOption(SOL_SOCKET, SO_REUSEPORT, 1);
+        $this->server->setOption(SOL_SOCKET, SO_KEEPALIVE, 1);
+        $this->server->setBlocking(false);
     }
-
-    /**
-     * @var Connection[]
-     */
-    private array $client2connection = array();
 
     /**
      * @param string     $data
@@ -158,6 +158,20 @@ class Server
     }
 
     /**
+     * @Author cclilshy
+     * @Date   2024/8/30 15:15
+     * @param Request    $request
+     * @param Connection $connection
+     * @return void
+     */
+    private function _onRequest(Request $request, Connection $connection): void
+    {
+        if (isset($this->onRequest)) {
+            ($this->onRequest)($request, $connection);
+        }
+    }
+
+    /**
      * @return void
      */
     public function listen(): void
@@ -175,6 +189,7 @@ class Server
                 $connection->onMessage(fn (string $data, Connection $connection) => $this->_onMessage($data, $connection));
                 $connection->onConnect(fn (Connection $connection) => $this->_onConnect($connection));
                 $connection->onClose(fn (Connection $connection) => $this->_onClose($connection));
+                $connection->onRequest(fn (Request $request, Connection $connection) => $this->_onRequest($request, $connection));
             } catch (Throwable) {
                 return;
             }
@@ -237,6 +252,17 @@ class Server
     public function onClose(Closure $onClose): void
     {
         $this->onClose = $onClose;
+    }
+
+    /**
+     * @Author cclilshy
+     * @Date   2024/8/30 15:14
+     * @param Closure $onRequest
+     * @return void
+     */
+    public function onRequest(Closure $onRequest): void
+    {
+        $this->onRequest = $onRequest;
     }
 
     public function getOptions(): Options

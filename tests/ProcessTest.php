@@ -46,7 +46,6 @@ use function P\defer;
 use function P\thread;
 use function sleep;
 
-#[RunClassInSeparateProcess]
 class ProcessTest extends TestCase
 {
     /**

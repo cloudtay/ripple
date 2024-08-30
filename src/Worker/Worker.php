@@ -40,10 +40,10 @@ use Psc\Core\Coroutine\Promise;
 use Psc\Core\Process\Runtime;
 use Psc\Core\Socket\SocketStream;
 use Psc\Core\Stream\Exception\ConnectionException;
+use Psc\Kernel;
 use Psc\Utils\Output;
 use Psc\Utils\Serialization\Zx7e;
 
-use function Co\delay;
 use function Co\promise;
 use function socket_create_pair;
 use function socket_export_stream;
@@ -51,6 +51,7 @@ use function spl_object_hash;
 
 use const AF_UNIX;
 use const SOCK_STREAM;
+use const PHP_OS_FAMILY;
 
 /**
  * @Author cclilshy
@@ -252,7 +253,11 @@ abstract class Worker
      */
     public function __invoke(Manager $manager): bool
     {
-        for ($index = 1; $index <= $this->getCount(); $index++) {
+        /**
+         * @compatible:Windows
+         */
+        $count = PHP_OS_FAMILY === 'Windows' ? 1 : $this->getCount();
+        for ($index = 1; $index <= $count; $index++) {
             if (!$this->guard($manager, $index)) {
                 return false;
             }

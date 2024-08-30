@@ -35,10 +35,14 @@
 namespace Psc\Worker;
 
 use Psc\Core\Stream\Exception\ConnectionException;
+use Psc\Kernel;
 use Psc\Utils\Output;
 use Psc\Utils\Serialization\Zx7e;
 
 use function posix_getpid;
+use function getmypid;
+
+use const PHP_OS_FAMILY;
 
 /**
  * @Author cclilshy
@@ -159,7 +163,14 @@ class Manager
      */
     public function run(): bool
     {
-        $this->processId = posix_getpid();
+        /**
+         * @compatible:Windows
+         */
+        if (PHP_OS_FAMILY === 'Windows') {
+            $this->processId = getmypid();
+        } else {
+            $this->processId = posix_getpid();
+        }
         $this->zx7e      = new Zx7e();
         foreach ($this->workers as $worker) {
             $worker->register($this);
@@ -237,6 +248,9 @@ class Manager
 
     public function __destruct()
     {
+        if (PHP_OS_FAMILY === 'Windows') {
+            return;
+        }
         if (isset($this->processId) && $this->processId === posix_getpid()) {
             $this->stop();
         }

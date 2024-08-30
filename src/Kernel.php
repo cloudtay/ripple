@@ -46,6 +46,8 @@ use Throwable;
 use function call_user_func;
 use function extension_loaded;
 
+use const PHP_OS_FAMILY;
+
 /**
  * @Author cclilshy
  * @Date   2024/8/29 23:28
@@ -258,5 +260,17 @@ class Kernel
     public function supportParallel(): bool
     {
         return $this->parallel;
+    }
+
+    /**
+     * 获取OS
+     * @Author cclilshy
+     * @Date   2024/8/30 15:31
+     * @return string
+     */
+    public function getOSFamily(): string
+    {
+        // 项目最低版本8.1已经支持PHP_OS_FAMILY
+        return PHP_OS_FAMILY;
     }
 }

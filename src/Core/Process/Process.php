@@ -40,6 +40,7 @@ use Fiber;
 use Psc\Core\Coroutine\EscapeException;
 use Psc\Core\LibraryAbstract;
 use Psc\Core\Process\Exception\ProcessException;
+use Psc\Kernel;
 use Psc\Utils\Output;
 use Revolt\EventLoop;
 use Revolt\EventLoop\UnsupportedFeatureException;
@@ -49,6 +50,7 @@ use function call_user_func;
 use function Co\cancel;
 use function Co\promise;
 use function Co\tick;
+use function getmypid;
 use function pcntl_fork;
 use function pcntl_wait;
 use function pcntl_wexitstatus;
@@ -59,8 +61,12 @@ use const SIGCHLD;
 use const SIGKILL;
 use const WNOHANG;
 use const WUNTRACED;
+use const PHP_OS_FAMILY;
 
 /**
+ * @compatible:Windows
+ * 20240830对Windows支持进行了调整
+ *
  * @Author cclilshy
  * @Date   2024/8/16 09:36
  */
@@ -89,6 +95,16 @@ class Process extends LibraryAbstract
 
     public function __construct()
     {
+        /**
+         * @compatible:Windows
+         * Windows 不支持pcntl扩展
+         */
+        if (PHP_OS_FAMILY === 'Windows') {
+            $this->rootProcessId = getmypid();
+            $this->processId     = getmypid();
+            return;
+        }
+
         $this->rootProcessId = posix_getpid();
         $this->processId     = posix_getpid();
     }
@@ -105,6 +121,14 @@ class Process extends LibraryAbstract
      */
     private function registerSignalHandler(): void
     {
+        /**
+         * @compatible:Windows
+         * Windows 不注册信号处理器
+         */
+        if (PHP_OS_FAMILY === 'Windows') {
+            return;
+        }
+
         $this->signalHandlerEventId = $this->onSignal(SIGCHLD, fn () => $this->signalSIGCHLDHandler());
     }
 
@@ -222,6 +246,15 @@ class Process extends LibraryAbstract
     public function task(Closure $closure): Task|false
     {
         return new Task(function (...$args) use ($closure) {
+            /**
+             * @compatible:Windows
+             * windows 不支持pcntl扩展
+             */
+            if (PHP_OS_FAMILY === 'Windows') {
+                call_user_func($closure, ...$args);
+                return true;
+            }
+
             $processId = pcntl_fork();
 
             if ($processId === -1) {

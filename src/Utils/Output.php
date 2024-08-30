@@ -34,6 +34,7 @@
 
 namespace Psc\Utils;
 
+use Psc\Kernel;
 use Throwable;
 
 use function explode;
@@ -45,6 +46,7 @@ use function posix_getppid;
 
 use const PHP_EOL;
 use const STDOUT;
+use const PHP_OS_FAMILY;
 
 /**
  * @class Output 输出辅助类
@@ -57,7 +59,13 @@ final class Output
      */
     public static function exception(Throwable $exception): void
     {
-        fwrite(STDOUT, "\033[1;31mProcess: " . posix_getpid() . '=>' . posix_getppid() . "\033[0m\n");
+        /**
+         * @compatible:Windows
+         */
+        if (PHP_OS_FAMILY !== 'Windows') {
+            fwrite(STDOUT, "\033[1;31mProcess: " . posix_getpid() . '=>' . posix_getppid() . "\033[0m\n");
+        }
+
         fwrite(STDOUT, "\033[1;31mException: " . get_class($exception) . "\033[0m\n");
         fwrite(STDOUT, "\033[1;33mMessage: " . $exception->getMessage() . "\033[0m\n");
         fwrite(STDOUT, "\033[1;34mFile: " . $exception->getFile() . "\033[0m\n");
