@@ -30,6 +30,7 @@
     "ext-sockets": "*",
     "ext-pcntl": "*",
     "ext-openssl": "*",
+    "ext-zlib": "*",
     "revolt/event-loop": "^1.0",
     "symfony/http-foundation": "*",
     "guzzlehttp/guzzle": "*",
