@@ -60,6 +60,7 @@ class Zx7e
 
     /**
      * @param string $data
+     *
      * @return string
      */
     public function encodeFrame(string $data): string
@@ -78,6 +79,21 @@ class Zx7e
 
     /**
      * @param string $data
+     *
+     * @return int
+     */
+    public function calculateChecksum(string $data): int
+    {
+        $checksum = 0;
+        for ($i = 0; $i < strlen($data); $i++) {
+            $checksum ^= ord($data[$i]);
+        }
+        return $checksum;
+    }
+
+    /**
+     * @param string $data
+     *
      * @return array
      */
     public function decodeStream(string $data): array
@@ -134,18 +150,5 @@ class Zx7e
         }
 
         return $data;
-    }
-
-    /**
-     * @param string $data
-     * @return int
-     */
-    public function calculateChecksum(string $data): int
-    {
-        $checksum = 0;
-        for ($i = 0; $i < strlen($data); $i++) {
-            $checksum ^= ord($data[$i]);
-        }
-        return $checksum;
     }
 }

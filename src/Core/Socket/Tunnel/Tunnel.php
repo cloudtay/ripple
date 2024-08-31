@@ -32,13 +32,8 @@
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-namespace Psc\Core\Http\Server;
+namespace Psc\Core\Socket\Tunnel;
 
-use Symfony\Component\HttpFoundation\Request as SymfonyRequest;
-
-/**
- * 请求实体
- */
-class Request extends SymfonyRequest
+class Tunnel
 {
 }

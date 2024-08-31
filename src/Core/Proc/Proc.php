@@ -54,6 +54,7 @@ class Proc extends LibraryAbstract
 
     /**
      * @param string|array $entrance
+     *
      * @return Session|false
      */
     public function open(string|array $entrance = '/bin/sh'): Session|false

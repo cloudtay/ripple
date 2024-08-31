@@ -50,6 +50,7 @@ use function is_resource;
 use function strlen;
 use function strpos;
 use function strtok;
+use function strtoupper;
 use function substr;
 
 /**
@@ -58,6 +59,45 @@ use function substr;
  */
 class Connection
 {
+    /*** @var int */
+    private int $step = 0;
+
+    /*** @var int */
+    private int $statusCode = 0;
+
+    /*** @var string */
+    private string $statusMessage = '';
+
+    /*** @var int */
+    private int $contentLength = 0;
+
+    /*** @var array */
+    private array $headers = [];
+
+    /*** @var string */
+    private string $content = '';
+
+    /*** @var int */
+    private int $bodyLength = 0;
+
+    /*** @var string */
+    private string $versionString = '';
+
+    /*** @var string */
+    private string $buffer = '';
+
+    /*** @var bool */
+    private bool $chunk = false;
+
+    /*** @var int */
+    private int $chunkLength = 0;
+
+    /*** @var int */
+    private int $chunkStep = 0;
+
+    /*** @var mixed|null */
+    private mixed $output = null;
+
     /**
      * @param SocketStream $stream
      */
@@ -66,28 +106,69 @@ class Connection
         $this->reset();
     }
 
-    private int    $step          = 0;
-    private int    $statusCode    = 0;
-    private string $statusMessage = '';
-    private int    $contentLength = 0;
-    private array  $headers       = [];
-    private string $content       = '';
-    private int    $bodyLength    = 0;
-    private string $versionString = '';
-    private string $buffer        = '';
-    private bool $chunk       = false;
-    private int  $chunkLength = 0;
-    private int  $chunkStep   = 0;
+    /**
+     * @return void
+     */
+    private function reset(): void
+    {
+        if ($this->output) {
+            if (is_resource($this->output)) {
+                fclose($this->output);
+                $this->output = null;
+            }
+        }
+
+        $this->step          = 0;
+        $this->statusCode    = 0;
+        $this->statusMessage = '';
+        $this->contentLength = 0;
+        $this->headers       = [];
+        $this->content       = '';
+        $this->bodyLength    = 0;
+        $this->versionString = '';
+        $this->buffer        = '';
+        $this->chunk         = false;
+        $this->chunkLength   = 0;
+        $this->chunkStep     = 0;
+    }
+
+    /**
+     * @return string
+     */
+    private function freeBuffer(): string
+    {
+        $buffer       = $this->buffer;
+        $this->buffer = '';
+        return $buffer;
+    }
+
+    /**
+     * @Author cclilshy
+     * @Date   2024/8/27 21:47
+     *
+     * @param string $content
+     *
+     * @return void
+     */
+    private function output(string $content): void
+    {
+        if ($this->output) {
+            fwrite($this->output, $content);
+        } else {
+            $this->content .= $content;
+        }
+    }
 
     /**
      * @param string|false $content
+     *
      * @return ResponseInterface|null
      * @throws RuntimeException
      */
     public function tick(string|false $content): ResponseInterface|null
     {
         if ($content === false) {
-            if ($this->headers['Content-Length'] ?? null) {
+            if (isset($this->headers['CONTENT-LENGTH'])) {
                 throw new RuntimeException('Response content length is required');
             } elseif ($this->chunk) {
                 throw new RuntimeException('Response chunked is required');
@@ -97,7 +178,6 @@ class Connection
         }
 
         $this->buffer .= $content;
-
         if ($this->step === 0) {
             if ($headerEnd = strpos($this->buffer, "\r\n\r\n")) {
                 $buffer = $this->freeBuffer();
@@ -123,17 +203,18 @@ class Connection
                 while ($line = strtok("\r\n")) {
                     $lineParam = explode(': ', $line, 2);
                     if (count($lineParam) >= 2) {
-                        $this->headers[$lineParam[0]] = $lineParam[1];
+                        $this->headers[strtoupper($lineParam[0])] = $lineParam[1];
                     }
                 }
 
-                if ($this->chunk = isset($this->headers['Transfer-Encoding']) && $this->headers['Transfer-Encoding'] === 'chunked') {
+                if ($this->chunk = isset($this->headers['TRANSFER-ENCODING']) && $this->headers['TRANSFER-ENCODING'] === 'chunked') {
                     $this->step   = 3;
                     $this->buffer = substr($buffer, $headerEnd + 4);
                 } else {
-                    $contentLength = $this->headers['Content-Length'] ?? null;
-                    if ($this->contentLength = intval($contentLength)) {
-                        $buffer = substr($buffer, $headerEnd + 4);
+                    $contentLength = $this->headers['CONTENT-LENGTH'] ?? $this->headers['CONTENT-LENGTH'] ?? null;
+                    if ($contentLength !== null) {
+                        $this->contentLength = intval($contentLength);
+                        $buffer              = substr($buffer, $headerEnd + 4);
                         $this->output($buffer);
                         $this->bodyLength += strlen($buffer);
                         if ($this->bodyLength === $this->contentLength) {
@@ -166,13 +247,13 @@ class Connection
                     }
 
                     $this->chunkLength = hexdec($chunkLengthHex);
-                    $buffer = substr($buffer, $chunkEnd + 2);
+                    $buffer            = substr($buffer, $chunkEnd + 2);
 
                     if ($this->chunkLength === 0) {
                         if (strlen($buffer) < 2) {
                             break;
                         }
-                        $buffer = substr($buffer, 2);
+                        $buffer     = substr($buffer, 2);
                         $this->step = 2;
                         break;
                     }
@@ -185,7 +266,7 @@ class Connection
 
                     $chunkData = substr($buffer, 0, $this->chunkLength);
                     $this->output($chunkData);
-                    $buffer = substr($buffer, $this->chunkLength + 2); // 跳过数据和尾部 CRLF
+                    $buffer          = substr($buffer, $this->chunkLength + 2);
                     $this->chunkStep = 0;
                 }
             } while ($this->step !== 2);
@@ -209,65 +290,12 @@ class Connection
     }
 
     /**
-     * @Author cclilshy
-     * @Date   2024/8/27 21:47
-     * @param string $content
-     * @return void
-     */
-    private function output(string $content): void
-    {
-        if ($this->output) {
-            fwrite($this->output, $content);
-        } else {
-            $this->content .= $content;
-        }
-    }
-
-    /*** @var mixed|null */
-    private mixed $output = null;
-
-    /**
      * @param mixed $resource
+     *
      * @return void
      */
     public function setOutput(mixed $resource): void
     {
         $this->output = $resource;
-    }
-
-    /**
-     * @return string
-     */
-    private function freeBuffer(): string
-    {
-        $buffer       = $this->buffer;
-        $this->buffer = '';
-        return $buffer;
-    }
-
-    /**
-     * @return void
-     */
-    private function reset(): void
-    {
-        if ($this->output) {
-            if (is_resource($this->output)) {
-                fclose($this->output);
-                $this->output = null;
-            }
-        }
-
-        $this->step          = 0;
-        $this->statusCode    = 0;
-        $this->statusMessage = '';
-        $this->contentLength = 0;
-        $this->headers       = [];
-        $this->content       = '';
-        $this->bodyLength    = 0;
-        $this->versionString = '';
-        $this->buffer = '';
-        $this->chunk = false;
-        $this->chunkLength = 0;
-        $this->chunkStep = 0;
     }
 }

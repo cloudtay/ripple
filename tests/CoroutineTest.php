@@ -53,8 +53,8 @@ class CoroutineTest extends TestCase
     public function test_coroutineStability(): void
     {
         $concurrentCoroutines = 200;
-        $channel = IO::Channel()->make('coroutine');
-        $coroutines = [];
+        $channel              = IO::Channel()->make('coroutine');
+        $coroutines           = [];
         for ($i = 0; $i < $concurrentCoroutines; $i++) {
             $coroutines[] = async(function () use ($channel, $i) {
                 \Co\sleep(0.1);
@@ -81,12 +81,12 @@ class CoroutineTest extends TestCase
         }
         $this->assertEquals($concurrentCoroutines, $successCount, "Expected all coroutines to complete successfully.");
         $this->assertEquals(0, $failureCount, "Expected no coroutines to fail.");
-
         tick();
     }
 
     /**
      * @param int $index
+     *
      * @return int
      * @throws Throwable
      */

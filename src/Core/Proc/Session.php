@@ -53,6 +53,9 @@ use function proc_get_status;
  */
 class Session
 {
+    public Closure     $onClose;
+    public Closure     $onErrorMessage;
+    public Closure     $onMessage;
     private ProcStream $streamStdInput;
     private ProcStream $streamStdOutput;
     private ProcStream $streamStdError;
@@ -127,10 +130,6 @@ class Session
         $this->streamStdError->onClose(fn () => $this->close());
     }
 
-    public Closure $onClose;
-    public Closure $onErrorMessage;
-    public Closure $onMessage;
-
     /**
      * @return void
      */
@@ -154,6 +153,7 @@ class Session
 
     /**
      * @param string|array $content
+     *
      * @return bool
      */
     public function input(string|array $content): bool
@@ -166,6 +166,7 @@ class Session
 
     /**
      * @param string $content
+     *
      * @return bool
      */
     public function write(string $content): bool
@@ -181,17 +182,6 @@ class Session
     }
 
     /**
-     * @param string $key
-     * @return mixed
-     */
-    public function getStatus(string $key): mixed
-    {
-        return $key
-            ? ($this->status[$key] ?? null)
-            : $this->status;
-    }
-
-    /**
      * @return void
      */
     public function inputEot(): void
@@ -201,6 +191,7 @@ class Session
 
     /**
      * @param int $signalCode
+     *
      * @return bool
      */
     public function inputSignal(int $signalCode): bool
@@ -208,6 +199,17 @@ class Session
         return posix_kill($this->getStatus('pid'), $signalCode);
     }
 
+    /**
+     * @param string $key
+     *
+     * @return mixed
+     */
+    public function getStatus(string $key): mixed
+    {
+        return $key
+            ? ($this->status[$key] ?? null)
+            : $this->status;
+    }
 
     public function __destruct()
     {

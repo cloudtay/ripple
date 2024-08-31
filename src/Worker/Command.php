@@ -54,18 +54,10 @@ class Command
     /**
      * @Author cclilshy
      * @Date   2024/8/16 11:59
-     * @return string
-     */
-    public function __toString(): string
-    {
-        return serialize($this);
-    }
-
-    /**
-     * @Author cclilshy
-     * @Date   2024/8/16 11:59
+     *
      * @param string $name
      * @param array  $arguments
+     *
      * @return Command
      */
     public static function make(string $name, array $arguments = []): Command
@@ -76,11 +68,23 @@ class Command
     /**
      * @Author cclilshy
      * @Date   2024/8/16 11:59
+     *
      * @param string $command
+     *
      * @return Command
      */
     public static function fromString(string $command): Command
     {
         return unserialize($command);
+    }
+
+    /**
+     * @Author cclilshy
+     * @Date   2024/8/16 11:59
+     * @return string
+     */
+    public function __toString(): string
+    {
+        return serialize($this);
     }
 }

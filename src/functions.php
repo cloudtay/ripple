@@ -42,7 +42,9 @@ use Throwable;
 
 /**
  * @Description 请使用Co\await代替
+ *
  * @param Promise $promise
+ *
  * @return mixed
  * @throws Throwable
  */
@@ -54,7 +56,9 @@ function await(Promise $promise): mixed
 /**
  * @Description 请使用Co\async代替
  * async闭包中抛出的异常落地位置可能为调用上下文/挂起恢复处,因此对异常的管理要谨慎
+ *
  * @param Closure $closure
+ *
  * @return Promise
  */
 function async(Closure $closure): Promise
@@ -64,7 +68,9 @@ function async(Closure $closure): Promise
 
 /**
  * @Description 请使用Co\promise代替
+ *
  * @param Closure $closure
+ *
  * @return Promise
  */
 function promise(Closure $closure): Promise
@@ -74,7 +80,9 @@ function promise(Closure $closure): Promise
 
 /**
  * @Description 请使用Co\sleep代替
+ *
  * @param int|float $second
+ *
  * @return void
  */
 function sleep(int|float $second): void
@@ -85,8 +93,10 @@ function sleep(int|float $second): void
 
 /**
  * @Description 请使用Co\delay代替
+ *
  * @param Closure   $closure
  * @param int|float $second
+ *
  * @return string
  */
 function delay(Closure $closure, int|float $second): string
@@ -97,8 +107,10 @@ function delay(Closure $closure, int|float $second): string
 
 /**
  * @Description 请使用Co\repeat代替
+ *
  * @param Closure(Closure):void $closure
  * @param int|float             $second
+ *
  * @return string
  */
 function repeat(Closure $closure, int|float $second): string
@@ -108,9 +120,11 @@ function repeat(Closure $closure, int|float $second): string
 
 /**
  * @Description 请使用Co\queue代替
- * @Author cclilshy
- * @Date   2024/8/29 00:07
+ * @Author      cclilshy
+ * @Date        2024/8/29 00:07
+ *
  * @param Closure $closure
+ *
  * @return void
  */
 function queue(Closure $closure): void
@@ -120,7 +134,9 @@ function queue(Closure $closure): void
 
 /**
  * @Description 请使用Co\defer代替
+ *
  * @param Closure $closure
+ *
  * @return void
  */
 function defer(Closure $closure): void
@@ -130,7 +146,9 @@ function defer(Closure $closure): void
 
 /**
  * @Description 请使用Co\thread代替
+ *
  * @param Closure $closure
+ *
  * @return Thread
  */
 function thread(Closure $closure): Thread
@@ -140,7 +158,9 @@ function thread(Closure $closure): Thread
 
 /**
  * @Description 请使用Co\fork代替
+ *
  * @param string $id
+ *
  * @return void
  */
 function cancel(string $id): void
@@ -150,7 +170,9 @@ function cancel(string $id): void
 
 /**
  * @Description 请使用Co\fork代替
+ *
  * @param int $index
+ *
  * @return void
  */
 function cancelForkHandler(int $index): void
@@ -169,8 +191,10 @@ function cancelAll(): void
 
 /**
  * @Description 请使用Co\onSignal代替
+ *
  * @param int     $signal
  * @param Closure $closure
+ *
  * @return string
  * @throws UnsupportedFeatureException
  */
@@ -181,7 +205,9 @@ function onSignal(int $signal, Closure $closure): string
 
 /**
  * @Description 请使用Co\registerForkHandler代替
+ *
  * @param Closure $closure
+ *
  * @return int
  */
 function registerForkHandler(Closure $closure): int
@@ -192,7 +218,9 @@ function registerForkHandler(Closure $closure): int
 
 /**
  * @Description 请使用Co\tick代替
+ *
  * @param Closure|null $closure
+ *
  * @return void
  */
 function tick(Closure|null $closure = null): void

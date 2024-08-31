@@ -60,6 +60,10 @@ class Lock
 
     /*** @var int */
     private int $forkHandlerEventId;
+    /**
+     * @var bool
+     */
+    private bool $closed = false;
 
     /**
      * @param string $name
@@ -80,41 +84,21 @@ class Lock
         });
     }
 
+    /**
+     * @param string $name
+     *
+     * @return string
+     */
+    private static function generateFilePathByChannelName(string $name): string
+    {
+        $name = md5($name);
+        return sys_get_temp_dir() . '/' . $name . '.lock';
+    }
+
     public function __destruct()
     {
         $this->close();
     }
-
-    /**
-     * @param bool $blocking
-     * @return bool
-     */
-    public function lock(bool $blocking = true): bool
-    {
-        return flock($this->resource, $blocking ? LOCK_EX : LOCK_EX | LOCK_NB);
-    }
-
-    /**
-     * @param bool $blocking
-     * @return bool
-     */
-    public function sharedLock(bool $blocking = true): bool
-    {
-        return flock($this->resource, $blocking ? LOCK_SH : LOCK_SH | LOCK_NB);
-    }
-
-    /**
-     * @return bool
-     */
-    public function unlock(): bool
-    {
-        return flock($this->resource, LOCK_UN);
-    }
-
-    /**
-     * @var bool
-     */
-    private bool $closed = false;
 
     /**
      * @return void
@@ -135,12 +119,30 @@ class Lock
     }
 
     /**
-     * @param string $name
-     * @return string
+     * @param bool $blocking
+     *
+     * @return bool
      */
-    private static function generateFilePathByChannelName(string $name): string
+    public function lock(bool $blocking = true): bool
     {
-        $name = md5($name);
-        return sys_get_temp_dir() . '/' . $name . '.lock';
+        return flock($this->resource, $blocking ? LOCK_EX : LOCK_EX | LOCK_NB);
+    }
+
+    /**
+     * @param bool $blocking
+     *
+     * @return bool
+     */
+    public function sharedLock(bool $blocking = true): bool
+    {
+        return flock($this->resource, $blocking ? LOCK_SH : LOCK_SH | LOCK_NB);
+    }
+
+    /**
+     * @return bool
+     */
+    public function unlock(): bool
+    {
+        return flock($this->resource, LOCK_UN);
     }
 }

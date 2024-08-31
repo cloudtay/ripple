@@ -54,6 +54,7 @@ final class Output
 {
     /**
      * @param Throwable $exception
+     *
      * @return void
      */
     public static function exception(Throwable $exception): void
@@ -79,7 +80,19 @@ final class Output
     }
 
     /**
+     * @param string $title
+     * @param string ...$contents
+     *
+     * @return void
+     */
+    public static function info(string $title, string ...$contents): void
+    {
+        Output::writeln("\033[1;32m" . $title . "\033[0m \033[1;33m" . implode(' ', $contents) . "\033[0m");
+    }
+
+    /**
      * @param string $message
+     *
      * @return void
      */
     public static function writeln(string $message): void
@@ -90,16 +103,7 @@ final class Output
     /**
      * @param string $title
      * @param string ...$contents
-     * @return void
-     */
-    public static function info(string $title, string ...$contents): void
-    {
-        Output::writeln("\033[1;32m" . $title . "\033[0m \033[1;33m" . implode(' ', $contents) . "\033[0m");
-    }
-
-    /**
-     * @param string $title
-     * @param string ...$contents
+     *
      * @return void
      */
     public static function warning(string $title, string ...$contents): void
@@ -110,6 +114,7 @@ final class Output
     /**
      * @param string $title
      * @param string ...$contents
+     *
      * @return void
      */
     public static function error(string $title, string ...$contents): void

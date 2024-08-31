@@ -39,8 +39,8 @@ use Psc\Core\Coroutine\Promise;
 use Psc\Kernel;
 use Throwable;
 
-use function posix_kill;
 use function getmypid;
+use function posix_kill;
 
 use const SIGKILL;
 use const SIGTERM;
@@ -63,6 +63,7 @@ class Runtime
 
     /**
      * @param bool $force
+     *
      * @return void
      */
     public function stop(bool $force = false): void
@@ -95,6 +96,7 @@ class Runtime
 
     /**
      * @param int $signal
+     *
      * @return void
      */
     public function signal(int $signal): void
@@ -107,14 +109,6 @@ class Runtime
         }
 
         posix_kill($this->processId, $signal);
-    }
-
-    /**
-     * @return Promise
-     */
-    public function getPromise(): Promise
-    {
-        return $this->promise;
     }
 
     /*** @return int */
@@ -132,6 +126,7 @@ class Runtime
 
     /**
      * @param Closure $then
+     *
      * @return Promise
      */
     public function then(Closure $then): Promise
@@ -141,6 +136,7 @@ class Runtime
 
     /**
      * @param Closure $catch
+     *
      * @return Promise
      */
     public function except(Closure $catch): Promise
@@ -150,6 +146,7 @@ class Runtime
 
     /**
      * @param Closure $finally
+     *
      * @return Promise
      */
     public function finally(Closure $finally): Promise
@@ -164,5 +161,13 @@ class Runtime
     public function await(): mixed
     {
         return $this->getPromise()->await();
+    }
+
+    /**
+     * @return Promise
+     */
+    public function getPromise(): Promise
+    {
+        return $this->promise;
     }
 }

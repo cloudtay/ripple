@@ -34,9 +34,14 @@
 
 namespace Psc\Core\Http\Server;
 
+use Closure;
 use Psc\Core\Http\Server\Upload\MultipartHandler;
 use Psc\Core\Socket\SocketStream;
+use Psc\Core\Stream\Exception\ConnectionException;
 use Psc\Core\Stream\Exception\RuntimeException;
+use Psc\Core\Stream\Transaction;
+use Psc\Utils\Output;
+use Throwable;
 
 use function array_merge;
 use function count;
@@ -63,37 +68,37 @@ use const PHP_URL_PATH;
 class Connection
 {
     /*** @var int */
-    private int                   $step;
+    private int $step;
 
     /*** @var array */
-    private array                 $query;
+    private array $query;
 
     /*** @var array */
-    private array                 $request;
+    private array $request;
 
     /*** @var array */
-    private array                 $attributes;
+    private array $attributes;
 
     /*** @var array */
-    private array                 $cookies;
+    private array $cookies;
 
     /*** @var array */
-    private array                 $files;
+    private array $files;
 
     /*** @var array */
-    private array                 $server;
+    private array $server;
 
     /*** @var string */
-    private string                $content;
+    private string $content;
 
     /*** @var string */
-    private string                $buffer;
+    private string $buffer;
 
     /*** @var MultipartHandler|null */
     private MultipartHandler|null $multipartHandler;
 
     /*** @var int */
-    private int                   $bodyLength;
+    private int $bodyLength;
 
     /*** @var int */
     private int $contentLength;
@@ -111,27 +116,28 @@ class Connection
      */
     private function reset(): void
     {
-        $this->step          = 0;
-        $this->query         = array();
-        $this->request       = array();
-        $this->attributes    = array();
-        $this->cookies       = array();
-        $this->files         = array();
-        $this->server        = array();
-        $this->content       = '';
-        $this->buffer        = '';
+        $this->step             = 0;
+        $this->query            = array();
+        $this->request          = array();
+        $this->attributes       = array();
+        $this->cookies          = array();
+        $this->files            = array();
+        $this->server           = array();
+        $this->content          = '';
+        $this->buffer           = '';
         $this->multipartHandler = null;
-        $this->bodyLength    = 0;
-        $this->contentLength = 0;
+        $this->bodyLength       = 0;
+        $this->contentLength    = 0;
     }
 
     /**
      * @param string $content
-     * @return Request|null
+     *
+     * @return array|null
      * @throws Exception\FormatException
      * @throws RuntimeException
      */
-    public function tick(string $content): Request|null
+    private function tick(string $content): array|null
     {
         $this->buffer .= $content;
         if ($this->step === 0) {
@@ -141,9 +147,9 @@ class Connection
                 /**
                  * 切割解析head与body部分
                  */
-                $this->step       = 1;
-                $header           = substr($buffer, 0, $headerEnd);
-                $base             = strtok($header, "\r\n");
+                $this->step = 1;
+                $header     = substr($buffer, 0, $headerEnd);
+                $base       = strtok($header, "\r\n");
 
                 if (count($base = explode(' ', $base)) !== 3) {
                     throw new RuntimeException('Request head is not match');
@@ -183,7 +189,7 @@ class Connection
                     }
                 }
 
-                $body = substr($buffer, $headerEnd + 4);
+                $body             = substr($buffer, $headerEnd + 4);
                 $this->bodyLength += strlen($body);
 
                 /**
@@ -207,9 +213,10 @@ class Connection
                         if (!isset($matches[1])) {
                             throw new RuntimeException('boundary is not set');
                         } else {
-                            $this->step          = 3;
+                            $this->step             = 3;
                             $this->multipartHandler = new MultipartHandler($matches[1]);
-                            $this->stream->onClose(fn () => $this->multipartHandler?->cancel());
+                            // If the response is closed, the corresponding file transfer channel should be closed.
+                            $this->stream->getTransaction()->onClose(fn () => $this->multipartHandler?->cancel());
 
                             foreach ($this->multipartHandler->tick($body) as $name => $multipartResult) {
                                 if (is_string($multipartResult)) {
@@ -238,7 +245,7 @@ class Connection
                     } elseif ($this->bodyLength > $this->contentLength) {
                         throw new RuntimeException('Content-Length is not match 3');
                     }
-                } elseif (in_array($method, ['PUT', 'DELETE','PATCH','OPTIONS','TRACE','CONNECT'])) {
+                } elseif (in_array($method, ['PUT', 'DELETE', 'PATCH', 'OPTIONS', 'TRACE', 'CONNECT'])) {
                     //not body
                     if (!isset($this->server['HTTP_CONTENT_LENGTH'])) {
                         $this->step = 2;
@@ -257,7 +264,7 @@ class Connection
          * 持续传输
          */
         if ($this->step === 1 && $buffer = $this->freeBuffer()) {
-            $this->content .= $buffer;
+            $this->content    .= $buffer;
             $this->bodyLength += strlen($buffer);
             if ($this->bodyLength === $this->contentLength) {
                 $this->step = 2;
@@ -330,19 +337,28 @@ class Connection
                 $this->server['HTTPS'] = $xForwardedProto === 'https' ? 'on' : 'off';
             }
 
-            $request =  new Request(
-                $this->query,
-                $this->request,
-                $this->attributes,
-                $this->cookies,
-                $this->files,
-                $this->server,
-                $this->content,
-            );
-            $request->setStream($this->stream);
-
+            //            $request = new Request(
+            //                $this->query,
+            //                $this->request,
+            //                $this->attributes,
+            //                $this->cookies,
+            //                $this->files,
+            //                $this->server,
+            //                $this->content,
+            //            );
+            $result = [
+                'query'      => $this->query,
+                'request'    => $this->request,
+                'attributes' => $this->attributes,
+                'cookies'    => $this->cookies,
+                'files'      => $this->files,
+                'server'     => $this->server,
+                'content'    => $this->content,
+            ];
+            //            $request->setStream($this->stream);
             $this->reset();
-            return $request;
+            return $result;
+            //            return $request;
         }
         return null;
     }
@@ -352,8 +368,53 @@ class Connection
      */
     private function freeBuffer(): string
     {
-        $buffer = $this->buffer;
+        $buffer       = $this->buffer;
         $this->buffer = '';
         return $buffer;
+    }
+
+    /**
+     * @param Closure $builder
+     *
+     * @return void
+     */
+    public function listen(Closure $builder): void
+    {
+        $this->stream->onReadable(function (SocketStream $stream) use ($builder) {
+            $content = '';
+            while ($buffer = $stream->read(1024)) {
+                $content .= $buffer;
+            }
+
+            if ($content === '') {
+                if ($stream->eof()) {
+                    $stream->close();
+                }
+                return;
+            }
+
+            try {
+                if (!$requestInfo = $this->tick($content)) {
+                    return;
+                }
+                $builder($requestInfo);
+            } catch (Throwable $exception) {
+                Output::warning($exception->getMessage());
+                $stream->close();
+                return;
+            }
+        });
+
+        while (1) {
+            try {
+                $this->stream->transaction(function (Transaction $transaction) {
+                    // Transaction process closure stream should be treated as request interruption
+                    $transaction->onClose(static fn () => $transaction->fail(new ConnectionException('Connection closed')));
+                    $transaction->getPromise()->await();
+                });
+            } catch (Throwable) {
+                break;
+            }
+        }
     }
 }

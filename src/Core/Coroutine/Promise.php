@@ -49,7 +49,7 @@ use function Co\await;
  * @Date   2024/8/16 09:35
  *
  * 严格遵循ES6-Promise/A+的设计哲学
- * @see https://promisesaplus.com/
+ * @see    https://promisesaplus.com/
  */
 class Promise
 {
@@ -86,6 +86,7 @@ class Promise
      * 执行闭包
      *
      * @param Closure $closure
+     *
      * @return void
      */
     private function execute(Closure $closure): void
@@ -110,6 +111,7 @@ class Promise
      * 无法更改已完成的状态,第二次调用将被忽略
      *
      * @param mixed $value
+     *
      * @return void
      */
     public function resolve(mixed $value): void
@@ -145,6 +147,7 @@ class Promise
      * 无法更改已拒绝的状态,第二次调用将被忽略
      *
      * @param Throwable $reason
+     *
      * @return void
      */
     public function reject(mixed $reason): void
@@ -156,7 +159,9 @@ class Promise
         $this->status = Promise::REJECTED;
         $this->result = $reason;
         if ($reason instanceof Throwable) {
-            Output::warning($reason->getMessage());
+            if (empty($this->onRejected)) {
+                Output::warning($reason->getMessage());
+            }
         }
         foreach (array_reverse($this->onRejected) as $onRejected) {
             try {
@@ -165,7 +170,6 @@ class Promise
                 Output::error($reason->getMessage());
             }
         }
-        return;
     }
 
     /**
@@ -174,6 +178,7 @@ class Promise
      *
      * @param Closure|null $onFulfilled
      * @param Closure|null $onRejected
+     *
      * @return $this
      */
     public function then(Closure|null $onFulfilled = null, Closure|null $onRejected = null): Promise
@@ -198,9 +203,33 @@ class Promise
     }
 
     /**
+     * 定义拒绝后的行为,当Promise状态改变时,会按照except方法的顺序调用
+     * 若Promise已经拒绝,则立即执行
+     *
+     * @param Closure $onRejected
+     *
+     * @return $this
+     */
+    public function except(Closure $onRejected): Promise
+    {
+        if ($this->status === Promise::REJECTED) {
+            try {
+                call_user_func($onRejected, $this->result);
+            } catch (Throwable $exception) {
+                Output::error($exception->getMessage());
+            }
+            return $this;
+        } else {
+            $this->onRejected[] = $onRejected;
+        }
+        return $this;
+    }
+
+    /**
      * 定义后续行为,当Promise状态改变时,会按照then方法的顺序调用
      *
      * @param Closure $onFinally
+     *
      * @return $this
      */
     public function finally(Closure $onFinally): Promise
@@ -225,34 +254,13 @@ class Promise
      * 若Promise已经拒绝,则立即执行
      *
      * @param Closure $onRejected
+     *
      * @return $this
      * @deprecated 你应该使用except方法,因为该方法是一个保留关键字
      */
     public function catch(Closure $onRejected): Promise
     {
         return $this->except($onRejected);
-    }
-
-    /**
-     * 定义拒绝后的行为,当Promise状态改变时,会按照except方法的顺序调用
-     * 若Promise已经拒绝,则立即执行
-     *
-     * @param Closure $onRejected
-     * @return $this
-     */
-    public function except(Closure $onRejected): Promise
-    {
-        if ($this->status === Promise::REJECTED) {
-            try {
-                call_user_func($onRejected, $this->result);
-            } catch (Throwable $exception) {
-                Output::error($exception->getMessage());
-            }
-            return $this;
-        } else {
-            $this->onRejected[] = $onRejected;
-        }
-        return $this;
     }
 
     /**
@@ -280,22 +288,23 @@ class Promise
     }
 
     /**
-     * @return mixed
-     * @throws Throwable
-     */
-    public function await(): mixed
-    {
-        return await($this);
-    }
-
-    /**
      * @param bool $unwrap
+     *
      * @return mixed
      * @throws Throwable
      */
     public function wait(bool $unwrap = true): mixed
     {
         return $this->await();
+    }
+
+    /**
+     * @return mixed
+     * @throws Throwable
+     */
+    public function await(): mixed
+    {
+        return await($this);
     }
 
     /**
@@ -310,6 +319,7 @@ class Promise
 
     /**
      * @param Closure $onRejected
+     *
      * @return Promise
      */
     public function otherwise(Closure $onRejected): Promise

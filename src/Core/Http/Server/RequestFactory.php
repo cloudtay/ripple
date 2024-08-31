@@ -32,14 +32,31 @@
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-namespace Psc\Core\WebSocket;
+namespace Psc\Core\Http\Server;
 
-/**
- * @deprecated 即将弃用, 请使用 Psc\Library\Net\WebSocket\Client\Connection
- * [协议相关]
- * 白皮书: https://datatracker.ietf.org/doc/html/rfc6455
- * 最新规范: https://websockets.spec.whatwg.org/
- */
-class Connection extends Client\Connection
+class RequestFactory implements RequestFactoryInterface
 {
+    /**
+     * @param array $query
+     * @param array $request
+     * @param array $attributes
+     * @param array $cookies
+     * @param array $files
+     * @param array $server
+     * @param array $content
+     *
+     * @return \Psc\Core\Http\Server\Request
+     */
+    public function __invoke(array $query, array $request, array $attributes, array $cookies, array $files, array $server, mixed $content): Request
+    {
+        return new Request(
+            $query,
+            $request,
+            $attributes,
+            $cookies,
+            $files,
+            $server,
+            $content,
+        );
+    }
 }
