@@ -32,80 +32,82 @@
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-namespace Tests;
+namespace Psc\Core\Socket\Proxy;
 
-use P\IO;
-use PHPUnit\Framework\Attributes\Test;
-use PHPUnit\Framework\TestCase;
+use Co\IO;
+use Psc\Core\Coroutine\Promise;
 use Psc\Core\Socket\SocketStream;
-use Psc\Utils\Output;
 use Throwable;
 
-use function md5;
-use function P\cancelAll;
-use function P\defer;
-use function P\tick;
-use function sys_get_temp_dir;
-use function uniqid;
+use function Co\await;
+use function stream_context_create;
+use function stream_context_set_option;
 
 /**
+ * 该标准适用于透传模式的所有代理,通过该方法创建的套接字可以直接作为目标套接字访问
+ * 需要注意getMeta的url部分不能表示为目标地址,使用者应手动做映射
+ *
  * @Author cclilshy
- * @Date   2024/8/15 14:49
+ * @Date   2024/8/29 11:28
  */
-class UnixTest extends TestCase
+abstract class Base
 {
     /**
-     * @Author cclilshy
-     * @Date   2024/8/16 10:16
-     * @return void
+     * 与代理之间的套接字连接
+     * @var SocketStream
+     */
+    protected SocketStream $proxy;
+
+    /**
+     * @param string $address
+     * @param array  $payload
+     * @param bool   $ssl
      * @throws Throwable
      */
-    #[Test]
-    public function test_unix(): void
+    public function __construct(protected string $address, protected array $payload, bool $ssl = false)
     {
-        $path  = sys_get_temp_dir() . '/' . md5(uniqid()) . '.sock';
-        $server = IO::Socket()->streamSocketServer('unix://' . $path);
-        $server->setBlocking(false);
+        $context = stream_context_create();
+        stream_context_set_option($context, 'ssl', 'verify_peer', false);
+        stream_context_set_option($context, 'ssl', 'verify_peer_name', false);
 
-        $server->onReadable(function (SocketStream $stream) {
-            $client = $stream->accept();
-            $client->setBlocking(false);
-            $client->onReadable(function (SocketStream $stream) {
-                $data = $stream->read(1024);
-                $stream->write($data);
-            });
-        });
+        if ($ssl) {
+            $this->proxy = await(IO::Socket()->streamSocketClientSSL($address, 10, $context));
+        } else {
+            $this->proxy = await(IO::Socket()->streamSocketClient($address, 10, $context));
+        }
 
-        defer(function () use ($path) {
-            try {
-                $this->call($path);
-            } catch (Throwable $exception) {
-                Output::error($exception->getMessage());
-            }
-        });
-        tick();
+        $this->proxy->setBlocking(false);
+        await($this->handshake());
     }
 
     /**
      * @Author cclilshy
-     * @Date   2024/8/15 14:49
-     * @param string $path
-     * @return void
+     * @Date   2024/8/29 12:33
+     * @return SocketStream
+     */
+    public function getSocketStream(): SocketStream
+    {
+        return $this->proxy;
+    }
+
+    /**
+     * @Author cclilshy
+     * @Date   2024/8/29 11:34
+     * @return Promise<bool>
+     */
+    abstract protected function handshake(): Promise;
+
+    /**
+     * @Author cclilshy
+     * @Date   2024/8/29 12:38
+     * @param string $address
+     * @param array  $payload
+     * @param bool   $ssl
+     * @return static
      * @throws Throwable
      */
-    private function call(string $path): void
+    public static function connect(string $address, array $payload, bool $ssl = false): static
     {
-        /**
-         * @var SocketStream $client
-         */
-        $client = IO::Socket()->streamSocketClient('unix://' . $path)->await();
-        $client->setBlocking(false);
-
-        $client->write('hello');
-        $client->onReadable(function (SocketStream $stream) {
-            $data = $stream->read(1024);
-            $this->assertEquals('hello', $data);
-            cancelAll();
-        });
+        return new static($address, $payload,$ssl);
     }
 }

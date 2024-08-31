@@ -31,4 +31,4 @@ jobs:
         run: composer install
 
       - name: Run PHPUnit
-        run: ./vendor/bin/phpunit
+        run: ./vendor/bin/phpunit --teamcity

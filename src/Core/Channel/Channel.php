@@ -34,25 +34,28 @@
 
 namespace Psc\Core\Channel;
 
+use Co\IO;
 use Exception;
-use P\IO;
 use Psc\Core\Channel\Exception\ChannelException;
 use Psc\Core\Lock\Lock;
 use Psc\Core\Stream\Stream;
 use Psc\Utils\Serialization\Zx7e;
 
 use function chr;
+use function Co\cancelForkHandler;
+use function Co\registerForkHandler;
 use function file_exists;
 use function fopen;
 use function md5;
-use function P\cancelForkHandler;
-use function P\registerForkHandler;
 use function posix_mkfifo;
 use function serialize;
 use function sys_get_temp_dir;
 use function unlink;
 use function unpack;
 use function unserialize;
+use function touch;
+
+use const PHP_OS_FAMILY;
 
 /**
  * @Author cclilshy
@@ -94,7 +97,7 @@ class Channel
         private readonly string $name,
         private bool            $owner = false
     ) {
-        $this->path = self::generateFilePathByChannelName($name);
+        $this->path = Channel::generateFilePathByChannelName($name);
         $this->readLock = IO::Lock()->access("{$this->name}.read");
         $this->writeLock = IO::Lock()->access("{$this->name}.write");
 
@@ -103,7 +106,12 @@ class Channel
                 throw new ChannelException('Channel does not exist.');
             }
 
-            if (!posix_mkfifo($this->path, 0600)) {
+            /**
+             * @compatible:Windows
+             */
+            if (PHP_OS_FAMILY === 'Windows') {
+                touch($this->path);
+            } elseif (!posix_mkfifo($this->path, 0600)) {
                 throw new ChannelException('Failed to create channel.');
             }
         }
@@ -168,7 +176,7 @@ class Channel
 
             $header = $this->stream->read(1);
 
-            if ($header !== chr(self::FRAME_HEADER)) {
+            if ($header !== chr(Channel::FRAME_HEADER)) {
                 $this->readLock->unlock();
                 return null;
             }
@@ -180,7 +188,7 @@ class Channel
             $checksum = $this->stream->read(1);
             $footer   = $this->stream->read(1);
 
-            if ($footer !== chr(self::FRAME_FOOTER)) {
+            if ($footer !== chr(Channel::FRAME_FOOTER)) {
                 $this->readLock->unlock();
                 throw new Exception('Failed to read frame footer.');
             }
@@ -276,7 +284,7 @@ class Channel
      */
     public static function open(string $name): Channel
     {
-        $path = self::generateFilePathByChannelName($name);
+        $path = Channel::generateFilePathByChannelName($name);
 
         if (!file_exists($path)) {
             throw new ChannelException('Channel does not exist.');

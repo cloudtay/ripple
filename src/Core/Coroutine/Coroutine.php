@@ -39,24 +39,24 @@ use Fiber;
 use FiberError;
 use Psc\Core\LibraryAbstract;
 use Psc\Kernel;
+use Psc\Utils\Output;
 use Revolt\EventLoop;
 use Throwable;
 
-use function P\delay;
-use function P\registerForkHandler;
-use function P\tick;
+use function Co\delay;
+use function Co\registerForkHandler;
+use function Co\tick;
 use function spl_object_hash;
 
 /**
- * 原则性
- * 2024-07-13
- * async独立于EventLoop之外的单线Fiber, 对Fiber的操作必须考虑到EventLoop的协程空间
- * 任何suspend/resume都应该对当前操作的Fiber负责, 包括结果的返回处理
+ * 2024-07-13 principle
+ *
+ * async is a single-line Fiber independent of EventLoop. Operations on Fiber must take into account the coroutine space of EventLoop.
+ * Any suspend/resume should be responsible for the Fiber of the current operation, including the return processing of the results
  */
 
 /**
- * 兼容性:Process模块
- * 2024-07-13
+ * 2024-07-13 Compatible with Process module
  */
 class Coroutine extends LibraryAbstract
 {
@@ -64,6 +64,11 @@ class Coroutine extends LibraryAbstract
      * @var LibraryAbstract
      */
     protected static LibraryAbstract $instance;
+
+    public function __construct()
+    {
+        $this->registerOnFork();
+    }
 
     /**
      * @param Promise $promise
@@ -87,24 +92,19 @@ class Coroutine extends LibraryAbstract
         if (!$fiber = Fiber::getCurrent()) {
             $suspend = EventLoop::getSuspension();
             $promise->then(fn ($result) => $suspend->resume($result));
-            $promise->except(fn (mixed $e) => $suspend->resume($e));
+            $promise->except(fn (mixed $e) => $suspend->throw($e));
 
-            try {
-                $result = $suspend->suspend();
-                if ($result instanceof Promise) {
-                    return $this->await($result);
-                }
-                return $result;
-            } catch (Throwable) {
-                return false;
+            $result = $suspend->suspend();
+            if ($result instanceof Promise) {
+                return $this->await($result);
             }
+            return $result;
         }
 
         if (!$callback = $this->fiber2callback[spl_object_hash($fiber)] ?? null) {
             $promise->then(fn ($result) => $fiber->resume($result));
             $promise->except(
-                fn (mixed $e) =>
-                $e instanceof Throwable
+                fn (mixed $e) => $e instanceof Throwable
                     ? $fiber->throw($e)
                     : $fiber->throw(new Exception('An exception occurred in the awaited Promise'))
             );
@@ -120,7 +120,7 @@ class Coroutine extends LibraryAbstract
          * To determine your own control over preparing Fiber, you must be responsible for the subsequent status of Fiber.
          */
         // When the status of the awaited Promise is completed
-        $promise->then(function (mixed $result) use ($fiber, $callback) {
+        $promise->then(static function (mixed $result) use ($fiber, $callback) {
             try {
                 // Try to resume Fiber operation
                 $fiber->resume($result);
@@ -147,7 +147,7 @@ class Coroutine extends LibraryAbstract
         });
 
         // When rejected by the status of the awaited Promise
-        $promise->except(function (mixed $e) use ($fiber, $callback) {
+        $promise->except(static function (mixed $e) use ($fiber, $callback) {
             try {
                 // Try to notice Fiber: An exception occurred in the awaited Promise
                 $e instanceof Throwable
@@ -235,20 +235,13 @@ class Coroutine extends LibraryAbstract
     {
         registerForkHandler(function () {
             $this->fiber2callback = array();
-
             $this->registerOnFork();
         });
-    }
-
-    public function __construct()
-    {
-        $this->registerOnFork();
     }
 
     /**
      * @param float|int $second
      * @return void
-     * @throws Throwable
      */
     public function sleep(float|int $second): void
     {
@@ -291,14 +284,18 @@ class Coroutine extends LibraryAbstract
                 }
             }, $second);
 
-            $fiber->suspend();
+            try {
+                $fiber->suspend();
+            } catch (Throwable $e) {
+                Output::exception($e);
+            }
         }
     }
 
     /**
      * @return bool
      */
-    public function isCoroutine(): bool
+    public function hasCallback(): bool
     {
         if (!$fiber = Fiber::getCurrent()) {
             return false;
@@ -331,12 +328,32 @@ class Coroutine extends LibraryAbstract
      */
     public function handleEscapeException(EscapeException $exception): void
     {
-        if (!Fiber::getCurrent() || !$this->isCoroutine()) {
+        if (!Fiber::getCurrent() || !$this->hasCallback()) {
             $this->fiber2callback = array();
             tick();
             exit(0);
         } else {
             throw $exception;
         }
+    }
+
+    /**
+     * @Author cclilshy
+     * @Date   2024/8/28 10:24
+     * @return array|null
+     */
+    public static function getCurrent(): array|null
+    {
+        return Coroutine::getInstance()->getCoroutine();
+    }
+
+    /**
+     * @Author cclilshy
+     * @Date   2024/8/28 10:25
+     * @return bool
+     */
+    public static function isCoroutine(): bool
+    {
+        return Coroutine::getInstance()->hasCallback();
     }
 }

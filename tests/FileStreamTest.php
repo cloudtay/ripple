@@ -35,7 +35,6 @@
 namespace Tests;
 
 use P\IO;
-use PHPUnit\Framework\Attributes\RunClassInSeparateProcess;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 use Throwable;
@@ -47,7 +46,6 @@ use function md5_file;
  * @Author cclilshy
  * @Date   2024/8/15 14:49
  */
-#[RunClassInSeparateProcess]
 class FileStreamTest extends TestCase
 {
     /**

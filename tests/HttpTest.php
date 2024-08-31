@@ -34,10 +34,10 @@
 
 namespace Tests;
 
+use GuzzleHttp\Client;
 use GuzzleHttp\Exception\GuzzleException;
 use P\Net;
 use P\Plugin;
-use PHPUnit\Framework\Attributes\RunClassInSeparateProcess;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 use Psc\Core\Http\Server\Request;
@@ -46,6 +46,7 @@ use Psc\Utils\Output;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Throwable;
 
+use function Co\async;
 use function file_put_contents;
 use function fopen;
 use function md5;
@@ -54,41 +55,84 @@ use function P\cancelAll;
 use function P\defer;
 use function P\tick;
 use function str_repeat;
+use function stream_context_create;
 use function sys_get_temp_dir;
 use function tempnam;
 use function uniqid;
-use function stream_context_create;
+use function gc_collect_cycles;
+use function memory_get_usage;
+use function var_dump;
 
-#[RunClassInSeparateProcess]
 class HttpTest extends TestCase
 {
     /**
      * @return void
+     * @throws Throwable
      */
     #[Test]
     public function test_httpServer(): void
     {
         defer(function () {
-            try {
-                $this->httpGet();
-            } catch (Throwable $exception) {
-                Output::error($exception->getMessage());
+            /**
+             * 内存泄漏测试
+             */
+            for ($i = 0; $i < 10; $i++) {
+                try {
+                    $this->httpGet();
+                } catch (Throwable $exception) {
+                    Output::exception($exception);
+                }
+
+                try {
+                    $this->httpPost();
+                } catch (Throwable $exception) {
+                    Output::exception($exception);
+                }
+
+                try {
+                    $this->httpFile();
+                } catch (Throwable $exception) {
+                    Output::exception($exception);
+                }
             }
 
-            try {
-                $this->httpPost();
-            } catch (Throwable $exception) {
-                Output::error($exception->getMessage());
+            gc_collect_cycles();
+            $baseMemory = memory_get_usage();
+
+            for ($i = 0; $i < 10; $i++) {
+                try {
+                    $this->httpGet();
+                } catch (Throwable $exception) {
+                    Output::exception($exception);
+                }
+
+                try {
+                    $this->httpPost();
+                } catch (Throwable $exception) {
+                    Output::exception($exception);
+                }
+
+                try {
+                    $this->httpFile();
+                } catch (Throwable $exception) {
+                    Output::exception($exception);
+                }
             }
 
-            try {
-                $this->httpFile();
-            } catch (Throwable $exception) {
-                Output::exception($exception);
-            }
+            gc_collect_cycles();
+            $this->assertEquals($baseMemory, memory_get_usage());
 
+            /**
+             * HttpClient测试
+             */
+            try {
+                $this->httpClient();
+            } catch (Throwable $exception) {
+                Output::warning($exception->getMessage());
+            }
             cancelAll();
         });
+
         $context = stream_context_create([
             'socket' => [
                 'so_reuseport' => 1,
@@ -105,7 +149,6 @@ class HttpTest extends TestCase
                 $hash = $request->request->get('hash');
                 $this->assertEquals($hash, md5_file($file->getRealPath()));
                 $response->setContent(fopen($file->getRealPath(), 'r'))->respond();
-
 
                 return;
             }
@@ -132,7 +175,7 @@ class HttpTest extends TestCase
     private function httpGet(): void
     {
         $hash     = md5(uniqid());
-        $client   = Plugin::Guzzle();
+        $client   = Plugin::Guzzle()->newClient();
         $response = $client->get('http://127.0.0.1:8008/', [
             'query'   => [
                 'query' => $hash,
@@ -142,7 +185,6 @@ class HttpTest extends TestCase
 
         $result = $response->getBody()->getContents();
         $this->assertEquals($hash, $result);
-
     }
 
     /**
@@ -152,7 +194,7 @@ class HttpTest extends TestCase
     private function httpPost(): void
     {
         $hash     = md5(uniqid());
-        $client   = Plugin::Guzzle();
+        $client   = Plugin::Guzzle()->newClient();
         $response = $client->post('http://127.0.0.1:8008/', [
             'json'    => [
                 'query' => $hash,
@@ -161,7 +203,6 @@ class HttpTest extends TestCase
         ]);
 
         $this->assertEquals($hash, $response->getBody()->getContents());
-
     }
 
     /**
@@ -170,7 +211,7 @@ class HttpTest extends TestCase
      */
     private function httpFile(): void
     {
-        $client = Plugin::Guzzle();
+        $client = Plugin::Guzzle()->newClient();
         $path = tempnam(sys_get_temp_dir(), 'test');
         file_put_contents($path, str_repeat('a', 81920));
         $hash = md5_file($path);
@@ -190,5 +231,73 @@ class HttpTest extends TestCase
             'sink'     => $path . '.bak'
         ]);
         $this->assertEquals($hash, md5_file($path . '.bak'));
+    }
+
+    /**
+     * @Author cclilshy
+     * @Date   2024/8/29 10:01
+     * @return void
+     * @throws Throwable
+     */
+    private function httpClient(): void
+    {
+        $urls = [
+            'https://www.baidu.com/',
+            'https://www.qq.com/',
+            'https://www.zhihu.com/',
+            'https://www.taobao.com/',
+            'https://www.jd.com/',
+            'https://www.163.com/',
+            'https://www.sina.com.cn/',
+            'https://www.sohu.com/',
+            'https://www.ifeng.com/',
+            'https://juejin.cn',
+            'https://www.csdn.net',
+            'https://www.cnblogs.com/',
+            'https://business.oceanengine.com/login',
+            'https://www.laruence.com/',
+            'https://www.php.net/',
+            'https://www.google.com/'
+        ];
+
+        $x = 0;
+        $y = 0;
+
+        $list = [];
+        foreach ($urls as $i => $url) {
+            $list[] = async(function () use ($i, $url, $urls, &$x, &$y) {
+                try {
+                    $response = \Co\Plugin::Guzzle()->newClient()->get($url, ['timeout' => 10]);
+                    if($response->getStatusCode() === 200) {
+                        $x++;
+                    }
+
+                    echo "Request ({$i}){$url} response: {$response->getStatusCode()}\n";
+                } catch (Throwable $exception) {
+                    echo "\n";
+                    echo "Request ({$i}){$url} error: {$exception->getMessage()}\n";
+                    Output::warning($exception->getMessage());
+                }
+
+                try {
+                    $guzzleResponse = (new Client())->get($url, ['timeout' => 10]);
+                    if($guzzleResponse->getStatusCode() === 200) {
+                        $y++;
+                    }
+
+                    echo "GuzzleRequest ({$i}){$url} response: {$guzzleResponse->getStatusCode()}\n";
+                } catch (Throwable $exception) {
+                    echo "\n";
+                    echo "GuzzleRequest ({$i}){$url} error: {$exception->getMessage()}\n";
+                }
+            });
+        }
+
+        foreach ($list as $promise) {
+            $promise->await();
+        }
+
+        echo "\n";
+        echo("Request success: {$x}, GuzzleRequest success: {$y}\n");
     }
 }

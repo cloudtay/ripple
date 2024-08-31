@@ -37,6 +37,7 @@
          failOnWarning="true"
          failOnRisky="true"
          testdox="true"
+         stderr="true"
          processIsolation="true">
     <testsuites>
         <testsuite name="Core">

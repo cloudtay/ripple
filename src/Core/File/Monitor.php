@@ -43,8 +43,8 @@ use function file_exists;
 use function in_array;
 use function is_dir;
 use function is_file;
-use function P\cancel;
-use function P\repeat;
+use function Co\cancel;
+use function Co\repeat;
 use function realpath;
 use function scandir;
 

@@ -68,7 +68,7 @@ class WebSocket extends LibraryAbstract
      * @return Server
      * @throws Throwable
      */
-    public function server(string $address, mixed $context, Options $options = null): Server
+    public function server(string $address, mixed $context, Options|null $options = null): Server
     {
         return new Server($address, $context, $options);
     }

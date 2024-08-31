@@ -40,11 +40,10 @@ use Psc\Utils\Output;
 use Revolt\EventLoop;
 use Throwable;
 
-use function array_search;
 use function call_user_func;
 use function call_user_func_array;
+use function Co\cancel;
 use function is_resource;
-use function P\cancel;
 use function stream_set_blocking;
 
 /**
@@ -54,14 +53,14 @@ use function stream_set_blocking;
 class Stream extends StreamBase
 {
     /**
-     * @var string[]
+     * @var string
      */
-    private array $onReadable = array();
+    private string $onReadable;
 
     /**
-     * @var string[]
+     * @var string
      */
-    private array $onWritable = array();
+    private string $onWritable;
 
     /**
      * @var array
@@ -75,11 +74,12 @@ class Stream extends StreamBase
     {
         parent::__construct($resource);
         $this->onClose(function () {
-            foreach ($this->onReadable as $id) {
-                cancel($id);
+            if (isset($this->onReadable)) {
+                cancel($this->onReadable);
             }
-            foreach ($this->onWritable as $id) {
-                cancel($id);
+
+            if (isset($this->onWritable)) {
+                cancel($this->onWritable);
             }
         });
     }
@@ -99,16 +99,17 @@ class Stream extends StreamBase
      */
     public function onReadable(Closure $closure): string
     {
-        $this->onReadable[] = $eventId = EventLoop::onReadable($this->stream, function (string $cancelId) use ($closure) {
+        if (isset($this->onReadable)) {
+            cancel($this->onReadable);
+            unset($this->onReadable);
+        }
+
+        return $this->onReadable = EventLoop::onReadable($this->stream, function (string $cancelId) use ($closure) {
             try {
                 call_user_func_array($closure, [
                     $this,
                     function () use ($cancelId) {
                         cancel($cancelId);
-                        $index = array_search($cancelId, $this->onReadable);
-                        if ($index !== false) {
-                            unset($this->onReadable[$index]);
-                        }
                     }
                 ]);
             } catch (ConnectionException $e) {
@@ -117,7 +118,6 @@ class Stream extends StreamBase
                 Output::error($e->getMessage());
             }
         });
-        return $eventId;
     }
 
 
@@ -128,16 +128,17 @@ class Stream extends StreamBase
      */
     public function onWritable(Closure $closure): string
     {
-        $this->onWritable[] = $eventId = EventLoop::onWritable($this->stream, function (string $cancelId) use ($closure) {
+        if (isset($this->onWritable)) {
+            cancel($this->onWritable);
+            unset($this->onWritable);
+        }
+
+        return $this->onWritable = EventLoop::onWritable($this->stream, function (string $cancelId) use ($closure) {
             try {
                 call_user_func_array($closure, [
                     $this,
                     function () use ($cancelId) {
                         cancel($cancelId);
-                        $index = array_search($cancelId, $this->onWritable);
-                        if ($index !== false) {
-                            unset($this->onWritable[$index]);
-                        }
                     }
                 ]);
             } catch (ConnectionException $e) {
@@ -147,7 +148,6 @@ class Stream extends StreamBase
                 Output::error($e->getMessage());
             }
         });
-        return $eventId;
     }
 
     /**

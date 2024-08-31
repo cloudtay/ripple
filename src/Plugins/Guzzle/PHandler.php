@@ -34,24 +34,22 @@
 
 namespace Psc\Plugins\Guzzle;
 
+use GuzzleHttp\Exception\GuzzleException;
+use GuzzleHttp\Exception\TransferException;
 use GuzzleHttp\Promise\Promise;
 use GuzzleHttp\Promise\PromiseInterface;
 use Psc\Core\Http\Client\HttpClient;
 use Psr\Http\Message\RequestInterface;
-
-use function P\await;
+use Psr\Http\Message\ResponseInterface;
+use Throwable;
 
 class PHandler
 {
-    /*** @var HttpClient */
-    private HttpClient $httpClient;
-
     /**
      * 构造函数
      */
-    public function __construct(array $config = [])
+    public function __construct(private readonly HttpClient $httpClient)
     {
-        $this->httpClient = new HttpClient($config);
     }
 
     /**
@@ -62,9 +60,29 @@ class PHandler
     public function __invoke(RequestInterface $request, array $options): PromiseInterface
     {
         $async   = $this->httpClient->request($request, $options);
-        $promise = new Promise(function () use ($async, &$promise) {
-            $promise->resolve(await($async));
+        $promise = new Promise(static function () use ($request, $async, &$promise) {
+            try {
+                $result = $async->await();
+                if (!$result instanceof ResponseInterface) {
+                    throw new TransferException('Invalid response');
+                }
+                $promise->resolve($result);
+            } catch (GuzzleException $exception) {
+                $promise->reject($exception);
+            } catch (Throwable $exception) {
+                $promise->reject(new TransferException($exception->getMessage()));
+            }
         });
         return $promise;
+    }
+
+    /**
+     * @Author cclilshy
+     * @Date   2024/8/31 14:31
+     * @return HttpClient
+     */
+    public function getHttpClient(): HttpClient
+    {
+        return $this->httpClient;
     }
 }

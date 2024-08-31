@@ -101,7 +101,7 @@ class StreamBase implements StreamInterface
      */
     public function read(int|null $length): string
     {
-        $content = fread($this->stream, $length);
+        $content = @fread($this->stream, $length);
         if ($content === false) {
             throw new ConnectionException('Unable to read from stream');
         }
@@ -115,7 +115,7 @@ class StreamBase implements StreamInterface
      */
     public function write(string $string): int
     {
-        $result = fwrite($this->stream, $string);
+        $result = @fwrite($this->stream, $string);
         if ($result === false) {
             throw new ConnectionException('Unable to write to stream');
         }
@@ -216,7 +216,7 @@ class StreamBase implements StreamInterface
      * @param string|null $key
      * @return mixed
      */
-    public function getMetadata(?string $key = null): mixed
+    public function getMetadata(string|null $key = null): mixed
     {
         return $key ? $this->meta[$key] : $this->meta;
     }

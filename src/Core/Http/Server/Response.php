@@ -71,7 +71,7 @@ class Response extends \Symfony\Component\HttpFoundation\Response
      * @param string|null $contentType
      * @return $this
      */
-    public function setContent(mixed $content, string $contentType = null): static
+    public function setContent(mixed $content, string|null $contentType = null): static
     {
         if (is_string($content)) {
             $this->headers->set('Content-Length', strval(strlen($content)));
@@ -127,7 +127,7 @@ class Response extends \Symfony\Component\HttpFoundation\Response
      * @return $this
      * @throws ConnectionException
      */
-    public function sendHeaders(?int $statusCode = null): static
+    public function sendHeaders(int|null $statusCode = null): static
     {
         /**
          *
@@ -160,7 +160,6 @@ class Response extends \Symfony\Component\HttpFoundation\Response
             $this->body->onReadable(function () {
                 $this->stream->write($this->body->read(8192));
                 if ($this->body->eof()) {
-                    $this->body->close();
                     $this->done();
                 }
             });

@@ -34,28 +34,11 @@
 
 namespace P;
 
-use Psc\Core\Http\Http;
-use Psc\Core\WebSocket\WebSocket;
-
 /**
+ * @Description 请使用 Co\Net 代替
  * @Author cclilshy
  * @Date   2024/8/16 09:35
  */
-class Net
+class Net extends \Co\Net
 {
-    /**
-     * @return Http
-     */
-    public static function Http(): Http
-    {
-        return Http::getInstance();
-    }
-
-    /**
-     * @return WebSocket
-     */
-    public static function WebSocket(): WebSocket
-    {
-        return WebSocket::getInstance();
-    }
 }

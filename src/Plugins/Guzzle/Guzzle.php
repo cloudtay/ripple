@@ -35,7 +35,10 @@
 namespace Psc\Plugins\Guzzle;
 
 use GuzzleHttp\Client;
+use Psc\Core\Http\Client\HttpClient;
 use Psc\Core\LibraryAbstract;
+
+use function array_merge;
 
 use const PHP_SAPI;
 
@@ -54,9 +57,18 @@ class Guzzle extends LibraryAbstract
     /*** @var Client */
     private Client $client;
 
-    public function __construct()
+    /**
+     * @var HttpClient
+     */
+    private HttpClient $httpClient;
+
+    /**
+     * @param array $config
+     */
+    public function __construct(array $config = [])
     {
-        $this->pHandler = new PHandler(['pool' => PHP_SAPI === 'cli']);
+        $this->httpClient = new HttpClient(array_merge(['pool' => PHP_SAPI === 'cli'], $config));
+        $this->pHandler = new PHandler($this->httpClient);
         $this->client   = new Client(['handler' => $this->pHandler]);
     }
 
@@ -68,5 +80,36 @@ class Guzzle extends LibraryAbstract
     public function client(): Client
     {
         return $this->client;
+    }
+
+    /**
+     * @Author cclilshy
+     * @Date   2024/8/31 11:46
+     * @param array $config
+     * @return Client
+     */
+    public function newClient(array $config = []): Client
+    {
+        return new Client(array_merge(['handler' => $this->pHandler], $config));
+    }
+
+    /**
+     * @Author cclilshy
+     * @Date   2024/8/31 14:28
+     * @return PHandler
+     */
+    public function getHandler(): PHandler
+    {
+        return $this->pHandler;
+    }
+
+    /**
+     * @Author cclilshy
+     * @Date   2024/8/31 14:30
+     * @return HttpClient
+     */
+    public function getHttpClient(): HttpClient
+    {
+        return $this->httpClient;
     }
 }

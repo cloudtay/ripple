@@ -35,8 +35,8 @@
 namespace Psc\Core\Process;
 
 use Closure;
+use Co\Coroutine;
 use Fiber;
-use P\Coroutine;
 use Psc\Core\Coroutine\EscapeException;
 use Psc\Core\LibraryAbstract;
 use Psc\Core\Process\Exception\ProcessException;
@@ -46,11 +46,10 @@ use Revolt\EventLoop\UnsupportedFeatureException;
 use Throwable;
 
 use function call_user_func;
-use function P\cancel;
-use function P\cancelAll;
-use function P\getIdentities;
-use function P\promise;
-use function P\tick;
+use function Co\cancel;
+use function Co\promise;
+use function Co\tick;
+use function getmypid;
 use function pcntl_fork;
 use function pcntl_wait;
 use function pcntl_wexitstatus;
@@ -61,8 +60,12 @@ use const SIGCHLD;
 use const SIGKILL;
 use const WNOHANG;
 use const WUNTRACED;
+use const PHP_OS_FAMILY;
 
 /**
+ * @compatible:Windows
+ * 20240830对Windows支持进行了调整
+ *
  * @Author cclilshy
  * @Date   2024/8/16 09:36
  */
@@ -91,8 +94,18 @@ class Process extends LibraryAbstract
 
     public function __construct()
     {
+        /**
+         * @compatible:Windows
+         * Windows 不支持pcntl扩展
+         */
+        if (PHP_OS_FAMILY === 'Windows') {
+            $this->rootProcessId = getmypid();
+            $this->processId     = getmypid();
+            return;
+        }
+
         $this->rootProcessId = posix_getpid();
-        $this->processId = posix_getpid();
+        $this->processId     = posix_getpid();
     }
 
 
@@ -107,6 +120,14 @@ class Process extends LibraryAbstract
      */
     private function registerSignalHandler(): void
     {
+        /**
+         * @compatible:Windows
+         * Windows 不注册信号处理器
+         */
+        if (PHP_OS_FAMILY === 'Windows') {
+            return;
+        }
+
         $this->signalHandlerEventId = $this->onSignal(SIGCHLD, fn () => $this->signalSIGCHLDHandler());
     }
 
@@ -156,7 +177,7 @@ class Process extends LibraryAbstract
         unset($this->process2promiseCallback[$processId]);
         unset($this->process2runtime[$processId]);
 
-        if(empty($this->process2runtime)) {
+        if (empty($this->process2runtime)) {
             $this->unregisterSignalHandler();
         }
     }
@@ -224,6 +245,21 @@ class Process extends LibraryAbstract
     public function task(Closure $closure): Task|false
     {
         return new Task(function (...$args) use ($closure) {
+            /**
+             * @compatible:Windows
+             * windows 不支持pcntl扩展
+             *
+             * Windows允许使用Process模块模拟一个Runtime
+             * 但Runtime并非真正的子进程
+             *
+             * 由于__destruct与Fiber生命周期的原因
+             * Windows下的Runtime一旦被销毁,会导致整个进程退出, 并且不会触发任何promise回调
+             */
+            if (PHP_OS_FAMILY === 'Windows') {
+                call_user_func($closure, ...$args);
+                return new Runtime(promise(static function () {}), getmypid());
+            }
+
             $processId = pcntl_fork();
 
             if ($processId === -1) {
@@ -235,25 +271,43 @@ class Process extends LibraryAbstract
                 /**
                  * It is necessary to ensure that the final closure cannot be escaped by any means.
                  */
-                cancelAll();
-
-                $this->forked();
-
-                call_user_func($closure, ...$args);
-
-                // Whether it belongs to the PRipple coroutine space
-                if(Coroutine::Coroutine()->isCoroutine()) {
-                    throw new EscapeException('The process is abnormal.');
-                } else {
-                    if(Fiber::getCurrent()) {
-                        Fiber::suspend();
+                foreach (EventLoop::getIdentifiers() as $identifier) {
+                    try {
+                        EventLoop::cancel($identifier);
+                    } catch (Throwable $e) {
+                        Output::error($e->getMessage());
                     }
+                }
+
+                if (Coroutine::Coroutine()->isCoroutine()) {
+                    // Whether it belongs to the PRipple coroutine space
+                    // forked and user actions need to be deferred because they clear the coroutine hash table
+                    // If you don't do this, fiber escape will occur
+
+                    EventLoop::defer(function () use ($closure, $args) {
+                        $this->forked();
+                        call_user_func($closure, ...$args);
+                    });
+
+                    throw new EscapeException('The process is abnormal.');
+                } elseif (Fiber::getCurrent()) {
+                    // Whether it belongs to the PHP space
+
+                    $this->forked();
+                    call_user_func($closure, ...$args);
+                    tick();
+                    exit(0);
+                } else {
+                    // Whether it belongs to the PHP space
+
+                    $this->forked();
+                    call_user_func($closure, ...$args);
                     tick();
                     exit(0);
                 }
             }
 
-            if(empty($this->process2runtime)) {
+            if (empty($this->process2runtime)) {
                 $this->registerSignalHandler();
             }
 

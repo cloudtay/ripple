@@ -32,80 +32,23 @@
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-namespace Tests;
+namespace Co;
 
-use P\IO;
-use PHPUnit\Framework\Attributes\Test;
-use PHPUnit\Framework\TestCase;
-use Psc\Core\Socket\SocketStream;
-use Psc\Utils\Output;
-use Throwable;
-
-use function md5;
-use function P\cancelAll;
-use function P\defer;
-use function P\tick;
-use function sys_get_temp_dir;
-use function uniqid;
+use Psc\Plugins\Guzzle\Guzzle;
 
 /**
  * @Author cclilshy
- * @Date   2024/8/15 14:49
+ * @Date   2024/8/31 11:42
  */
-class UnixTest extends TestCase
+class Plugin
 {
     /**
      * @Author cclilshy
-     * @Date   2024/8/16 10:16
-     * @return void
-     * @throws Throwable
+     * @Date   2024/8/31 11:41
+     * @return Guzzle
      */
-    #[Test]
-    public function test_unix(): void
+    public static function Guzzle(): Guzzle
     {
-        $path  = sys_get_temp_dir() . '/' . md5(uniqid()) . '.sock';
-        $server = IO::Socket()->streamSocketServer('unix://' . $path);
-        $server->setBlocking(false);
-
-        $server->onReadable(function (SocketStream $stream) {
-            $client = $stream->accept();
-            $client->setBlocking(false);
-            $client->onReadable(function (SocketStream $stream) {
-                $data = $stream->read(1024);
-                $stream->write($data);
-            });
-        });
-
-        defer(function () use ($path) {
-            try {
-                $this->call($path);
-            } catch (Throwable $exception) {
-                Output::error($exception->getMessage());
-            }
-        });
-        tick();
-    }
-
-    /**
-     * @Author cclilshy
-     * @Date   2024/8/15 14:49
-     * @param string $path
-     * @return void
-     * @throws Throwable
-     */
-    private function call(string $path): void
-    {
-        /**
-         * @var SocketStream $client
-         */
-        $client = IO::Socket()->streamSocketClient('unix://' . $path)->await();
-        $client->setBlocking(false);
-
-        $client->write('hello');
-        $client->onReadable(function (SocketStream $stream) {
-            $data = $stream->read(1024);
-            $this->assertEquals('hello', $data);
-            cancelAll();
-        });
+        return Guzzle::getInstance();
     }
 }

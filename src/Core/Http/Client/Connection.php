@@ -40,14 +40,17 @@ use Psc\Core\Stream\Exception\RuntimeException;
 use Psr\Http\Message\ResponseInterface;
 
 use function count;
+use function ctype_xdigit;
 use function explode;
+use function fclose;
 use function fwrite;
+use function hexdec;
 use function intval;
 use function strlen;
 use function strpos;
 use function strtok;
 use function substr;
-use function hexdec;
+use function is_resource;
 
 /**
  * @Author cclilshy
@@ -72,7 +75,6 @@ class Connection
     private int    $bodyLength    = 0;
     private string $versionString = '';
     private string $buffer        = '';
-
     private bool $chunk       = false;
     private int  $chunkLength = 0;
     private int  $chunkStep   = 0;
@@ -149,24 +151,35 @@ class Connection
                     $chunkEnd = strpos($buffer, "\r\n");
                     if ($chunkEnd === false) {
                         break;
-                    } else {
-                        $this->chunkStep   = 1;
-                        $this->chunkLength = intval(hexdec(substr($buffer, 0, $chunkEnd)));
-                        $buffer            = substr($buffer, $chunkEnd + 2);
-                        if ($this->chunkLength === 0) {
-                            $buffer          = substr($buffer, $this->chunkLength + 2);
-                            $this->step = 2;
+                    }
+
+                    $chunkLengthHex = substr($buffer, 0, $chunkEnd);
+                    if (!ctype_xdigit($chunkLengthHex)) {
+                        throw new RuntimeException("Invalid chunk length: " . $chunkLengthHex);
+                    }
+
+                    $this->chunkLength = hexdec($chunkLengthHex);
+                    $buffer = substr($buffer, $chunkEnd + 2);
+
+                    if ($this->chunkLength === 0) {
+                        if (strlen($buffer) < 2) {
                             break;
                         }
-                    }
-                } else {
-                    if (strlen($buffer) >= $this->chunkLength + 2) {
-                        $this->output(substr($buffer, 0, $this->chunkLength));
-                        $buffer          = substr($buffer, $this->chunkLength + 2);
-                        $this->chunkStep = 0;
-                    } else {
+                        $buffer = substr($buffer, 2);
+                        $this->step = 2;
                         break;
                     }
+
+                    $this->chunkStep = 1;
+                } else {
+                    if (strlen($buffer) < $this->chunkLength + 2) {
+                        break;
+                    }
+
+                    $chunkData = substr($buffer, 0, $this->chunkLength);
+                    $this->output($chunkData);
+                    $buffer = substr($buffer, $this->chunkLength + 2); // 跳过数据和尾部 CRLF
+                    $this->chunkStep = 0;
                 }
             } while ($this->step !== 2);
 
@@ -230,6 +243,13 @@ class Connection
      */
     private function reset(): void
     {
+        if ($this->output) {
+            if (is_resource($this->output)) {
+                fclose($this->output);
+                $this->output = null;
+            }
+        }
+
         $this->step          = 0;
         $this->statusCode    = 0;
         $this->statusMessage = '';
@@ -238,10 +258,9 @@ class Connection
         $this->content       = '';
         $this->bodyLength    = 0;
         $this->versionString = '';
-        $this->output        = null;
-        $this->chunk         = false;
-        $this->chunkLength   = 0;
-        $this->chunkStep     = 0;
-        $this->buffer        = '';
+        $this->buffer = '';
+        $this->chunk = false;
+        $this->chunkLength = 0;
+        $this->chunkStep = 0;
     }
 }

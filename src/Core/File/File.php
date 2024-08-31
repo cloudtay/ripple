@@ -41,9 +41,9 @@ use Psc\Core\Stream\Exception\Exception;
 use Psc\Core\Stream\Stream;
 
 use function array_shift;
+use function Co\promise;
+use function Co\registerForkHandler;
 use function fopen;
-use function P\promise;
-use function P\registerForkHandler;
 
 /**
  * @Author cclilshy
@@ -62,7 +62,7 @@ class File extends LibraryAbstract
      */
     public function getContents(string $path): Promise
     {
-        return promise(function (Closure $r, Closure $d) use ($path) {
+        return promise(static function (Closure $r, Closure $d) use ($path) {
             if (!$resource = fopen($path, 'r')) {
                 $d(new Exception('Failed to open file: ' . $path));
                 return;
@@ -72,7 +72,7 @@ class File extends LibraryAbstract
             $stream->setBlocking(false);
             $content = '';
 
-            $stream->onReadable(function (Stream $stream) use ($r, $d, &$content) {
+            $stream->onReadable(static function (Stream $stream) use ($r, $d, &$content) {
                 $fragment = $stream->read(8192);
                 if ($fragment === '') {
                     if ($stream->eof()) {

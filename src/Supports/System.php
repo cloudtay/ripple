@@ -34,38 +34,11 @@
 
 namespace P;
 
-use Psc\Core\Parallel\Parallel;
-use Psc\Core\Proc\Proc;
-use Psc\Core\Process\Process;
-
 /**
+ * @Description 请使用 Co\System 代替
  * @Author cclilshy
- * @Date   2024/8/16 09:35
+ * @Date   2024/8/31 11:39
  */
-class System
+class System extends \Co\System
 {
-    /**
-     * @return Process
-     */
-    public static function Process(): Process
-    {
-        return Process::getInstance();
-    }
-
-    /**
-     * @return Proc
-     */
-    public static function Proc(): Proc
-    {
-        return Proc::getInstance();
-    }
-
-    /**
-     * @Description 未通过测试
-     * @return Parallel
-     */
-    public static function Parallel(): Parallel
-    {
-        return Parallel::getInstance();
-    }
 }

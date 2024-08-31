@@ -34,7 +34,7 @@
 
 namespace Psc\Core\Socket;
 
-use P\IO;
+use Co\IO;
 use Psc\Core\Stream\Exception\ConnectionException;
 use Psc\Core\Stream\Stream;
 use RuntimeException;
@@ -101,7 +101,10 @@ class SocketStream extends Stream
     {
         parent::__construct($resource);
 
-        $this->socket = socket_import_stream($this->stream);
+        if(!$socket = socket_import_stream($this->stream)) {
+            throw new RuntimeException('Failed to import stream');
+        }
+        $this->socket = $socket;
 
         if (!$peerName) {
             $peerName = stream_socket_get_name($this->stream, true);
@@ -125,7 +128,7 @@ class SocketStream extends Stream
      */
     public function accept(int|float $timeout = 0): SocketStream
     {
-        $socket = stream_socket_accept($this->stream, $timeout, $peerName);
+        $socket = @stream_socket_accept($this->stream, $timeout, $peerName);
         if ($socket === false) {
             throw new RuntimeException('Failed to accept connection: ' . socket_strerror(socket_last_error($this->socket)));
         }

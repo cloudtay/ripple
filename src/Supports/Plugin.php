@@ -34,13 +34,11 @@
 
 namespace P;
 
-use GuzzleHttp\Client;
-use Psc\Plugins\Guzzle\Guzzle;
-
-class Plugin
+/**
+ * @Description 请使用 Co\Plugin 代替
+ * @Author cclilshy
+ * @Date   2024/8/31 11:39
+ */
+class Plugin extends \Co\Plugin
 {
-    public static function Guzzle(): Client
-    {
-        return Guzzle::getInstance()->client();
-    }
 }

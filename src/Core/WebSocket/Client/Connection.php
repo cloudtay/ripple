@@ -35,8 +35,8 @@
 namespace Psc\Core\WebSocket\Client;
 
 use Closure;
+use Co\IO;
 use Exception;
-use P\IO;
 use Psc\Core\Coroutine\Promise;
 use Psc\Core\Exception\HandshakeException;
 use Psc\Core\Stream\Exception\ConnectionException;
@@ -47,11 +47,11 @@ use Throwable;
 use function base64_encode;
 use function call_user_func;
 use function chr;
+use function Co\async;
+use function Co\await;
 use function count;
 use function explode;
 use function ord;
-use function P\async;
-use function P\await;
 use function pack;
 use function random_bytes;
 use function sha1;
@@ -61,6 +61,7 @@ use function strtolower;
 use function substr;
 use function trim;
 use function unpack;
+use function var_dump;
 
 //Random\RandomException require PHP>=8.2;
 
@@ -226,7 +227,7 @@ class Connection
      */
     private function _handshake(): Promise
     {
-        return async(function ($r) {
+        return \Co\promise(function ($r) {
             $exploded = explode('://', $this->address);
 
             if (count($exploded) !== 2) {

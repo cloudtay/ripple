@@ -40,7 +40,7 @@ namespace Psc\Core\WebSocket;
  */
 class Options
 {
-    public function __construct(private readonly bool $pingPong = true)
+    public function __construct(private readonly bool $pingPong = true, private readonly bool $deflate = false)
     {
     }
 
@@ -52,5 +52,15 @@ class Options
     public function getPingPong(): bool
     {
         return $this->pingPong;
+    }
+
+    /**
+     * @Author lidongyooo
+     * @Date   2024/8/30 23:07
+     * @return bool
+     */
+    public function getDeflate(): bool
+    {
+        return $this->deflate;
     }
 }
