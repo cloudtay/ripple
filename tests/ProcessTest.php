@@ -56,7 +56,7 @@ class ProcessTest extends TestCase
     {
         $code = mt_rand(0, 255);
         $task = System::Process()->task(function () use ($code) {
-            \P\sleep(1);
+            \Co\sleep(1);
             exit($code);
         });
 
@@ -74,7 +74,7 @@ class ProcessTest extends TestCase
         $code     = mt_rand(0, 255);
         $async    = async(function () use ($code) {
             $task    = System::Process()->task(function () use ($code) {
-                \P\sleep(1);
+                \Co\sleep(1);
                 defer(function () use ($code) {
                     exit($code);
                 });

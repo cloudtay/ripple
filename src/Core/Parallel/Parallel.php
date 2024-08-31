@@ -294,7 +294,7 @@ class Parallel extends LibraryAbstract
      * @param int|null $capacity
      * @return Channel
      */
-    public function makeChannel(string $name, ?int $capacity = null): Channel
+    public function makeChannel(string $name, int|null $capacity = null): Channel
     {
         return is_int($capacity)
             ? new Channel(\parallel\Channel::make($name, $capacity))

@@ -39,7 +39,6 @@ use Exception;
 use Psc\Core\Channel\Exception\ChannelException;
 use Psc\Core\Lock\Lock;
 use Psc\Core\Stream\Stream;
-use Psc\Kernel;
 use Psc\Utils\Serialization\Zx7e;
 
 use function chr;

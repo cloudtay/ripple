@@ -196,8 +196,7 @@ class HttpClient
                              */
                             $this->pushConnection(
                                 $connection,
-                                ConnectionPool::generateConnectionKey($host, $port, $scheme === 'https'),
-                                $scheme === 'https'
+                                ConnectionPool::generateConnectionKey($host, $port)
                             );
                             $cancel();
                         } else {
@@ -225,7 +224,7 @@ class HttpClient
      * @throws Throwable
      * @throws \Psc\Core\Stream\Exception\ConnectionException
      */
-    private function pullConnection(string $host, int $port, bool $ssl, int $timeout = 0, string|null $proxy = null): Connection
+    public function pullConnection(string $host, int $port, bool $ssl, int $timeout = 0, string|null $proxy = null): Connection
     {
         if ($this->pool) {
             $connection = $this->connectionPool->pullConnection($host, $port, $ssl, $timeout, $proxy);
@@ -278,13 +277,22 @@ class HttpClient
     /**
      * @param Connection $connection
      * @param string     $key
-     * @param bool       $ssl
      * @return void
      */
-    private function pushConnection(Connection $connection, string $key, bool $ssl): void
+    public function pushConnection(Connection $connection, string $key): void
     {
         if ($this->pool) {
-            $this->connectionPool->pushConnection($connection, $key, $ssl);
+            $this->connectionPool->pushConnection($connection, $key);
         }
+    }
+
+    /**
+     * @Author cclilshy
+     * @Date   2024/8/31 14:32
+     * @return ConnectionPool
+     */
+    public function getConnectionPool(): ConnectionPool
+    {
+        return $this->connectionPool;
     }
 }

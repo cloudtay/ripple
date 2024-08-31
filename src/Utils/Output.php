@@ -34,7 +34,6 @@
 
 namespace Psc\Utils;
 
-use Psc\Kernel;
 use Throwable;
 
 use function explode;
@@ -45,8 +44,8 @@ use function posix_getpid;
 use function posix_getppid;
 
 use const PHP_EOL;
-use const STDOUT;
 use const PHP_OS_FAMILY;
+use const STDOUT;
 
 /**
  * @class Output 输出辅助类

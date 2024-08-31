@@ -34,6 +34,11 @@
 
 namespace P;
 
+/**
+ * @Description 请使用 Co\Plugin 代替
+ * @Author cclilshy
+ * @Date   2024/8/31 11:39
+ */
 class Plugin extends \Co\Plugin
 {
 }

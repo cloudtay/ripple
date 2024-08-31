@@ -40,7 +40,6 @@ use Fiber;
 use Psc\Core\Coroutine\EscapeException;
 use Psc\Core\LibraryAbstract;
 use Psc\Core\Process\Exception\ProcessException;
-use Psc\Kernel;
 use Psc\Utils\Output;
 use Revolt\EventLoop;
 use Revolt\EventLoop\UnsupportedFeatureException;

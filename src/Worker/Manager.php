@@ -35,7 +35,6 @@
 namespace Psc\Worker;
 
 use Psc\Core\Stream\Exception\ConnectionException;
-use Psc\Kernel;
 use Psc\Utils\Output;
 use Psc\Utils\Serialization\Zx7e;
 
@@ -201,7 +200,7 @@ class Manager
      * @return void
      * @throws ConnectionException
      */
-    public function reload(string $name = null): void
+    public function reload(string|null $name = null): void
     {
         if ($name) {
             if (isset($this->workers[$name])) {

@@ -40,7 +40,6 @@ use Psc\Core\Coroutine\Promise;
 use Psc\Core\Process\Runtime;
 use Psc\Core\Socket\SocketStream;
 use Psc\Core\Stream\Exception\ConnectionException;
-use Psc\Kernel;
 use Psc\Utils\Output;
 use Psc\Utils\Serialization\Zx7e;
 

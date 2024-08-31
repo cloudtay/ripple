@@ -40,13 +40,11 @@ use Psc\Core\Coroutine\Promise;
 use Psc\Core\LibraryAbstract;
 use Throwable;
 
-use function Co\async;
 use function Co\await;
 use function Co\cancel;
 use function Co\delay;
 use function Co\promise;
 use function str_replace;
-use function stream_socket_accept;
 use function stream_socket_client;
 use function stream_socket_enable_crypto;
 use function stream_socket_server;
@@ -76,7 +74,7 @@ class Socket extends LibraryAbstract
      */
     public function streamSocketClientSSL(string $address, int $timeout = 0, mixed $context = null): Promise
     {
-        return async(function (Closure $r, Closure $d) use ($address, $timeout, $context) {
+        return \P\promise(function (Closure $r, Closure $d) use ($address, $timeout, $context) {
             $address                   = str_replace('ssl://', 'tcp://', $address);
 
             /**
@@ -188,72 +186,21 @@ class Socket extends LibraryAbstract
     /**
      * @param string     $address
      * @param mixed|null $context
-     * @return Promise
+     * @return SocketStream
+     * @throws Exception
      */
-    public function streamSocketServerSSL(string $address, mixed $context = null): Promise
+    public function streamSocketServer(string $address, mixed $context = null): SocketStream
     {
-        return async(function (Closure $r, Closure $d) use ($address, $context) {
-            $streamSocketServerPromise = $this->streamSocketServer($address, $context);
-
-            /**
-             * @var SocketStream $server
-             */
-            $server = await($streamSocketServerPromise);
-            $server->onReadable(function (SocketStream $server, Closure $cancel) use ($r, $d) {
-                $connection = stream_socket_accept($server->stream, 0);
-                if (!$connection) {
-                    $d(new Exception('Failed to accept connection.'));
-                    return;
-                }
-
-                $stream = new SocketStream($connection);
-                $this->streamEnableCrypto($stream)->then($r)->except($d);
-                $cancel();
-            });
-        });
-    }
-
-    /**
-     * @param string     $address
-     * @param mixed|null $context
-     * @return Promise
-     */
-    public function streamSocketServer(string $address, mixed $context = null): Promise
-    {
-        return promise(static function (Closure $r, Closure $d) use ($address, $context) {
-            $server = stream_socket_server(
-                $address,
-                $_errCode,
-                $_errMsg,
-                STREAM_SERVER_BIND | STREAM_SERVER_LISTEN,
-                $context
-            );
-            if (!$server) {
-                $d(new Exception($_errMsg, $_errCode));
-                return;
-            }
-            $r(new SocketStream($server));
-        });
-    }
-
-    /**
-     * @param SocketStream $server
-     * @return Promise
-     */
-    public function streamSocketAccept(SocketStream $server): Promise
-    {
-        return new Promise(static function ($r, $d) use ($server) {
-            $server->onReadable(static function (SocketStream $server, Closure $cancel) use ($r, $d) {
-                $connection = stream_socket_accept($server->stream, 0);
-                if (!$connection) {
-                    $d(new Exception('Failed to accept connection.'));
-                    return;
-                }
-
-                $clientSocketStream = new SocketStream($connection);
-                $r($clientSocketStream);
-                $cancel();
-            });
-        });
+        $server = stream_socket_server(
+            $address,
+            $_errCode,
+            $_errMsg,
+            STREAM_SERVER_BIND | STREAM_SERVER_LISTEN,
+            $context
+        );
+        if (!$server) {
+            throw (new Exception($_errMsg, $_errCode));
+        }
+        return (new SocketStream($server));
     }
 }

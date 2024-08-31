@@ -34,7 +34,6 @@
 
 namespace Psc\Plugins\Guzzle;
 
-use GuzzleHttp\Exception\ClientException;
 use GuzzleHttp\Exception\GuzzleException;
 use GuzzleHttp\Exception\TransferException;
 use GuzzleHttp\Promise\Promise;
@@ -46,15 +45,11 @@ use Throwable;
 
 class PHandler
 {
-    /*** @var HttpClient */
-    private HttpClient $httpClient;
-
     /**
      * 构造函数
      */
-    public function __construct(array $config = [])
+    public function __construct(private readonly HttpClient $httpClient)
     {
-        $this->httpClient = new HttpClient($config);
     }
 
     /**
@@ -79,5 +74,15 @@ class PHandler
             }
         });
         return $promise;
+    }
+
+    /**
+     * @Author cclilshy
+     * @Date   2024/8/31 14:31
+     * @return HttpClient
+     */
+    public function getHttpClient(): HttpClient
+    {
+        return $this->httpClient;
     }
 }

@@ -77,7 +77,6 @@ function promise(Closure $closure): Promise
  * @Description 请使用Co\sleep代替
  * @param int|float $second
  * @return void
- * @throws Throwable
  */
 function sleep(int|float $second): void
 {

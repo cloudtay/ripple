@@ -216,7 +216,7 @@ class StreamBase implements StreamInterface
      * @param string|null $key
      * @return mixed
      */
-    public function getMetadata(?string $key = null): mixed
+    public function getMetadata(string|null $key = null): mixed
     {
         return $key ? $this->meta[$key] : $this->meta;
     }

@@ -70,6 +70,19 @@ class ConnectionPool
     }
 
     /**
+     * @Author cclilshy
+     * @Date   2024/8/29 23:18
+     * @return void
+     */
+    private function registerForkHandler(): void
+    {
+        $this->forkEventId = registerForkHandler(function () {
+            $this->registerForkHandler();
+            $this->clearConnectionPool();
+        });
+    }
+
+    /**
      * @param string      $host
      * @param int         $port
      * @param bool        $ssl
@@ -86,7 +99,7 @@ class ConnectionPool
         int|float $timeout = 0,
         string|null $proxy = null,
     ): Connection {
-        $key = ConnectionPool::generateConnectionKey($host, $port, $ssl);
+        $key = ConnectionPool::generateConnectionKey($host, $port);
         if (!isset($this->idleConnections[$key]) || empty($this->idleConnections[$key])) {
             // 连接创建逻辑
             return $this->createConnection($host, $port, $ssl, $timeout, $proxy);
@@ -166,23 +179,42 @@ class ConnectionPool
     /**
      * @Author cclilshy
      * @Date   2024/8/29 23:18
+     * @param string     $key
+     * @param Connection $connection
      * @return void
      */
-    private function registerForkHandler(): void
+    private function removeConnection(string $key, Connection $connection): void
     {
-        $this->forkEventId = registerForkHandler(function () {
-            $this->registerForkHandler();
-            $this->clearConnectionPool();
-        });
+        $streamId = $connection->stream->id;
+        unset($this->idleConnections[$key][$streamId]);
+        if (empty($this->idleConnections[$key])) {
+            unset($this->idleConnections[$key]);
+        }
+        if (isset($this->listenEventMap[$streamId])) {
+            cancel($this->listenEventMap[$streamId]);
+            unset($this->listenEventMap[$streamId]);
+        }
     }
 
     /**
      * @Author cclilshy
      * @Date   2024/8/29 23:18
+     * @param string|null $key
      * @return void
      */
-    private function clearConnectionPool(): void
+    public function clearConnectionPool(string|null $key = null): void
     {
+        if ($key) {
+            if (!isset($this->idleConnections[$key])) {
+                return;
+            }
+            foreach ($this->idleConnections[$key] as $connection) {
+                $connection->stream->close();
+            }
+            unset($this->idleConnections[$key]);
+            return;
+        }
+
         foreach ($this->idleConnections as $keyI => $connections) {
             foreach ($connections as $keyK => $connection) {
                 $connection->stream->close();
@@ -220,34 +252,13 @@ class ConnectionPool
 
     /**
      * @Author cclilshy
-     * @Date   2024/8/29 23:18
-     * @param string     $key
-     * @param Connection $connection
-     * @return void
-     */
-    private function removeConnection(string $key, Connection $connection): void
-    {
-        $streamId = $connection->stream->id;
-        unset($this->idleConnections[$key][$streamId]);
-        if (empty($this->idleConnections[$key])) {
-            unset($this->idleConnections[$key]);
-        }
-        if (isset($this->listenEventMap[$streamId])) {
-            cancel($this->listenEventMap[$streamId]);
-            unset($this->listenEventMap[$streamId]);
-        }
-    }
-
-    /**
-     * @Author cclilshy
      * @Date   2024/8/29 09:43
      * @param string $host
      * @param int    $port
-     * @param bool   $ssl
      * @return string
      */
-    public static function generateConnectionKey(string $host, int $port, bool $ssl): string
+    public static function generateConnectionKey(string $host, int $port): string
     {
-        return ($ssl ? 'ssl://' : 'tcp://') . $host . ':' . $port;
+        return  "{$host}:{$port}";
     }
 }

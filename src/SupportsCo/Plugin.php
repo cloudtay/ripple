@@ -34,13 +34,21 @@
 
 namespace Co;
 
-use GuzzleHttp\Client;
 use Psc\Plugins\Guzzle\Guzzle;
 
+/**
+ * @Author cclilshy
+ * @Date   2024/8/31 11:42
+ */
 class Plugin
 {
-    public static function Guzzle(): Client
+    /**
+     * @Author cclilshy
+     * @Date   2024/8/31 11:41
+     * @return Guzzle
+     */
+    public static function Guzzle(): Guzzle
     {
-        return Guzzle::getInstance()->client();
+        return Guzzle::getInstance();
     }
 }

@@ -64,10 +64,7 @@ class UnixTest extends TestCase
     public function test_unix(): void
     {
         $path  = sys_get_temp_dir() . '/' . md5(uniqid()) . '.sock';
-        /**
-         * @var SocketStream $server
-         */
-        $server = IO::Socket()->streamSocketServer('unix://' . $path)->await();
+        $server = IO::Socket()->streamSocketServer('unix://' . $path);
         $server->setBlocking(false);
 
         $server->onReadable(function (SocketStream $stream) {

@@ -128,7 +128,7 @@ class SocketStream extends Stream
      */
     public function accept(int|float $timeout = 0): SocketStream
     {
-        $socket = stream_socket_accept($this->stream, $timeout, $peerName);
+        $socket = @stream_socket_accept($this->stream, $timeout, $peerName);
         if ($socket === false) {
             throw new RuntimeException('Failed to accept connection: ' . socket_strerror(socket_last_error($this->socket)));
         }

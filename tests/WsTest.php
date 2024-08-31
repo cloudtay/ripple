@@ -37,11 +37,15 @@ namespace Tests;
 use P\Net;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
+use Psc\Core\Coroutine\Promise;
+use Psc\Core\WebSocket\Options;
 use Psc\Core\WebSocket\Server\Connection;
 use Psc\Utils\Output;
 use Throwable;
 
+use function gc_collect_cycles;
 use function md5;
+use function memory_get_usage;
 use function P\cancelAll;
 use function P\defer;
 use function P\tick;
@@ -64,11 +68,27 @@ class WsTest extends TestCase
     public function test_wsServer(): void
     {
         defer(function () {
-            try {
-                $this->wsTest();
-            } catch (Throwable $exception) {
-                Output::error($exception->getMessage());
+            for ($i = 0; $i < 10; $i++) {
+                try {
+                    $this->wsTest()->await();
+                } catch (Throwable $exception) {
+                    Output::error($exception->getMessage());
+                }
             }
+
+            gc_collect_cycles();
+            $baseMemory = memory_get_usage();
+
+            for ($i = 0; $i < 10; $i++) {
+                try {
+                    $this->wsTest()->await();
+                } catch (Throwable $exception) {
+                    Output::error($exception->getMessage());
+                }
+            }
+
+            gc_collect_cycles();
+            $this->assertEquals($baseMemory, memory_get_usage());
         });
 
         $context = stream_context_create([
@@ -77,7 +97,12 @@ class WsTest extends TestCase
                 'so_reuseaddr' => 1,
             ],
         ]);
-        $server = Net::WebSocket()->server('ws://127.0.0.1:8001/', $context);
+
+        $server = Net::WebSocket()->server(
+            'ws://127.0.0.1:8001/',
+            $context,
+            new Options(true, true)
+        );
         $server->onMessage(static function (string $data, Connection $connection) {
             $connection->send($data);
         });
@@ -88,24 +113,22 @@ class WsTest extends TestCase
     /**
      * @Author cclilshy
      * @Date   2024/8/15 14:49
-     * @return void
+     * @return Promise
      */
-    private function wsTest(): void
+    private function wsTest(): Promise
     {
-        $hash     = md5(uniqid());
-        $client   = Net::WebSocket()->connect('ws://127.0.0.1:8001/');
+        return \P\promise(function ($r) {
+            $hash   = md5(uniqid());
+            $client = Net::WebSocket()->connect('ws://127.0.0.1:8001/');
+            $client->onOpen(static function () use ($client, $hash) {
+                \Co\sleep(0.1);
+                $client->send($hash);
+            });
 
-        $client->onOpen(static function () use ($client, $hash) {
-            \P\sleep(1);
-            $client->send($hash);
-        });
-
-        $client->onMessage(function (string $data) use ($hash) {
-            try {
+            $client->onMessage(function (string $data) use ($hash, $r) {
                 $this->assertEquals($hash, $data);
-            } finally {
-                cancelAll();
-            }
+                $r();
+            });
         });
     }
 }

@@ -99,7 +99,7 @@ class Server
      * @param Options|null $options
      * @throws Throwable
      */
-    public function __construct(string $address, mixed $context = null, Options $options = null)
+    public function __construct(string $address, mixed $context = null, Options|null $options = null)
     {
         $this->options = $options ?: new Options();
 
@@ -114,7 +114,7 @@ class Server
         $host               = $tcpAddressExploded[0];
         $port               = $tcpAddressExploded[1] ?? 80;
 
-        $this->server = IO::Socket()->streamSocketServer("tcp://{$host}:{$port}", $context)->await();
+        $this->server = IO::Socket()->streamSocketServer("tcp://{$host}:{$port}", $context);
 
         $this->server->setOption(SOL_SOCKET, SO_REUSEADDR, 1);
 

@@ -34,9 +34,8 @@
 
 namespace P;
 
-use Psc\Core\Coroutine\Coroutine as CoroutineLibrary;
-
 /**
+ * @Description 请使用 Co\Coroutine 代替
  * @Author cclilshy
  * @Date   2024/8/16 09:34
  */

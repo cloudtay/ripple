@@ -42,14 +42,14 @@ use Psc\Core\Socket\SocketStream;
 use Psc\Core\Stream\Exception\RuntimeException;
 use Psc\Utils\Output;
 use Throwable;
+
 use function call_user_func_array;
-use function Co\async;
-use function Co\await;
 use function count;
 use function explode;
 use function str_contains;
 use function strlen;
 use function strtolower;
+
 use const PHP_OS_FAMILY;
 use const SO_KEEPALIVE;
 use const SO_RCVBUF;
@@ -79,46 +79,41 @@ class HttpServer
      */
     public function __construct(string $address, mixed $context = null)
     {
-        async(function () use (
-            $address,
-            $context
-        ) {
-            $addressExploded = explode('://', $address);
-            if (count($addressExploded) !== 2) {
-                throw new RuntimeException('Address format error');
-            }
+        $addressExploded = explode('://', $address);
+        if (count($addressExploded) !== 2) {
+            throw new RuntimeException('Address format error');
+        }
 
-            $scheme             = $addressExploded[0];
-            $tcpAddress         = $addressExploded[1];
-            $tcpAddressExploded = explode(':', $tcpAddress);
-            $host               = $tcpAddressExploded[0];
-            $port               = $tcpAddressExploded[1] ?? match ($scheme) {
-                'http' => 80,
-                'https' => 443,
-                default => throw new RuntimeException('Address format error')
-            };
+        $scheme             = $addressExploded[0];
+        $tcpAddress         = $addressExploded[1];
+        $tcpAddressExploded = explode(':', $tcpAddress);
+        $host               = $tcpAddressExploded[0];
+        $port               = $tcpAddressExploded[1] ?? match ($scheme) {
+            'http' => 80,
+            'https' => 443,
+            default => throw new RuntimeException('Address format error')
+        };
 
-            /**
-             * @var SocketStream $server
-             */
-            $this->server = match ($scheme) {
-                'http' => await(IO::Socket()->streamSocketServer("tcp://{$host}:{$port}", $context)),
-                'https' => await(IO::Socket()->streamSocketServerSSL("ssl://{$host}:{$port}", $context)),
-                default => throw new RuntimeException('Address format error')
-            };
+        /**
+         * @var SocketStream $server
+         */
+        $this->server = match ($scheme) {
+            'http' => IO::Socket()->streamSocketServer("tcp://{$host}:{$port}", $context),
+            'https' => IO::Socket()->streamSocketServer("tcp://{$host}:{$port}", $context),
+            default => throw new RuntimeException('Address format error')
+        };
 
-            $this->server->setOption(SOL_SOCKET, SO_REUSEADDR, 1);
+        $this->server->setOption(SOL_SOCKET, SO_REUSEADDR, 1);
 
-            /**
-             * @compatible:Windows
-             */
-            if (PHP_OS_FAMILY !== 'Windows') {
-                $this->server->setOption(SOL_SOCKET, SO_REUSEPORT, 1);
-            }
+        /**
+         * @compatible:Windows
+         */
+        if (PHP_OS_FAMILY !== 'Windows') {
+            $this->server->setOption(SOL_SOCKET, SO_REUSEPORT, 1);
+        }
 
-            $this->server->setOption(SOL_SOCKET, SO_KEEPALIVE, 1);
-            $this->server->setBlocking(false);
-        })->await();
+        $this->server->setOption(SOL_SOCKET, SO_KEEPALIVE, 1);
+        $this->server->setBlocking(false);
     }
 
     /**

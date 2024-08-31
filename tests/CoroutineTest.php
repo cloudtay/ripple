@@ -58,7 +58,7 @@ class CoroutineTest extends TestCase
         $coroutines = [];
         for ($i = 0; $i < $concurrentCoroutines; $i++) {
             $coroutines[] = async(function () use ($channel, $i) {
-                \P\sleep(0.1);
+                \Co\sleep(0.1);
                 try {
                     $result = $this->simulateWork($i);
                     $channel->send($result);

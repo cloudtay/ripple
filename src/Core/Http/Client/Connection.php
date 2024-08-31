@@ -246,6 +246,7 @@ class Connection
         if ($this->output) {
             if (is_resource($this->output)) {
                 fclose($this->output);
+                $this->output = null;
             }
         }
 
