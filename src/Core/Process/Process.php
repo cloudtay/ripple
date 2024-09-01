@@ -37,7 +37,7 @@ namespace Psc\Core\Process;
 use Closure;
 use Co\Coroutine;
 use Fiber;
-use Psc\Core\Coroutine\EscapeException;
+use Psc\Core\Coroutine\Exception\EscapeException;
 use Psc\Core\LibraryAbstract;
 use Psc\Core\Process\Exception\ProcessException;
 use Psc\Utils\Output;
@@ -56,11 +56,11 @@ use function pcntl_wexitstatus;
 use function pcntl_wifexited;
 use function posix_getpid;
 
+use const PHP_OS_FAMILY;
 use const SIGCHLD;
 use const SIGKILL;
 use const WNOHANG;
 use const WUNTRACED;
-use const PHP_OS_FAMILY;
 
 /**
  * @compatible:Windows

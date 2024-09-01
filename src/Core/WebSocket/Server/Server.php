@@ -134,7 +134,7 @@ class Server
      * @param Connection $connection
      * @return void
      */
-    private function _onMessage(string $data, Connection $connection): void
+    private function message(string $data, Connection $connection): void
     {
         if (isset($this->onMessage)) {
             ($this->onMessage)($data, $connection);
@@ -145,7 +145,7 @@ class Server
      * @param Connection $connection
      * @return void
      */
-    private function _onConnect(Connection $connection): void
+    private function connect(Connection $connection): void
     {
         if (isset($this->onConnect)) {
             ($this->onConnect)($connection);
@@ -156,7 +156,7 @@ class Server
      * @param Connection $connection
      * @return void
      */
-    private function _onClose(Connection $connection): void
+    private function close(Connection $connection): void
     {
         if (isset($this->onClose)) {
             ($this->onClose)($connection);
@@ -172,7 +172,7 @@ class Server
      * @param Connection $connection
      * @return void
      */
-    private function _onRequest(Request $request, Connection $connection): void
+    private function request(Request $request, Connection $connection): void
     {
         if (isset($this->onRequest)) {
             ($this->onRequest)($request, $connection);
@@ -194,10 +194,10 @@ class Server
                 $client->setOption(SOL_TCP, TCP_NODELAY, 1);
                 $connection = $this->client2connection[$stream->id] = new Connection($client, $this);
 
-                $connection->onMessage(fn (string $data, Connection $connection) => $this->_onMessage($data, $connection));
-                $connection->onConnect(fn (Connection $connection) => $this->_onConnect($connection));
-                $connection->onClose(fn (Connection $connection) => $this->_onClose($connection));
-                $connection->onRequest(fn (Request $request, Connection $connection) => $this->_onRequest($request, $connection));
+                $connection->onMessage(fn (string $data, Connection $connection) => $this->message($data, $connection));
+                $connection->onConnect(fn (Connection $connection) => $this->connect($connection));
+                $connection->onClose(fn (Connection $connection) => $this->close($connection));
+                $connection->onRequest(fn (Request $request, Connection $connection) => $this->request($request, $connection));
             } catch (Throwable) {
                 return;
             }

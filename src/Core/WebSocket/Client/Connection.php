@@ -38,7 +38,6 @@ use Closure;
 use Co\IO;
 use Exception;
 use Psc\Core\Coroutine\Promise;
-use Psc\Core\Exception\HandshakeException;
 use Psc\Core\Stream\Exception\ConnectionException;
 use Psc\Core\Stream\Stream;
 use Psc\Utils\Output;
@@ -61,7 +60,6 @@ use function strtolower;
 use function substr;
 use function trim;
 use function unpack;
-use function var_dump;
 
 //Random\RandomException require PHP>=8.2;
 
@@ -115,13 +113,13 @@ class Connection
     ) {
         async(function () {
             try {
-                await($this->_handshake());
-                $this->_open();
-                $this->_tick();
+                await($this->handshake());
+                $this->open();
+                $this->tick();
             } catch (Throwable $e) {
-                $this->_error($e);
+                $this->error($e);
                 if (isset($this->stream)) {
-                    $this->_close();
+                    $this->close();
                 }
                 return;
             }
@@ -129,10 +127,10 @@ class Connection
                 try {
                     $read         = $this->stream->read(8192);
                     $this->buffer .= $read;
-                    $this->_tick();
+                    $this->tick();
                 } catch (Throwable $e) {
-                    $this->_close();
-                    $this->_error($e);
+                    $this->close();
+                    $this->error($e);
                     return;
                 }
             });
@@ -145,7 +143,7 @@ class Connection
      * @return void
      * @throws ConnectionException
      */
-    private function _tick(): void
+    private function tick(): void
     {
         while (strlen($this->buffer) >= 2) {
             $firstByte     = ord($this->buffer[0]);
@@ -199,10 +197,7 @@ class Connection
                 case 0x2: // 二进制
                     break;
                 case 0x8: // 关闭
-                    $this->_close();
-                    if (isset($this->onClose)) {
-                        call_user_func($this->onClose, $this);
-                    }
+                    $this->close();
                     return;
                 case 0x9: // ping
                     // 发送pong响应
@@ -215,7 +210,7 @@ class Connection
                     break;
             }
 
-            $this->_message($unmaskedData, $opcode);
+            $this->message($unmaskedData, $opcode);
             $this->buffer = substr($this->buffer, $offset);
         }
     }
@@ -225,7 +220,7 @@ class Connection
      * @Date   2024/8/15 14:48
      * @return Promise
      */
-    private function _handshake(): Promise
+    private function handshake(): Promise
     {
         return \Co\promise(function ($r) {
             $exploded = explode('://', $this->address);
@@ -254,7 +249,6 @@ class Connection
                 default => throw new Exception('Unsupported scheme')
             };
 
-            $this->stream->onClose(fn () => $this->_close());
             $this->stream->setBlocking(false);
 
             $key     = base64_encode(random_bytes(16));
@@ -293,7 +287,7 @@ class Connection
                         strtolower($header),
                         strtolower("HTTP/1.1 101 Switching Protocols")
                     )) {
-                        throw new HandshakeException('Invalid response');
+                        throw new ConnectionException('Invalid response');
                     }
 
                     $headers  = array();
@@ -328,27 +322,7 @@ class Connection
      * @Date   2024/8/15 14:48
      * @return void
      */
-    private function _close(): void
-    {
-        if (isset($this->stream)) {
-            $this->stream->close();
-
-            if (isset($this->onClose)) {
-                try {
-                    call_user_func($this->onClose, $this);
-                } catch (Throwable $e) {
-                    Output::error($e->getMessage());
-                }
-            }
-        }
-    }
-
-    /**
-     * @Author cclilshy
-     * @Date   2024/8/15 14:48
-     * @return void
-     */
-    private function _open(): void
+    private function open(): void
     {
         if (isset($this->onOpen)) {
             try {
@@ -365,7 +339,7 @@ class Connection
      * @param Throwable $e
      * @return void
      */
-    private function _error(Throwable $e): void
+    private function error(Throwable $e): void
     {
         if (isset($this->onError)) {
             try {
@@ -383,7 +357,7 @@ class Connection
      * @param int    $opcode
      * @return void
      */
-    private function _message(string $unmaskedData, int $opcode): void
+    private function message(string $unmaskedData, int $opcode): void
     {
         if (isset($this->onMessage)) {
             try {
@@ -490,6 +464,16 @@ class Connection
      */
     public function close(): void
     {
-        $this->_close();
+        if (isset($this->stream)) {
+            $this->stream->close();
+
+            if (isset($this->onClose)) {
+                try {
+                    call_user_func($this->onClose, $this);
+                } catch (Throwable $e) {
+                    Output::error($e->getMessage());
+                }
+            }
+        }
     }
 }

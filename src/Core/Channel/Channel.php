@@ -37,7 +37,7 @@ namespace Psc\Core\Channel;
 use Co\IO;
 use Exception;
 use Psc\Core\Channel\Exception\ChannelException;
-use Psc\Core\Lock\Lock;
+use Psc\Core\File\Lock\Lock;
 use Psc\Core\Stream\Stream;
 use Psc\Utils\Serialization\Zx7e;
 
@@ -50,10 +50,10 @@ use function md5;
 use function posix_mkfifo;
 use function serialize;
 use function sys_get_temp_dir;
+use function touch;
 use function unlink;
 use function unpack;
 use function unserialize;
-use function touch;
 
 use const PHP_OS_FAMILY;
 

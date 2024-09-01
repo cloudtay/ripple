@@ -32,23 +32,13 @@
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-namespace Psc\Core\Lock;
+namespace Psc\Core\Coroutine\Exception;
 
-use Psc\Core\LibraryAbstract;
+use Exception as ExceptionNative;
 
-class LockLibrary extends LibraryAbstract
+/**
+ * @configure Exception
+ */
+class Exception extends ExceptionNative
 {
-    /**
-     * @var LibraryAbstract
-     */
-    protected static LibraryAbstract $instance;
-
-    /**
-     * @param string $name
-     * @return Lock
-     */
-    public function access(string $name = 'default'): Lock
-    {
-        return new Lock($name);
-    }
 }

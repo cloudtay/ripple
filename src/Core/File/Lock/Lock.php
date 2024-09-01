@@ -32,16 +32,16 @@
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-namespace Psc\Core\Lock;
+namespace Psc\Core\File\Lock;
 
+use function Co\cancelForkHandler;
+use function Co\registerForkHandler;
 use function fclose;
 use function file_exists;
 use function flock;
 use function fopen;
 use function is_resource;
 use function md5;
-use function Co\cancelForkHandler;
-use function Co\registerForkHandler;
 use function sys_get_temp_dir;
 use function touch;
 

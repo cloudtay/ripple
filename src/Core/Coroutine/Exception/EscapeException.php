@@ -32,12 +32,8 @@
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-namespace Psc\Core\Exception;
+namespace Psc\Core\Coroutine\Exception;
 
-/**
- * @Author cclilshy
- * @Date   2024/8/16 09:35
- */
-class HandshakeException extends ConnectionException
+class EscapeException extends Exception
 {
 }

@@ -35,6 +35,7 @@
 namespace Psc\Core\Coroutine;
 
 use Closure;
+use Psc\Core\Coroutine\Exception\Exception;
 use Psc\Utils\Output;
 use Throwable;
 

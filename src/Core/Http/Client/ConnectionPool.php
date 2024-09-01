@@ -35,8 +35,8 @@
 namespace Psc\Core\Http\Client;
 
 use Co\IO;
-use Psc\Core\Socket\Proxy\ProxyHttp;
-use Psc\Core\Socket\Proxy\ProxySocks5;
+use Psc\Core\Socket\Tunnel\ProxyHttp;
+use Psc\Core\Socket\Tunnel\ProxySocks5;
 use Psc\Core\Socket\SocketStream;
 use Psc\Core\Stream\Exception\ConnectionException;
 use Throwable;

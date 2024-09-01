@@ -36,9 +36,9 @@ namespace Psc\Core\Http\Server;
 
 use Closure;
 use Co\IO;
-use Psc\Core\Exception\ConnectionException;
 use Psc\Core\Http\Server\Exception\FormatException;
 use Psc\Core\Socket\SocketStream;
+use Psc\Core\Stream\Exception\ConnectionException;
 use Psc\Core\Stream\Exception\RuntimeException;
 use Psc\Utils\Output;
 use Throwable;
@@ -189,12 +189,7 @@ class HttpServer
                     }
                 }
 
-                $symfonyResponse = new Response($stream, function () use ($keepAlive, $stream) {
-                    if (!$keepAlive) {
-                        $stream->close();
-                    }
-                });
-
+                $symfonyResponse = new Response($stream);
                 $symfonyResponse->headers->set('Server', 'PServer');
                 if ($keepAlive) {
                     $symfonyResponse->headers->set('Connection', 'keep-alive');

@@ -339,6 +339,7 @@ class Connection
                 $this->server,
                 $this->content,
             );
+            $request->setStream($this->stream);
 
             $this->reset();
             return $request;

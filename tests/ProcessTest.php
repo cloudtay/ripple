@@ -34,16 +34,16 @@
 
 namespace Tests;
 
-use P\System;
+use Co\System;
 use PHPUnit\Framework\Attributes\RunClassInSeparateProcess;
 use PHPUnit\Framework\TestCase;
 use Throwable;
 
 use function mt_rand;
-use function P\async;
-use function P\await;
-use function P\defer;
-use function P\thread;
+use function Co\async;
+use function Co\await;
+use function Co\defer;
+use function Co\thread;
 use function sleep;
 
 class ProcessTest extends TestCase

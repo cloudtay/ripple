@@ -39,10 +39,10 @@ use Co\IO;
 use GuzzleHttp\Psr7\MultipartStream;
 use InvalidArgumentException;
 use Psc\Core\Coroutine\Promise;
-use Psc\Core\Exception\ConnectionException;
-use Psc\Core\Socket\Proxy\ProxyHttp;
-use Psc\Core\Socket\Proxy\ProxySocks5;
 use Psc\Core\Socket\SocketStream;
+use Psc\Core\Socket\Tunnel\ProxyHttp;
+use Psc\Core\Socket\Tunnel\ProxySocks5;
+use Psc\Core\Stream\Exception\ConnectionException;
 use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\ResponseInterface;
 use Throwable;
@@ -55,10 +55,10 @@ use function fclose;
 use function fopen;
 use function implode;
 use function in_array;
+use function is_resource;
 use function parse_url;
 use function str_contains;
 use function strtolower;
-use function is_resource;
 
 class HttpClient
 {
@@ -86,7 +86,7 @@ class HttpClient
      */
     public function request(RequestInterface $request, array $option = []): Promise
     {
-        return \P\promise(function (Closure $r, Closure $d, Promise $promise) use ($request, $option) {
+        return \Co\promise(function (Closure $r, Closure $d, Promise $promise) use ($request, $option) {
             $uri = $request->getUri();
 
             $method = $request->getMethod();

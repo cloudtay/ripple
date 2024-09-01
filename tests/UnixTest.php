@@ -34,7 +34,7 @@
 
 namespace Tests;
 
-use P\IO;
+use Co\IO;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 use Psc\Core\Socket\SocketStream;
@@ -42,9 +42,9 @@ use Psc\Utils\Output;
 use Throwable;
 
 use function md5;
-use function P\cancelAll;
-use function P\defer;
-use function P\tick;
+use function Co\cancelAll;
+use function Co\defer;
+use function Co\tick;
 use function sys_get_temp_dir;
 use function uniqid;
 

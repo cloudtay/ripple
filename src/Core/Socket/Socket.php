@@ -35,7 +35,7 @@
 namespace Psc\Core\Socket;
 
 use Closure;
-use Psc\Core\Coroutine\Exception;
+use Psc\Core\Coroutine\Exception\Exception;
 use Psc\Core\Coroutine\Promise;
 use Psc\Core\LibraryAbstract;
 use Throwable;
@@ -74,7 +74,7 @@ class Socket extends LibraryAbstract
      */
     public function streamSocketClientSSL(string $address, int $timeout = 0, mixed $context = null): Promise
     {
-        return \P\promise(function (Closure $r, Closure $d) use ($address, $timeout, $context) {
+        return promise(function (Closure $r, Closure $d) use ($address, $timeout, $context) {
             $address                   = str_replace('ssl://', 'tcp://', $address);
 
             /**

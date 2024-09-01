@@ -32,25 +32,25 @@
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-namespace Psc\Core\Socket\Proxy;
+namespace Psc\Core\Socket\Tunnel;
 
 use Closure;
 use Exception;
 use Psc\Core\Coroutine\Promise;
 use Psc\Core\Stream\Exception\ConnectionException;
 
+use function bin2hex;
+use function chr;
 use function Co\cancel;
-use function preg_match;
-use function str_contains;
+use function pack;
 use function strlen;
-use function strpos;
 use function substr;
 
 /**
  * @Author cclilshy
- * @Date   2024/8/29 12:45
+ * @Date   2024/8/29 12:16
  */
-class ProxyHttp extends Base
+class ProxySocks5 extends Base
 {
     private int $step = 0;
     private string $readEventId;
@@ -62,7 +62,7 @@ class ProxyHttp extends Base
     protected function handshake(): Promise
     {
         return \Co\promise(function (Closure $resolve, Closure $reject) {
-            $this->sendConnectRequest();
+            $this->sendInitialHandshake();
 
             // 等待握手响应
             $this->readEventId = $this->proxy->onReadable(function () use ($resolve, $reject) {
@@ -82,35 +82,33 @@ class ProxyHttp extends Base
     }
 
     /**
-     * 将初始CONNECT请求发送到代理服务器
-     *
      * @return void
      * @throws ConnectionException
      */
-    private function sendConnectRequest(): void
+    private function sendInitialHandshake(): void
     {
-        $host = $this->payload['host'];
-        $port = $this->payload['port'];
-        $request = "CONNECT {$host}:{$port} HTTP/1.1\r\n" .
-                   "Host: {$host}:{$port}\r\n" .
-                   "Proxy-Connection: Keep-Alive\r\n\r\n";
-
+        $request = "\x05\x01\x00";
         $this->proxy->write($request);
         $this->step = 1;
     }
 
     /**
-     * 处理接收到的数据并处理不同的握手步骤
-     *
      * @param Closure $resolve
      * @param Closure $reject
      * @return void
+     * @throws ConnectionException
      */
     private function processBuffer(Closure $resolve, Closure $reject): void
     {
         switch ($this->step) {
             case 1:
-                $this->handleConnectResponse($resolve, $reject);
+                $this->handleHandshakeResponse($resolve, $reject);
+                break;
+            case 2:
+                $this->handleBindResponse($resolve, $reject);
+                break;
+            case 3:
+                $this->handleAuthResponse($resolve, $reject);
                 break;
             default:
                 $reject(new Exception("Unexpected step {$this->step}"));
@@ -122,22 +120,104 @@ class ProxyHttp extends Base
      * @param Closure $resolve
      * @param Closure $reject
      * @return void
+     * @throws ConnectionException
      */
-    private function handleConnectResponse(Closure $resolve, Closure $reject): void
+    private function handleHandshakeResponse(Closure $resolve, Closure $reject): void
     {
-        // 检查响应是否包含状态行结尾
-        if (!str_contains($this->buffer, "\r\n\r\n")) {
+        if (strlen($this->buffer) < 2) {
             return;
         }
 
-        $response = substr($this->buffer, 0, strpos($this->buffer, "\r\n\r\n") + 4);
-        $this->buffer = substr($this->buffer, strlen($response));
+        $response = substr($this->buffer, 0, 2);
+        $this->buffer = substr($this->buffer, 2);
 
-        // 检查200响应是否成功
-        if (preg_match('/^HTTP\/\d\.\d 200/', $response)) {
+        if ($response === "\x05\x00") {
+            // 无需身份验证，转到绑定步骤
+            $this->sendBindRequest($this->payload['host'], $this->payload['port']);
+            $this->step = 2;
+        } elseif ($response === "\x05\x02") {
+            if (isset($this->payload['username'], $this->payload['password'])) {
+                $this->sendAuthRequest($this->payload['username'], $this->payload['password']);
+                $this->step = 3;
+            } else {
+                $reject(new Exception("Authentication required but credentials missing."));
+            }
+        } else {
+            $reject(new Exception("Invalid handshake response: " . bin2hex($response)));
+        }
+    }
+
+    /**
+     * @param Closure $resolve
+     * @param Closure $reject
+     * @return void
+     */
+    private function handleBindResponse(Closure $resolve, Closure $reject): void
+    {
+        if (strlen($this->buffer) < 10) {
+            return;
+        }
+
+        $response = substr($this->buffer, 0, 10);
+        $this->buffer = substr($this->buffer, 10);
+
+        if ($response[1] === "\x00") {
+            if (isset($this->readEventId)) {
+                cancel($this->readEventId);
+                unset($this->readEventId);
+            }
             $resolve();
         } else {
-            $reject(new Exception("CONNECT request failed: {$response}"));
+            $reject(new Exception("Bind request failed with response: " . bin2hex($response)));
         }
+    }
+
+    /**
+     * @param Closure $resolve
+     * @param Closure $reject
+     * @return void
+     * @throws ConnectionException
+     */
+    private function handleAuthResponse(Closure $resolve, Closure $reject): void
+    {
+        if (strlen($this->buffer) < 2) {
+            return;
+        }
+
+        $response = substr($this->buffer, 0, 2);
+        $this->buffer = substr($this->buffer, 2);
+
+        if ($response === "\x01\x00") {
+            $this->sendBindRequest($this->payload['host'], $this->payload['port']);
+            $this->step = 2;
+        } else {
+            $reject(new Exception("Authentication failed with response: " . bin2hex($response)));
+        }
+    }
+
+    /**
+     * @param string $username
+     * @param string $password
+     * @return void
+     * @throws ConnectionException
+     */
+    private function sendAuthRequest(string $username, string $password): void
+    {
+        $request = "\x01" . chr(strlen($username)) . $username . chr(strlen($password)) . $password;
+        $this->proxy->write($request);
+    }
+
+    /**
+     * @param string $host
+     * @param int    $port
+     * @return void
+     * @throws ConnectionException
+     */
+    private function sendBindRequest(string $host, int $port): void
+    {
+        $hostLen    = chr(strlen($host));
+        $portPacked = pack('n', $port);
+        $request    = "\x05\x01\x00\x03" . $hostLen . $host . $portPacked;
+        $this->proxy->write($request);
     }
 }
