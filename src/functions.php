@@ -37,7 +37,6 @@ namespace P;
 use Closure;
 use Psc\Core\Coroutine\Promise;
 use Psc\Core\Parallel\Thread;
-use Revolt\EventLoop;
 use Revolt\EventLoop\UnsupportedFeatureException;
 use Throwable;
 
@@ -116,7 +115,7 @@ function repeat(Closure $closure, int|float $second): string
  */
 function queue(Closure $closure): void
 {
-    EventLoop::queue($closure);
+    \Co\queue($closure);
 }
 
 /**

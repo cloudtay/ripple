@@ -125,8 +125,10 @@ class Connection
             }
             $this->stream->onReadable(function () {
                 try {
-                    $read         = $this->stream->read(8192);
-                    $this->buffer .= $read;
+                    while ($buffer = $this->stream->read(8192)) {
+                        $this->buffer .= $buffer;
+                    }
+
                     $this->tick();
                 } catch (Throwable $e) {
                     $this->close();
@@ -268,7 +270,10 @@ class Connection
                 $key,
                 &$buffer,
             ) {
-                $response = $this->stream->read(8192);
+                $response = '';
+                while ($buffer = $this->stream->read(8192)) {
+                    $response .= $buffer;
+                }
                 if ($response === '') {
                     if ($this->stream->eof()) {
                         throw new ConnectionException('Connection closed by peer');

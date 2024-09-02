@@ -67,7 +67,10 @@ class ProxySocks5 extends Base
             // 等待握手响应
             $this->readEventId = $this->proxy->onReadable(function () use ($resolve, $reject) {
                 try {
-                    $this->buffer .= $this->proxy->read(1024);
+                    while ($buffer = $this->proxy->read(1024)) {
+                        $this->buffer = $buffer;
+                    }
+
                     $this->processBuffer($resolve, $reject);
                 } catch (Exception $e) {
                     $reject($e);

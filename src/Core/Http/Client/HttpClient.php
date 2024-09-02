@@ -130,7 +130,11 @@ class HttpClient
                     $connection->stream->write("\r\n");
                     repeat(static function (Closure $cancel) use ($connection, $bodyStream, $r, $d) {
                         try {
-                            $content = $bodyStream->read(8192);
+                            $content = '';
+                            while($buffer = $bodyStream->read(8192)) {
+                                $content .= $buffer;
+                            }
+
                             if ($content) {
                                 $connection->stream->write($content);
                             } else {
@@ -181,13 +185,18 @@ class HttpClient
                 $d
             ) {
                 try {
-                    $content = $socketStream->read(8192);
+                    $content = '';
+                    while ($buffer = $socketStream->read(8192)) {
+                        $content .= $buffer;
+                    }
+
                     if ($content === '') {
                         if ($socketStream->eof()) {
                             throw new ConnectionException('Connection closed by peer');
                         }
                         return;
                     }
+
                     if ($response = $connection->tick($content)) {
                         $k = implode(', ', $response->getHeader('Connection'));
                         if (str_contains(strtolower($k), 'keep-alive') && $this->pool) {
@@ -222,7 +231,7 @@ class HttpClient
      * @return Connection
      * @throws ConnectionException
      * @throws Throwable
-     * @throws \Psc\Core\Stream\Exception\ConnectionException
+     * @throws ConnectionException
      */
     public function pullConnection(string $host, int $port, bool $ssl, int $timeout = 0, string|null $proxy = null): Connection
     {
@@ -232,7 +241,7 @@ class HttpClient
             if ($proxy) {
                 $parse = parse_url($proxy);
                 if (!isset($parse['host'], $parse['port'])) {
-                    throw new \Psc\Core\Stream\Exception\ConnectionException('Invalid proxy address');
+                    throw new ConnectionException('Invalid proxy address');
                 }
                 $payload = [
                     'host' => $host,

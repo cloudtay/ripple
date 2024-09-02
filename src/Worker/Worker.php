@@ -140,7 +140,12 @@ abstract class Worker
         $zx7e                  = new Zx7e();
         $this->streams[$index] = $streamA;
         $this->streams[$index]->onReadable(function (SocketStream $socketStream) use ($streamA, $index, $zx7e, $manager) {
-            foreach ($zx7e->decodeStream($socketStream->read(8192)) as $string) {
+            $content = '';
+            while ($buffer = $socketStream->read(1024)) {
+                $content .= $buffer;
+            }
+
+            foreach ($zx7e->decodeStream($content) as $string) {
                 $manager->onCommand(Command::fromString($string), $this->getName(), $index);
             }
         });
@@ -152,7 +157,12 @@ abstract class Worker
 
             $this->zx7e = new Zx7e();
             $this->parentSocket->onReadable(function (SocketStream $socketStream) {
-                foreach ($this->zx7e->decodeStream($socketStream->read(8192)) as $string) {
+                $content = '';
+                while ($buffer = $socketStream->read(1024)) {
+                    $content .= $buffer;
+                }
+
+                foreach ($this->zx7e->decodeStream($content) as $string) {
                     $this->_onCommand(Command::fromString($string));
                 }
             });

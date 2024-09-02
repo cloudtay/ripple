@@ -156,7 +156,12 @@ class Response extends \Symfony\Component\HttpFoundation\Response
                 $resolve();
             } elseif ($this->body instanceof Stream) {
                 $this->body->onReadable(function () use ($resolve) {
-                    $this->stream->write($this->body->read(8192));
+                    $content = '';
+                    while ($buffer = $this->body->read(8192)) {
+                        $content .= $buffer;
+                    }
+
+                    $this->stream->write($content);
                     if ($this->body->eof()) {
                         $resolve();
                     }

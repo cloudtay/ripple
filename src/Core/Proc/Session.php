@@ -80,7 +80,10 @@ class Session
 
         $this->streamStdOutput->onReadable(function () {
             try {
-                $content = $this->streamStdOutput->read(1024);
+                $content = '';
+                while ($buffer = $this->streamStdOutput->read(1024)) {
+                    $content .= $buffer;
+                }
             } catch (Throwable) {
                 $this->close();
                 return;
@@ -99,11 +102,15 @@ class Session
 
         $this->streamStdError->onReadable(function () {
             try {
-                $content = $this->streamStdError->read(1024);
+                $content = '';
+                while ($buffer = $this->streamStdError->read(1024)) {
+                    $content = $buffer;
+                }
             } catch (Throwable) {
                 $this->close();
                 return;
             }
+
             if ($content === '') {
                 if ($this->streamStdError->eof()) {
                     $this->close();

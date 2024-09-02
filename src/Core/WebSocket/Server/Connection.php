@@ -43,32 +43,30 @@ use Psc\Utils\Output;
 use Symfony\Component\HttpFoundation\Request;
 use Throwable;
 
+use function array_merge;
 use function array_shift;
 use function base64_encode;
 use function call_user_func;
 use function chr;
 use function count;
+use function deflate_add;
+use function deflate_init;
 use function explode;
+use function inflate_add;
+use function inflate_init;
 use function ord;
 use function pack;
 use function parse_url;
 use function rawurldecode;
 use function sha1;
 use function str_replace;
+use function stripos;
 use function strlen;
 use function strpos;
 use function strtoupper;
 use function substr;
 use function trim;
 use function unpack;
-
-use function array_merge;
-use function inflate_add;
-use function inflate_init;
-use function stripos;
-
-use function deflate_add;
-use function deflate_init;
 
 use const PHP_URL_PATH;
 use const ZLIB_DEFAULT_STRATEGY;
@@ -150,7 +148,10 @@ class Connection
     private function handleRead(Stream $stream): void
     {
         try {
-            $data = $stream->read(8192);
+            $data = '';
+            while ($buffer = $stream->read(8192)) {
+                $data .= $buffer;
+            }
             if ($data === '') {
                 if ($stream->eof()) {
                     throw new ConnectionException('Connection closed by peer');
@@ -158,7 +159,7 @@ class Connection
                 return;
             }
             $this->push($data);
-        } catch (ConnectionException $exception) {
+        } catch (ConnectionException) {
             $this->close();
             return;
         } catch (Throwable $exception) {

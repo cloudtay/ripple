@@ -35,7 +35,6 @@
 namespace Tests;
 
 use Co\System;
-use PHPUnit\Framework\Attributes\RunClassInSeparateProcess;
 use PHPUnit\Framework\TestCase;
 use Throwable;
 

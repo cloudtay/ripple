@@ -169,7 +169,11 @@ class HttpServer
     {
         $client =  new Connection($stream);
         $stream->onReadable(function (SocketStream $stream) use ($client) {
-            $content = $stream->read(1024);
+            $content = '';
+            while($buffer = $stream->read(1024)) {
+                $content = $buffer;
+            }
+
             if ($content === '') {
                 if($stream->eof()) {
                     $stream->close();
