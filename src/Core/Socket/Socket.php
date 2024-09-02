@@ -119,7 +119,7 @@ class Socket extends LibraryAbstract
 
             $stream = new SocketStream($connection, $address);
 
-            if($timeout > 0) {
+            if ($timeout > 0) {
                 $timeoutEventId = delay(static function () use ($stream, $d) {
                     $stream->close();
                     $d(new Exception('Connection timeout.'));

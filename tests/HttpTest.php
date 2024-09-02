@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 /*
  * Copyright (c) 2023-2024.
  *
@@ -146,7 +148,7 @@ class HttpTest extends TestCase
 
         $server = Net::Http()->server('http://127.0.0.1:8008', $context);
         $server->onRequest(function (Request $request, Response $response) {
-            if($request->getRequestUri() === '/upload') {
+            if ($request->getRequestUri() === '/upload') {
                 /**
                  * @var UploadedFile $file
                  */
@@ -275,7 +277,7 @@ class HttpTest extends TestCase
             $list[] = async(function () use ($i, $url, $urls, &$x, &$y) {
                 try {
                     $response = Plugin::Guzzle()->newClient()->get($url, ['timeout' => 10]);
-                    if($response->getStatusCode() === 200) {
+                    if ($response->getStatusCode() === 200) {
                         $x++;
                     }
 
@@ -288,7 +290,7 @@ class HttpTest extends TestCase
 
                 try {
                     $guzzleResponse = (new Client())->get($url, ['timeout' => 10]);
-                    if($guzzleResponse->getStatusCode() === 200) {
+                    if ($guzzleResponse->getStatusCode() === 200) {
                         $y++;
                     }
 

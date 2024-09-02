@@ -46,8 +46,6 @@ PHP应用最为广泛的HTTP客户端
 
 ## 安装
 
----
-
 ````bash
 composer require cclilshy/p-ripple-core
 ````
@@ -67,8 +65,6 @@ pecl install ev
 如果你想快速部署并使用PRipple的服务, 你可以直接访问[快速部署](https://p-ripple.cloudtay.com/docs/install/server)
 
 ## 特别致谢
-
----
 
 <a href="https://www.jetbrains.com/?from=p-ripple-core" target="__blank">
     <img src="https://www.jetbrains.com/company/brand/img/jetbrains_logo.png" width="200">

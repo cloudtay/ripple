@@ -102,7 +102,7 @@ class SocketStream extends Stream
     {
         parent::__construct($resource);
 
-        if(!$socket = socket_import_stream($this->stream)) {
+        if (!$socket = socket_import_stream($this->stream)) {
             throw new RuntimeException('Failed to import stream');
         }
         $this->socket = $socket;

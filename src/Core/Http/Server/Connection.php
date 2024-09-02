@@ -214,7 +214,7 @@ class Connection
                             foreach ($this->multipartHandler->tick($body) as $name => $multipartResult) {
                                 if (is_string($multipartResult)) {
                                     $this->request[$name] = $multipartResult;
-                                } elseif(is_array($multipartResult)) {
+                                } elseif (is_array($multipartResult)) {
                                     foreach ($multipartResult as $file) {
                                         $this->files[$name][] = $file;
                                     }
@@ -238,7 +238,7 @@ class Connection
                     } elseif ($this->bodyLength > $this->contentLength) {
                         throw new RuntimeException('Content-Length is not match 3');
                     }
-                } elseif(in_array($method, ['PUT', 'DELETE','PATCH','OPTIONS','TRACE','CONNECT'])) {
+                } elseif (in_array($method, ['PUT', 'DELETE','PATCH','OPTIONS','TRACE','CONNECT'])) {
                     //not body
                     if (!isset($this->server['HTTP_CONTENT_LENGTH'])) {
                         $this->step = 2;
@@ -274,7 +274,7 @@ class Connection
             foreach ($this->multipartHandler->tick($buffer) as $name => $multipartResult) {
                 if (is_string($multipartResult)) {
                     $this->request[$name] = $multipartResult;
-                } elseif(is_array($multipartResult)) {
+                } elseif (is_array($multipartResult)) {
                     foreach ($multipartResult as $file) {
                         $this->files[$name][] = $file;
                     }

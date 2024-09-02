@@ -213,7 +213,7 @@ class Server
     {
         $count = 0;
         foreach ($this->getConnections() as $connection) {
-            if(!$connection->isHandshake()) {
+            if (!$connection->isHandshake()) {
                 continue;
             }
 

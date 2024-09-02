@@ -95,19 +95,19 @@ class Monitor
         $path = realpath($path);
         $this->list[$path] = $ext;
 
-        if(is_file($path)) {
+        if (is_file($path)) {
             $this->cache[$path] = (new SplFileInfo($path))->getMTime();
         }
 
-        if(is_dir($path)) {
+        if (is_dir($path)) {
             $directory = new RecursiveDirectoryIterator($path);
             $iterator = new RecursiveIteratorIterator($directory);
 
-            if($ext === null) {
+            if ($ext === null) {
                 $this->cache[$path] = (new SplFileInfo($path))->getMTime();
                 $scan = scandir($path);
                 foreach ($scan as $item) {
-                    if($item === '.' || $item === '..') {
+                    if ($item === '.' || $item === '..') {
                         continue;
                     }
 
@@ -120,11 +120,11 @@ class Monitor
                  * @var SplFileInfo $item
                  */
                 foreach ($iterator as $item) {
-                    if($item->getBasename() === '..') {
+                    if ($item->getBasename() === '..') {
                         continue;
                     }
 
-                    if($item->isFile() && in_array($item->getExtension(), $ext, true)) {
+                    if ($item->isFile() && in_array($item->getExtension(), $ext, true)) {
                         $this->cache[$item->getRealPath()] = $item->getMTime();
                     }
                 }
@@ -140,19 +140,19 @@ class Monitor
     private function tick(): void
     {
         foreach ($this->list as $path => $ext) {
-            if(is_file($path)) {
+            if (is_file($path)) {
                 $fileInfo = new SplFileInfo($path);
-                if(!isset($this->cache[$path])) {
+                if (!isset($this->cache[$path])) {
                     $this->onEvent($fileInfo, Monitor::TOUCH);
-                } elseif($this->cache[$path] !== $fileInfo->getMTime()) {
+                } elseif ($this->cache[$path] !== $fileInfo->getMTime()) {
                     $this->onEvent($fileInfo, Monitor::MODIFY);
                 }
-            } elseif(is_dir($path)) {
-                if($ext === null) {
+            } elseif (is_dir($path)) {
+                if ($ext === null) {
                     $info = new SplFileInfo($path);
-                    if(!isset($this->cache[$path])) {
+                    if (!isset($this->cache[$path])) {
                         $this->onEvent($info, Monitor::TOUCH);
-                    } elseif($this->cache[$path] !== $info->getMTime()) {
+                    } elseif ($this->cache[$path] !== $info->getMTime()) {
                         $this->onEvent($info, Monitor::MODIFY);
                     }
                 } else {
@@ -162,13 +162,13 @@ class Monitor
                      * @var SplFileInfo $item
                      */
                     foreach ($iterator as $item) {
-                        if($item->getBasename() === '..') {
+                        if ($item->getBasename() === '..') {
                             continue;
                         }
                         if ($item->isFile() && in_array($item->getExtension(), $ext, true)) {
-                            if(!isset($this->cache[$item->getRealPath()])) {
+                            if (!isset($this->cache[$item->getRealPath()])) {
                                 $this->onEvent($item, Monitor::TOUCH);
-                            } elseif($this->cache[$item->getRealPath()] !== $item->getMTime()) {
+                            } elseif ($this->cache[$item->getRealPath()] !== $item->getMTime()) {
                                 $this->onEvent($item, Monitor::MODIFY);
                             }
                         }
@@ -186,13 +186,13 @@ class Monitor
     private function inspector(): void
     {
         foreach ($this->cache as $path => $time) {
-            if(!file_exists($path)) {
+            if (!file_exists($path)) {
                 if (isset($this->onRemove)) {
                     ($this->onRemove)($path);
                     unset($this->cache[$path]);
                 }
 
-                if(isset($this->list[$path])) {
+                if (isset($this->list[$path])) {
                     unset($this->list[$path]);
                 }
             }
@@ -210,14 +210,14 @@ class Monitor
     {
         switch ($event) {
             case Monitor::TOUCH:
-                if(isset($this->onTouch)) {
+                if (isset($this->onTouch)) {
                     ($this->onTouch)($fileInfo->getRealPath());
                     $this->cache[$fileInfo->getRealPath()] = $fileInfo->getMTime();
                 }
                 break;
 
             case Monitor::MODIFY:
-                if(isset($this->onModify)) {
+                if (isset($this->onModify)) {
                     ($this->onModify)($fileInfo->getRealPath());
                     $this->cache[$fileInfo->getRealPath()] = $fileInfo->getMTime();
                 }
@@ -243,11 +243,11 @@ class Monitor
      */
     public function stop(): void
     {
-        if(isset($this->timer1)) {
+        if (isset($this->timer1)) {
             cancel($this->timer1);
         }
 
-        if(isset($this->timer2)) {
+        if (isset($this->timer2)) {
             cancel($this->timer2);
         }
     }

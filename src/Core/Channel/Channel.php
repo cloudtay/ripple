@@ -136,7 +136,7 @@ class Channel
      */
     public function send(mixed $data): bool
     {
-        if(!file_exists($this->path)) {
+        if (!file_exists($this->path)) {
             throw new ChannelException('Unable to send data to a closed channel');
         }
 
@@ -159,7 +159,7 @@ class Channel
      */
     public function receive(): mixed
     {
-        if(!file_exists($this->path)) {
+        if (!file_exists($this->path)) {
             throw new ChannelException('Unable to receive data from a closed channel');
         }
 

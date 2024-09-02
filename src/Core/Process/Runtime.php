@@ -39,7 +39,6 @@ use Psc\Core\Coroutine\Promise;
 use Throwable;
 
 use function posix_kill;
-
 use function getmypid;
 
 use const SIGKILL;

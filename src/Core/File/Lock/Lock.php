@@ -68,7 +68,7 @@ class Lock
     {
         $this->path = Lock::generateFilePathByChannelName($this->name);
 
-        if(!file_exists($this->path)) {
+        if (!file_exists($this->path)) {
             touch($this->path);
         }
 
@@ -121,13 +121,13 @@ class Lock
      */
     public function close(): void
     {
-        if($this->closed) {
+        if ($this->closed) {
             return;
         }
 
         $this->closed = true;
 
-        if(is_resource($this->resource)) {
+        if (is_resource($this->resource)) {
             fclose($this->resource);
         }
 

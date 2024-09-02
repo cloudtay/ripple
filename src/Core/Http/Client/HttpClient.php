@@ -131,7 +131,7 @@ class HttpClient
                     repeat(static function (Closure $cancel) use ($connection, $bodyStream, $r, $d) {
                         try {
                             $content = '';
-                            while($buffer = $bodyStream->read(8192)) {
+                            while ($buffer = $bodyStream->read(8192)) {
                                 $content .= $buffer;
                             }
 
