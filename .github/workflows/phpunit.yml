@@ -10,10 +10,11 @@ on:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
     strategy:
       matrix:
+        os: [ ubuntu-latest, macos-latest ]
         php-version: [ '8.1', '8.2', '8.3', '8.4' ]
+    runs-on: ${{ matrix.os }}
 
     steps:
       - name: Checkout code
@@ -23,7 +24,7 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: ${{ matrix.php-version }}
-          extensions: posix,sockets,pcntl,openssl,parallel,curl,ev
+          extensions: posix, sockets, pcntl, openssl, parallel, curl, ev
         env:
           phpts: ts
 
