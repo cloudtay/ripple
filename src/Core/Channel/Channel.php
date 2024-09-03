@@ -39,6 +39,7 @@ use Exception;
 use Psc\Core\Channel\Exception\ChannelException;
 use Psc\Core\File\Lock\Lock;
 use Psc\Core\Stream\Stream;
+use Psc\Kernel;
 use Psc\Utils\Serialization\Zx7e;
 
 use function chr;
@@ -54,8 +55,6 @@ use function touch;
 use function unlink;
 use function unpack;
 use function unserialize;
-
-use const PHP_OS_FAMILY;
 
 /**
  * @Author cclilshy
@@ -109,7 +108,7 @@ class Channel
             /**
              * @compatible:Windows
              */
-            if (PHP_OS_FAMILY === 'Windows') {
+            if (!Kernel::getInstance()->supportProcessControl()) {
                 touch($this->path);
             } elseif (!posix_mkfifo($this->path, 0600)) {
                 throw new ChannelException('Failed to create channel.');

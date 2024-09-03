@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 /*
  * Copyright (c) 2023-2024.
  *
@@ -63,10 +65,14 @@ class Kernel
     /*** @var bool */
     private bool $parallel;
 
+    /*** @var bool */
+    private bool $processControl;
+
     public function __construct()
     {
         $this->mainSuspension = EventLoop::getSuspension();
         $this->parallel       = extension_loaded('parallel');
+        $this->processControl = extension_loaded('pcntl') && extension_loaded('posix');
     }
 
     /**
@@ -263,6 +269,14 @@ class Kernel
     }
 
     /**
+     * @return bool
+     */
+    public function supportProcessControl(): bool
+    {
+        return $this->processControl;
+    }
+
+    /**
      * 获取OS
      * @Author cclilshy
      * @Date   2024/8/30 15:31
@@ -270,7 +284,6 @@ class Kernel
      */
     public function getOSFamily(): string
     {
-        // 项目最低版本8.1已经支持PHP_OS_FAMILY
         return PHP_OS_FAMILY;
     }
 }

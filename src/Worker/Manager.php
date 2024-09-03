@@ -35,13 +35,12 @@
 namespace Psc\Worker;
 
 use Psc\Core\Stream\Exception\ConnectionException;
+use Psc\Kernel;
 use Psc\Utils\Output;
 use Psc\Utils\Serialization\Zx7e;
 
 use function posix_getpid;
 use function getmypid;
-
-use const PHP_OS_FAMILY;
 
 /**
  * @Author cclilshy
@@ -165,7 +164,7 @@ class Manager
         /**
          * @compatible:Windows
          */
-        if (PHP_OS_FAMILY === 'Windows') {
+        if (!Kernel::getInstance()->supportProcessControl()) {
             $this->processId = getmypid();
         } else {
             $this->processId = posix_getpid();
@@ -247,7 +246,7 @@ class Manager
 
     public function __destruct()
     {
-        if (PHP_OS_FAMILY === 'Windows') {
+        if (!Kernel::getInstance()->supportProcessControl()) {
             return;
         }
         if (isset($this->processId) && $this->processId === posix_getpid()) {

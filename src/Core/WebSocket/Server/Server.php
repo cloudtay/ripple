@@ -39,6 +39,7 @@ use Co\IO;
 use Psc\Core\Socket\SocketStream;
 use Psc\Core\Stream\Exception\RuntimeException;
 use Psc\Core\WebSocket\Options;
+use Psc\Kernel;
 use Symfony\Component\HttpFoundation\Request;
 use Throwable;
 
@@ -53,7 +54,6 @@ use const SO_SNDBUF;
 use const SOL_SOCKET;
 use const SOL_TCP;
 use const TCP_NODELAY;
-use const PHP_OS_FAMILY;
 
 /**
  * [协议相关]
@@ -121,7 +121,7 @@ class Server
         /**
          * @compatible:Windows
          */
-        if (PHP_OS_FAMILY !== 'Windows') {
+        if (Kernel::getInstance()->supportProcessControl()) {
             $this->server->setOption(SOL_SOCKET, SO_REUSEPORT, 1);
         }
 

@@ -36,6 +36,7 @@ namespace Psc\Core\Process;
 
 use Closure;
 use Psc\Core\Coroutine\Promise;
+use Psc\Kernel;
 use Throwable;
 
 use function posix_kill;
@@ -43,7 +44,6 @@ use function getmypid;
 
 use const SIGKILL;
 use const SIGTERM;
-use const PHP_OS_FAMILY;
 
 /**
  * @Author cclilshy
@@ -70,7 +70,7 @@ class Runtime
         /**
          * @compatible:Windows
          */
-        if (PHP_OS_FAMILY === 'Windows') {
+        if (!Kernel::getInstance()->supportProcessControl()) {
             exit(0);
         }
 
@@ -85,7 +85,7 @@ class Runtime
         /**
          * @compatible:Windows
          */
-        if (PHP_OS_FAMILY === 'Windows') {
+        if (!Kernel::getInstance()->supportProcessControl()) {
             exit(0);
         }
 
@@ -102,7 +102,7 @@ class Runtime
         /**
          * @compatible:Windows
          */
-        if (PHP_OS_FAMILY === 'Windows') {
+        if (!Kernel::getInstance()->supportProcessControl()) {
             return;
         }
 
@@ -123,7 +123,7 @@ class Runtime
         /**
          * @compatible:Windows
          */
-        if (PHP_OS_FAMILY === 'Windows') {
+        if (!Kernel::getInstance()->supportProcessControl()) {
             return getmypid();
         }
 

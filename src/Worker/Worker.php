@@ -40,6 +40,7 @@ use Psc\Core\Coroutine\Promise;
 use Psc\Core\Process\Runtime;
 use Psc\Core\Socket\SocketStream;
 use Psc\Core\Stream\Exception\ConnectionException;
+use Psc\Kernel;
 use Psc\Utils\Output;
 use Psc\Utils\Serialization\Zx7e;
 
@@ -51,7 +52,6 @@ use function spl_object_hash;
 
 use const AF_INET;
 use const AF_UNIX;
-use const PHP_OS_FAMILY;
 use const SOCK_STREAM;
 
 /**
@@ -125,7 +125,7 @@ abstract class Worker
         /**
          * @compatible:Windows
          */
-        $domain = PHP_OS_FAMILY === 'Windows' ? AF_INET : AF_UNIX;
+        $domain = !Kernel::getInstance()->supportProcessControl() ? AF_INET : AF_UNIX;
 
         if (!socket_create_pair($domain, SOCK_STREAM, 0, $sockets)) {
             return false;
@@ -279,7 +279,7 @@ abstract class Worker
         /**
          * @compatible:Windows
          */
-        $count = PHP_OS_FAMILY === 'Windows' ? 1 : $this->getCount();
+        $count = !Kernel::getInstance()->supportProcessControl() ? 1 : $this->getCount();
         for ($index = 1; $index <= $count; $index++) {
             if (!$this->guard($manager, $index)) {
                 return false;

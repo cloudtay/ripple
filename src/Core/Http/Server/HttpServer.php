@@ -40,6 +40,7 @@ use Psc\Core\Http\Server\Exception\FormatException;
 use Psc\Core\Socket\SocketStream;
 use Psc\Core\Stream\Exception\ConnectionException;
 use Psc\Core\Stream\Exception\RuntimeException;
+use Psc\Kernel;
 use Psc\Utils\Output;
 use Throwable;
 
@@ -50,7 +51,6 @@ use function str_contains;
 use function strlen;
 use function strtolower;
 
-use const PHP_OS_FAMILY;
 use const SO_KEEPALIVE;
 use const SO_RCVBUF;
 use const SO_REUSEADDR;
@@ -98,9 +98,8 @@ class HttpServer
          * @var SocketStream $server
          */
         $this->server = match ($scheme) {
-            'http' => IO::Socket()->streamSocketServer("tcp://{$host}:{$port}", $context),
-            'https' => IO::Socket()->streamSocketServer("tcp://{$host}:{$port}", $context),
-            default => throw new RuntimeException('Address format error')
+            'http', 'https' => IO::Socket()->streamSocketServer("tcp://{$host}:{$port}", $context),
+            default         => throw new RuntimeException('Address format error')
         };
 
         $this->server->setOption(SOL_SOCKET, SO_REUSEADDR, 1);
@@ -108,7 +107,7 @@ class HttpServer
         /**
          * @compatible:Windows
          */
-        if (PHP_OS_FAMILY !== 'Windows') {
+        if (Kernel::getInstance()->supportProcessControl()) {
             $this->server->setOption(SOL_SOCKET, SO_REUSEPORT, 1);
         }
 
@@ -167,7 +166,7 @@ class HttpServer
      */
     private function addClient(SocketStream $stream): void
     {
-        $client =  new Connection($stream);
+        $client = new Connection($stream);
         $stream->onReadable(function (SocketStream $stream) use ($client) {
             $content = '';
             while ($buffer = $stream->read(1024)) {

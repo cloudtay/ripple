@@ -40,6 +40,7 @@ use parallel\Events;
 use parallel\Runtime;
 use parallel\Sync;
 use Psc\Core\LibraryAbstract;
+use Psc\Kernel;
 use ReflectionClass;
 use Revolt\EventLoop;
 use Throwable;
@@ -61,7 +62,6 @@ use function shell_exec;
 use function strval;
 
 use const SIGUSR2;
-use const PHP_OS_FAMILY;
 
 /**
  * 2024-08-07
@@ -139,7 +139,7 @@ class Parallel extends LibraryAbstract
         /**
          * @compatible:Windows
          */
-        if (PHP_OS_FAMILY === 'Windows') {
+        if (!Kernel::getInstance()->supportProcessControl()) {
             throw new RuntimeException('Parallel is not supported on Windows');
         }
 
@@ -192,13 +192,13 @@ class Parallel extends LibraryAbstract
         // 初始化标量同步器
         $this->counterChannel = $this->makeChannel('counter');
         $this->eventScalar = new Sync(0);
-        $this->counterRuntime = new Runtime();
+        $this->counterRuntime = new Runtime(Parallel::$autoload);
         $this->counterFuture = $this->counterRuntime->run(static function ($channel, $eventScalar) {
             $eventScalar(fn () => $eventScalar->wait());
             /**
              * @compatible:Windows
              */
-            if (PHP_OS_FAMILY === 'Windows') {
+            if (!Kernel::getInstance()->supportProcessControl()) {
                 $processId = getmypid();
             } else {
                 $processId = posix_getpid();
@@ -210,7 +210,7 @@ class Parallel extends LibraryAbstract
                     /**
                      * @compatible:Windows
                      */
-                    if (PHP_OS_FAMILY === 'Windows') {
+                    if (!Kernel::getInstance()->supportProcessControl()) {
                         break;
                     }
                     posix_kill($processId, SIGUSR2);
