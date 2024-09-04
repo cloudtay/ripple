@@ -39,10 +39,10 @@ use Co\IO;
 use GuzzleHttp\Psr7\MultipartStream;
 use InvalidArgumentException;
 use Psc\Core\Coroutine\Promise;
-use Psc\Core\Exception\ConnectionException;
-use Psc\Core\Socket\Proxy\ProxyHttp;
-use Psc\Core\Socket\Proxy\ProxySocks5;
 use Psc\Core\Socket\SocketStream;
+use Psc\Core\Socket\Tunnel\ProxyHttp;
+use Psc\Core\Socket\Tunnel\ProxySocks5;
+use Psc\Core\Stream\Exception\ConnectionException;
 use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\ResponseInterface;
 use Throwable;
@@ -55,10 +55,10 @@ use function fclose;
 use function fopen;
 use function implode;
 use function in_array;
+use function is_resource;
 use function parse_url;
 use function str_contains;
 use function strtolower;
-use function is_resource;
 
 class HttpClient
 {
@@ -86,7 +86,7 @@ class HttpClient
      */
     public function request(RequestInterface $request, array $option = []): Promise
     {
-        return \P\promise(function (Closure $r, Closure $d, Promise $promise) use ($request, $option) {
+        return \Co\promise(function (Closure $r, Closure $d, Promise $promise) use ($request, $option) {
             $uri = $request->getUri();
 
             $method = $request->getMethod();
@@ -105,34 +105,49 @@ class HttpClient
                 $option['proxy'] ?? null
             );
 
+            $writeHandler = fn (string|false $content) => $connection->stream->write($content);
+            $tickHandler  = fn (string|false $content) => $connection->tick($content);
+
+            if ($captureWrite = $option['capture_write'] ?? null) {
+                $writeHandler = fn (string|false $content) => $captureWrite($content, $writeHandler);
+            }
+
+            if ($captureRead = $option['capture_read'] ?? null) {
+                $tickHandler = fn (string|false $content) => $captureRead($content, $tickHandler);
+            }
+
             $header = "{$method} {$path}{$query} HTTP/1.1\r\n";
             foreach ($request->getHeaders() as $name => $values) {
                 $header .= "{$name}: " . implode(', ', $values) . "\r\n";
             }
 
             //写入初始化头
-            $connection->stream->write($header);
+            $writeHandler($header);
             if ($bodyStream = $request->getBody()) {
                 if (!$request->getHeader('Content-Length')) {
                     $size = $bodyStream->getSize();
-                    $size > 0 && $connection->stream->write("Content-Length: {$bodyStream->getSize()}\r\n");
+                    $size > 0 && $writeHandler("Content-Length: {$bodyStream->getSize()}\r\n");
                 }
 
                 if ($bodyStream->getMetadata('uri') === 'php://temp') {
-                    $connection->stream->write("\r\n");
+                    $writeHandler("\r\n");
                     if ($bodyContent = $bodyStream->getContents()) {
-                        $connection->stream->write($bodyContent);
+                        $writeHandler($bodyContent);
                     }
                 } elseif ($bodyStream instanceof MultipartStream) {
                     if (!$request->getHeader('Content-Type')) {
-                        $connection->stream->write("Content-Type: multipart/form-data; boundary={$bodyStream->getBoundary()}\r\n");
+                        $writeHandler("Content-Type: multipart/form-data; boundary={$bodyStream->getBoundary()}\r\n");
                     }
-                    $connection->stream->write("\r\n");
-                    repeat(static function (Closure $cancel) use ($connection, $bodyStream, $r, $d) {
+                    $writeHandler("\r\n");
+                    repeat(static function (Closure $cancel) use ($connection, $bodyStream, $r, $d, $writeHandler) {
                         try {
-                            $content = $bodyStream->read(8192);
+                            $content = '';
+                            while ($buffer = $bodyStream->read(8192)) {
+                                $content .= $buffer;
+                            }
+
                             if ($content) {
-                                $connection->stream->write($content);
+                                $writeHandler($content);
                             } else {
                                 $cancel();
                                 $bodyStream->close();
@@ -147,7 +162,7 @@ class HttpClient
                     throw new InvalidArgumentException('Invalid body stream');
                 }
             } else {
-                $connection->stream->write("\r\n");
+                $writeHandler("\r\n");
             }
 
             if ($timeout = $option['timeout'] ?? null) {
@@ -178,17 +193,25 @@ class HttpClient
                 $connection,
                 $scheme,
                 $r,
-                $d
+                $d,
+                $tickHandler
             ) {
                 try {
-                    $content = $socketStream->read(8192);
-                    if ($content === '') {
-                        if ($socketStream->eof()) {
-                            throw new ConnectionException('Connection closed by peer');
-                        }
-                        return;
+                    $content = '';
+                    while ($buffer = $socketStream->read(8192)) {
+                        $content .= $buffer;
                     }
-                    if ($response = $connection->tick($content)) {
+
+                    if ($content === '') {
+                        if (!$socketStream->eof()) {
+                            return;
+                        }
+                        $response = $tickHandler(false);
+                    } else {
+                        $response = $tickHandler($content);
+                    }
+
+                    if ($response) {
                         $k = implode(', ', $response->getHeader('Connection'));
                         if (str_contains(strtolower($k), 'keep-alive') && $this->pool) {
                             /**
@@ -204,6 +227,8 @@ class HttpClient
                         }
                         $r($response);
                     }
+
+
                 } catch (Throwable $exception) {
                     $socketStream->close();
                     $d($exception);
@@ -218,21 +243,20 @@ class HttpClient
      * @param int         $port
      * @param bool        $ssl
      * @param int         $timeout
-     * @param string|null $proxy
+     * @param string|null $tunnel
      * @return Connection
      * @throws ConnectionException
      * @throws Throwable
-     * @throws \Psc\Core\Stream\Exception\ConnectionException
      */
-    public function pullConnection(string $host, int $port, bool $ssl, int $timeout = 0, string|null $proxy = null): Connection
+    private function pullConnection(string $host, int $port, bool $ssl, int $timeout = 0, string|null $tunnel = null): Connection
     {
         if ($this->pool) {
-            $connection = $this->connectionPool->pullConnection($host, $port, $ssl, $timeout, $proxy);
+            $connection = $this->connectionPool->pullConnection($host, $port, $ssl, $timeout, $tunnel);
         } else {
-            if ($proxy) {
-                $parse = parse_url($proxy);
+            if ($tunnel) {
+                $parse = parse_url($tunnel);
                 if (!isset($parse['host'], $parse['port'])) {
-                    throw new \Psc\Core\Stream\Exception\ConnectionException('Invalid proxy address');
+                    throw new ConnectionException('Invalid proxy address');
                 }
                 $payload = [
                     'host' => $host,
@@ -246,19 +270,19 @@ class HttpClient
                 switch ($parse['scheme']) {
                     case 'socks':
                     case 'socks5':
-                        $proxySocket = ProxySocks5::connect("tcp://{$parse['host']}:{$parse['port']}", $payload)->getSocketStream();
-                        $ssl && await(IO::Socket()->streamEnableCrypto($proxySocket));
-                        $connection = new Connection($proxySocket);
+                        $tunnelSocket = ProxySocks5::connect("tcp://{$parse['host']}:{$parse['port']}", $payload)->getSocketStream();
+                        $ssl && await(IO::Socket()->streamEnableCrypto($tunnelSocket));
+                        $connection = new Connection($tunnelSocket);
                         break;
                     case 'http':
-                        $proxySocket = ProxyHttp::connect("tcp://{$parse['host']}:{$parse['port']}", $payload)->getSocketStream();
-                        $ssl && await(IO::Socket()->streamEnableCrypto($proxySocket));
-                        $connection = new Connection($proxySocket);
+                        $tunnelSocket = ProxyHttp::connect("tcp://{$parse['host']}:{$parse['port']}", $payload)->getSocketStream();
+                        $ssl && await(IO::Socket()->streamEnableCrypto($tunnelSocket));
+                        $connection = new Connection($tunnelSocket);
                         break;
                     case 'https':
-                        $proxySocket = ProxyHttp::connect("tcp://{$parse['host']}:{$parse['port']}", $payload, true)->getSocketStream();
-                        $ssl && await(IO::Socket()->streamEnableCrypto($proxySocket));
-                        $connection = new Connection($proxySocket);
+                        $tunnelSocket = ProxyHttp::connect("tcp://{$parse['host']}:{$parse['port']}", $payload, true)->getSocketStream();
+                        $ssl && await(IO::Socket()->streamEnableCrypto($tunnelSocket));
+                        $connection = new Connection($tunnelSocket);
                         break;
                     default:
                         throw new ConnectionException('Unsupported proxy protocol');
@@ -279,7 +303,7 @@ class HttpClient
      * @param string     $key
      * @return void
      */
-    public function pushConnection(Connection $connection, string $key): void
+    private function pushConnection(Connection $connection, string $key): void
     {
         if ($this->pool) {
             $this->connectionPool->pushConnection($connection, $key);

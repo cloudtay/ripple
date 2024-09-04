@@ -37,6 +37,8 @@ namespace Psc\Core\Coroutine;
 use Closure;
 use Fiber;
 use FiberError;
+use Psc\Core\Coroutine\Exception\EscapeException;
+use Psc\Core\Coroutine\Exception\Exception;
 use Psc\Core\LibraryAbstract;
 use Psc\Kernel;
 use Psc\Utils\Output;

@@ -73,7 +73,11 @@ class File extends LibraryAbstract
             $content = '';
 
             $stream->onReadable(static function (Stream $stream) use ($r, $d, &$content) {
-                $fragment = $stream->read(8192);
+                $fragment = '';
+                while ($buffer = $stream->read(8192)) {
+                    $fragment .= $buffer;
+                }
+
                 if ($fragment === '') {
                     if ($stream->eof()) {
                         $stream->close();
@@ -115,7 +119,6 @@ class File extends LibraryAbstract
      * @var Monitor[]
      */
     private array $monitors = array();
-
 
     public function __construct()
     {

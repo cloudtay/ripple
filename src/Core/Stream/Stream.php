@@ -112,7 +112,7 @@ class Stream extends StreamBase
                         cancel($cancelId);
                     }
                 ]);
-            } catch (ConnectionException $e) {
+            } catch (ConnectionException) {
                 $this->close();
             } catch (Throwable $e) {
                 Output::error($e->getMessage());

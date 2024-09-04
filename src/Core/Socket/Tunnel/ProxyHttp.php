@@ -32,7 +32,7 @@
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-namespace Psc\Core\Socket\Proxy;
+namespace Psc\Core\Socket\Tunnel;
 
 use Closure;
 use Exception;
@@ -67,7 +67,10 @@ class ProxyHttp extends Base
             // 等待握手响应
             $this->readEventId = $this->proxy->onReadable(function () use ($resolve, $reject) {
                 try {
-                    $this->buffer .= $this->proxy->read(1024);
+                    while ($buffer = $this->proxy->read(1024)) {
+                        $this->buffer .= $buffer;
+                    }
+
                     $this->processBuffer($resolve, $reject);
                 } catch (Exception $e) {
                     $reject($e);

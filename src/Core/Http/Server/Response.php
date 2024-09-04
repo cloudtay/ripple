@@ -34,16 +34,19 @@
 
 namespace Psc\Core\Http\Server;
 
-use Closure;
+use Generator;
+use Override;
 use Psc\Core\Socket\SocketStream;
 use Psc\Core\Stream\Exception\ConnectionException;
 use Psc\Core\Stream\Stream;
+use Throwable;
 
 use function basename;
-use function call_user_func;
 use function filesize;
 use function is_resource;
 use function is_string;
+use function P\promise;
+use function sprintf;
 use function strlen;
 use function strval;
 
@@ -59,9 +62,8 @@ class Response extends \Symfony\Component\HttpFoundation\Response
 
     /**
      * @param SocketStream $stream
-     * @param Closure      $done
      */
-    public function __construct(public readonly SocketStream $stream, private readonly Closure $done)
+    public function __construct(private readonly SocketStream $stream)
     {
         parent::__construct();
     }
@@ -71,10 +73,22 @@ class Response extends \Symfony\Component\HttpFoundation\Response
      * @param string|null $contentType
      * @return $this
      */
-    public function setContent(mixed $content, string|null $contentType = null): static
+    #[Override] public function setContent(mixed $content, string|null $contentType = null): static
     {
+        if ($contentType) {
+            $this->headers->set('Content-Type', $contentType);
+        }
+
         if (is_string($content)) {
             $this->headers->set('Content-Length', strval(strlen($content)));
+            $this->body = $content;
+            return $this;
+        }
+
+        if ($content instanceof Generator) {
+            $this->headers->remove('Content-Length');
+            $this->body = $content;
+            return $this;
         }
 
         if (is_resource($content)) {
@@ -89,45 +103,19 @@ class Response extends \Symfony\Component\HttpFoundation\Response
             if (!$this->headers->get('Content-Disposition')) {
                 $this->headers->set('Content-Disposition', 'attachment; filename=' . basename($path));
             }
-
-            $this->stream->onClose(function () {
-                $this->body->close();
-                $this->done();
-            });
-        }
-
-        if ($contentType) {
-            $this->headers->set('Content-Type', $contentType);
         }
 
         $this->body = $content;
         return $this;
-    }
 
-    /**
-     * @return void
-     */
-    private function done(): void
-    {
-        call_user_func($this->done);
-    }
-
-    /**
-     * @return void
-     * @throws ConnectionException
-     */
-    public function respond(): void
-    {
-        $this->sendHeaders();
-        $this->sendContent();
     }
 
     /**
      * @param int|null $statusCode
-     * @return $this
+     * @return static
      * @throws ConnectionException
      */
-    public function sendHeaders(int|null $statusCode = null): static
+    #[Override] public function sendHeaders(int|null $statusCode = null): static
     {
         /**
          *
@@ -148,25 +136,90 @@ class Response extends \Symfony\Component\HttpFoundation\Response
     }
 
     /**
-     * @return $this
-     * @throws ConnectionException
+     * @Author cclilshy
+     * @Date   2024/9/1 11:37
+     * @return Response
+     * @throws ConnectionException|Throwable
      */
-    public function sendContent(): static
+    #[Override] public function sendContent(): static
     {
-        if (is_string($this->body)) {
-            $this->stream->write($this->body);
-            $this->done();
-        } elseif ($this->body instanceof Stream) {
-            $this->body->onReadable(function () {
-                $this->stream->write($this->body->read(8192));
-                if ($this->body->eof()) {
-                    $this->done();
+        promise(function ($resolve) {
+            $this->stream->onClose(function () use ($resolve) {
+                if (isset($this->body) && $this->body instanceof Stream) {
+                    $this->body->close();
                 }
+                $resolve();
             });
-        } else {
-            $this->done();
-        }
+
+            if (is_string($this->body)) {
+                $this->stream->write($this->body);
+                $resolve();
+            } elseif ($this->body instanceof Stream) {
+                $this->body->onReadable(function () use ($resolve) {
+                    $content = '';
+                    while ($buffer = $this->body->read(8192)) {
+                        $content .= $buffer;
+                    }
+
+                    $this->stream->write($content);
+                    if ($this->body->eof()) {
+                        $resolve();
+                    }
+                });
+            } elseif ($this->body instanceof Generator) {
+                try {
+                    foreach ($this->body as $content) {
+                        if ($content === '') {
+                            $this->stream->close();
+                            break;
+                        }
+                        $this->stream->write($content);
+                    }
+                } catch (Throwable) {
+                    $this->stream->close();
+                }
+                $resolve();
+            } else {
+                $resolve();
+            }
+        })->await();
 
         return $this;
+    }
+
+    /**
+     * @return void
+     * @throws ConnectionException|Throwable
+     */
+    public function respond(): void
+    {
+        $this->sendHeaders();
+        $this->sendContent();
+        $keepAlive = $this->headers->get('Connection') === 'keep-alive';
+        if (!$keepAlive) {
+            $this->stream->close();
+        }
+    }
+
+    /**
+     * @Author cclilshy
+     * @Date   2024/9/1 14:16
+     * @param string $content
+     * @return void
+     * @throws ConnectionException
+     */
+    public function chunk(string $content): void
+    {
+        $this->stream->write(sprintf("%x\r\n%s\r\n", strlen($content), $content));
+    }
+
+    /**
+     * @Author cclilshy
+     * @Date   2024/9/1 14:12
+     * @return SocketStream
+     */
+    public function getStream(): SocketStream
+    {
+        return $this->stream;
     }
 }

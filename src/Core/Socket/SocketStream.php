@@ -46,6 +46,7 @@ use function intval;
 use function socket_get_option;
 use function socket_import_stream;
 use function socket_last_error;
+use function socket_recv;
 use function socket_set_option;
 use function socket_strerror;
 use function stream_socket_accept;
@@ -101,7 +102,7 @@ class SocketStream extends Stream
     {
         parent::__construct($resource);
 
-        if(!$socket = socket_import_stream($this->stream)) {
+        if (!$socket = socket_import_stream($this->stream)) {
             throw new RuntimeException('Failed to import stream');
         }
         $this->socket = $socket;
@@ -146,6 +147,24 @@ class SocketStream extends Stream
         if (!socket_set_option($this->socket, $level, $option, $value)) {
             throw new RuntimeException('Failed to set socket option: ' . socket_strerror(socket_last_error($this->socket)));
         }
+    }
+
+    /**
+     * @Author cclilshy
+     * @Date   2024/9/2 20:41
+     * @param int      $length
+     * @param mixed    $target
+     * @param int|null $flags
+     * @return int
+     * @throws ConnectionException
+     */
+    public function recv(int $length, mixed &$target, int|null $flags = 0): int
+    {
+        $realLength = socket_recv($this->socket, $target, $length, $flags);
+        if ($realLength === false) {
+            throw new ConnectionException('Unable to read from stream');
+        }
+        return $realLength;
     }
 
     /**

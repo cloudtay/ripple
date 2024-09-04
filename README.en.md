@@ -47,8 +47,6 @@ development or packaging of traditional applications
 
 ## Install
 
----
-
 ````bash
 composer require cclilshy/p-ripple-core
 ````
@@ -70,8 +68,6 @@ If you want to quickly deploy and use PRipple's services, you can directly
 visit [Quick Deployment](https://p-ripple.cloudtay.com/docs/install/server)
 
 ## Special thanks
-
----
 
 <a href="https://www.jetbrains.com/?from=p-ripple-core" target="__blank">
     <img src="https://www.jetbrains.com/company/brand/img/jetbrains_logo.png" width="200">

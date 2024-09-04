@@ -34,7 +34,7 @@
 
 namespace Tests;
 
-use P\IO;
+use Co\IO;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 use Throwable;

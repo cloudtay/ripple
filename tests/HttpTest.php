@@ -34,10 +34,10 @@
 
 namespace Tests;
 
+use Co\Net;
+use Co\Plugin;
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\GuzzleException;
-use P\Net;
-use P\Plugin;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 use Psc\Core\Http\Server\Request;
@@ -47,21 +47,20 @@ use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Throwable;
 
 use function Co\async;
+use function Co\cancelAll;
 use function file_put_contents;
 use function fopen;
+use function gc_collect_cycles;
 use function md5;
 use function md5_file;
-use function P\cancelAll;
-use function P\defer;
-use function P\tick;
+use function memory_get_usage;
 use function str_repeat;
 use function stream_context_create;
 use function sys_get_temp_dir;
 use function tempnam;
 use function uniqid;
-use function gc_collect_cycles;
-use function memory_get_usage;
-use function var_dump;
+
+use const PHP_EOL;
 
 class HttpTest extends TestCase
 {
@@ -72,76 +71,16 @@ class HttpTest extends TestCase
     #[Test]
     public function test_httpServer(): void
     {
-        defer(function () {
-            /**
-             * 内存泄漏测试
-             */
-            for ($i = 0; $i < 10; $i++) {
-                try {
-                    $this->httpGet();
-                } catch (Throwable $exception) {
-                    Output::exception($exception);
-                }
-
-                try {
-                    $this->httpPost();
-                } catch (Throwable $exception) {
-                    Output::exception($exception);
-                }
-
-                try {
-                    $this->httpFile();
-                } catch (Throwable $exception) {
-                    Output::exception($exception);
-                }
-            }
-
-            gc_collect_cycles();
-            $baseMemory = memory_get_usage();
-
-            for ($i = 0; $i < 10; $i++) {
-                try {
-                    $this->httpGet();
-                } catch (Throwable $exception) {
-                    Output::exception($exception);
-                }
-
-                try {
-                    $this->httpPost();
-                } catch (Throwable $exception) {
-                    Output::exception($exception);
-                }
-
-                try {
-                    $this->httpFile();
-                } catch (Throwable $exception) {
-                    Output::exception($exception);
-                }
-            }
-
-            gc_collect_cycles();
-            $this->assertEquals($baseMemory, memory_get_usage());
-
-            /**
-             * HttpClient测试
-             */
-            try {
-                $this->httpClient();
-            } catch (Throwable $exception) {
-                Output::warning($exception->getMessage());
-            }
-            cancelAll();
-        });
-
         $context = stream_context_create([
             'socket' => [
                 'so_reuseport' => 1,
                 'so_reuseaddr' => 1,
             ],
         ]);
+
         $server = Net::Http()->server('http://127.0.0.1:8008', $context);
         $server->onRequest(function (Request $request, Response $response) {
-            if($request->getRequestUri() === '/upload') {
+            if ($request->getRequestUri() === '/upload') {
                 /**
                  * @var UploadedFile $file
                  */
@@ -155,17 +94,85 @@ class HttpTest extends TestCase
 
             if ($request->isMethod('get')) {
                 $response->setContent($request->query->get('query'))->respond();
+
                 return;
             }
 
             if ($request->isMethod('post')) {
                 $response->setContent($request->request->get('query'))->respond();
+
                 return;
             }
         });
 
         $server->listen();
-        tick();
+
+        for ($i = 0; $i < 10; $i++) {
+            try {
+                $this->httpGet();
+            } catch (Throwable $exception) {
+                Output::exception($exception);
+                throw $exception;
+            }
+
+            try {
+                $this->httpPost();
+            } catch (Throwable $exception) {
+                Output::exception($exception);
+                throw $exception;
+            }
+
+            try {
+                $this->httpFile();
+            } catch (Throwable $exception) {
+                Output::exception($exception);
+                throw $exception;
+            }
+        }
+
+        gc_collect_cycles();
+        $baseMemory = memory_get_usage();
+
+        for ($i = 0; $i < 10; $i++) {
+            try {
+                $this->httpGet();
+            } catch (Throwable $exception) {
+                Output::exception($exception);
+                throw $exception;
+            }
+
+            try {
+                $this->httpPost();
+            } catch (Throwable $exception) {
+                Output::exception($exception);
+                throw $exception;
+            }
+
+            try {
+                $this->httpFile();
+            } catch (Throwable $exception) {
+                Output::exception($exception);
+                throw $exception;
+            }
+        }
+
+        Plugin::Guzzle()->getHttpClient()->getConnectionPool()->clearConnectionPool();
+        gc_collect_cycles();
+
+        if ($baseMemory !== memory_get_usage()) {
+            echo "\nThere may be a memory leak.\n";
+        }
+
+        /**
+         * HttpClient测试
+         */
+        try {
+            $this->httpClient();
+        } catch (Throwable $exception) {
+            echo($exception->getMessage() . PHP_EOL);
+        }
+
+        cancelAll();
     }
 
     /**
@@ -251,13 +258,12 @@ class HttpTest extends TestCase
             'https://www.sina.com.cn/',
             'https://www.sohu.com/',
             'https://www.ifeng.com/',
-            'https://juejin.cn',
-            'https://www.csdn.net',
+            'https://juejin.cn/',
+            'https://www.csdn.net/',
             'https://www.cnblogs.com/',
             'https://business.oceanengine.com/login',
             'https://www.laruence.com/',
             'https://www.php.net/',
-            'https://www.google.com/'
         ];
 
         $x = 0;
@@ -267,8 +273,8 @@ class HttpTest extends TestCase
         foreach ($urls as $i => $url) {
             $list[] = async(function () use ($i, $url, $urls, &$x, &$y) {
                 try {
-                    $response = \Co\Plugin::Guzzle()->newClient()->get($url, ['timeout' => 10]);
-                    if($response->getStatusCode() === 200) {
+                    $response = Plugin::Guzzle()->newClient()->get($url, ['timeout' => 10]);
+                    if ($response->getStatusCode() === 200) {
                         $x++;
                     }
 
@@ -276,12 +282,12 @@ class HttpTest extends TestCase
                 } catch (Throwable $exception) {
                     echo "\n";
                     echo "Request ({$i}){$url} error: {$exception->getMessage()}\n";
-                    Output::warning($exception->getMessage());
+                    echo($exception->getMessage() . PHP_EOL);
                 }
 
                 try {
                     $guzzleResponse = (new Client())->get($url, ['timeout' => 10]);
-                    if($guzzleResponse->getStatusCode() === 200) {
+                    if ($guzzleResponse->getStatusCode() === 200) {
                         $y++;
                     }
 

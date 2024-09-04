@@ -35,6 +35,7 @@
 namespace Psc\Core\Coroutine;
 
 use Closure;
+use Psc\Core\Coroutine\Exception\Exception;
 use Psc\Utils\Output;
 use Throwable;
 
@@ -177,7 +178,7 @@ class Promise
      */
     public function then(Closure|null $onFulfilled = null, Closure|null $onRejected = null): Promise
     {
-        if($onFulfilled) {
+        if ($onFulfilled) {
             if ($this->status === Promise::FULFILLED) {
                 try {
                     call_user_func($onFulfilled, $this->result);
@@ -190,7 +191,7 @@ class Promise
             }
         }
 
-        if($onRejected) {
+        if ($onRejected) {
             $this->except($onRejected);
         }
         return $this;

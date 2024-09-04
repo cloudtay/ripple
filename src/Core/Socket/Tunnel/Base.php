@@ -32,57 +32,82 @@
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-namespace Psc\Plugins\Guzzle;
+namespace Psc\Core\Socket\Tunnel;
 
-use GuzzleHttp\Exception\GuzzleException;
-use GuzzleHttp\Exception\TransferException;
-use GuzzleHttp\Promise\Promise;
-use GuzzleHttp\Promise\PromiseInterface;
-use Psc\Core\Http\Client\HttpClient;
-use Psr\Http\Message\RequestInterface;
-use Psr\Http\Message\ResponseInterface;
+use Co\IO;
+use Psc\Core\Coroutine\Promise;
+use Psc\Core\Socket\SocketStream;
 use Throwable;
 
-class PHandler
+use function Co\await;
+use function stream_context_create;
+use function stream_context_set_option;
+
+/**
+ * 该标准适用于透传模式的所有代理,通过该方法创建的套接字可以直接作为目标套接字访问
+ * 需要注意getMeta的url部分不能表示为目标地址,使用者应手动做映射
+ *
+ * @Author cclilshy
+ * @Date   2024/8/29 11:28
+ */
+abstract class Base
 {
     /**
-     * 构造函数
+     * 与代理之间的套接字连接
+     * @var SocketStream
      */
-    public function __construct(private readonly HttpClient $httpClient)
-    {
-    }
+    protected SocketStream $proxy;
 
     /**
-     * @param RequestInterface $request
-     * @param array            $options
-     * @return PromiseInterface
+     * @param string $address
+     * @param array  $payload
+     * @param bool   $ssl
+     * @throws Throwable
      */
-    public function __invoke(RequestInterface $request, array $options): PromiseInterface
+    public function __construct(protected string $address, protected array $payload, bool $ssl = false)
     {
-        $async   = $this->httpClient->request($request, $options);
-        $promise = new Promise(static function () use ($request, $async, &$promise) {
-            try {
-                $result = $async->await();
-                if (!$result instanceof ResponseInterface) {
-                    throw new TransferException('Invalid response');
-                }
-                $promise->resolve($result);
-            } catch (GuzzleException $exception) {
-                $promise->reject($exception);
-            } catch (Throwable $exception) {
-                $promise->reject(new TransferException($exception->getMessage()));
-            }
-        });
-        return $promise;
+        $context = stream_context_create();
+        stream_context_set_option($context, 'ssl', 'verify_peer', false);
+        stream_context_set_option($context, 'ssl', 'verify_peer_name', false);
+
+        if ($ssl) {
+            $this->proxy = await(IO::Socket()->streamSocketClientSSL($address, 10, $context));
+        } else {
+            $this->proxy = await(IO::Socket()->streamSocketClient($address, 10, $context));
+        }
+
+        $this->proxy->setBlocking(false);
+        await($this->handshake());
     }
 
     /**
      * @Author cclilshy
-     * @Date   2024/8/31 14:31
-     * @return HttpClient
+     * @Date   2024/8/29 12:33
+     * @return SocketStream
      */
-    public function getHttpClient(): HttpClient
+    public function getSocketStream(): SocketStream
     {
-        return $this->httpClient;
+        return $this->proxy;
+    }
+
+    /**
+     * @Author cclilshy
+     * @Date   2024/8/29 11:34
+     * @return Promise<bool>
+     */
+    abstract protected function handshake(): Promise;
+
+    /**
+     * @Author cclilshy
+     * @Date   2024/8/29 12:38
+     * @param string $address
+     * @param array  $payload
+     * @param bool   $ssl
+     * @return static
+     * @throws Throwable
+     */
+    public static function connect(string $address, array $payload, bool $ssl = false): static
+    {
+        return new static($address, $payload,$ssl);
     }
 }

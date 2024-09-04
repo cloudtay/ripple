@@ -34,6 +34,7 @@
 
 namespace Psc\Utils;
 
+use Psc\Kernel;
 use Throwable;
 
 use function explode;
@@ -44,7 +45,6 @@ use function posix_getpid;
 use function posix_getppid;
 
 use const PHP_EOL;
-use const PHP_OS_FAMILY;
 use const STDOUT;
 
 /**
@@ -61,7 +61,7 @@ final class Output
         /**
          * @compatible:Windows
          */
-        if (PHP_OS_FAMILY !== 'Windows') {
+        if (Kernel::getInstance()->supportProcessControl()) {
             fwrite(STDOUT, "\033[1;31mProcess: " . posix_getpid() . '=>' . posix_getppid() . "\033[0m\n");
         }
 

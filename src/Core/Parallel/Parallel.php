@@ -40,10 +40,10 @@ use parallel\Events;
 use parallel\Runtime;
 use parallel\Sync;
 use Psc\Core\LibraryAbstract;
+use Psc\Kernel;
 use ReflectionClass;
 use Revolt\EventLoop;
 use Throwable;
-
 use RuntimeException;
 
 use function Co\cancel;
@@ -59,11 +59,9 @@ use function posix_getpid;
 use function posix_kill;
 use function preg_match;
 use function shell_exec;
-
 use function strval;
 
 use const SIGUSR2;
-use const PHP_OS_FAMILY;
 
 /**
  * 2024-08-07
@@ -141,7 +139,7 @@ class Parallel extends LibraryAbstract
         /**
          * @compatible:Windows
          */
-        if (PHP_OS_FAMILY === 'Windows') {
+        if (!Kernel::getInstance()->supportProcessControl()) {
             throw new RuntimeException('Parallel is not supported on Windows');
         }
 
@@ -184,7 +182,7 @@ class Parallel extends LibraryAbstract
      */
     private function initializeCounter(): void
     {
-        if(isset($this->events)) {
+        if (isset($this->events)) {
             return;
         }
 
@@ -194,31 +192,31 @@ class Parallel extends LibraryAbstract
         // 初始化标量同步器
         $this->counterChannel = $this->makeChannel('counter');
         $this->eventScalar = new Sync(0);
-        $this->counterRuntime = new Runtime();
+        $this->counterRuntime = new Runtime(Parallel::$autoload);
         $this->counterFuture = $this->counterRuntime->run(static function ($channel, $eventScalar) {
             $eventScalar(fn () => $eventScalar->wait());
             /**
              * @compatible:Windows
              */
-            if (PHP_OS_FAMILY === 'Windows') {
+            if (!Kernel::getInstance()->supportProcessControl()) {
                 $processId = getmypid();
             } else {
                 $processId = posix_getpid();
             }
             $count = 0;
-            while($number = $channel->recv()) {
+            while ($number = $channel->recv()) {
                 $eventScalar->set($count += $number);
-                if($number > 0) {
+                if ($number > 0) {
                     /**
                      * @compatible:Windows
                      */
-                    if (PHP_OS_FAMILY === 'Windows') {
+                    if (!Kernel::getInstance()->supportProcessControl()) {
                         break;
                     }
                     posix_kill($processId, SIGUSR2);
-                } elseif($count === -1) {
+                } elseif ($count === -1) {
                     break;
-                } elseif($count === 0) {
+                } elseif ($count === 0) {
                     $eventScalar(fn () => $eventScalar->wait());
                 }
             }
@@ -241,10 +239,10 @@ class Parallel extends LibraryAbstract
      */
     private function poll(): void
     {
-        while($number = $this->eventScalar->get()) {
+        while ($number = $this->eventScalar->get()) {
             for ($i = 0; $i < $number; $i++) {
                 $event =  $this->events->poll();
-                if(!$event) {
+                if (!$event) {
                     continue;
                 }
                 $this->counterChannel->send(-1);
@@ -252,15 +250,15 @@ class Parallel extends LibraryAbstract
                     case Events\Event\Type::Cancel:
                     case Events\Event\Type::Kill:
                     case Events\Event\Type::Error:
-                        if(isset($this->futures[$event->source])) {
+                        if (isset($this->futures[$event->source])) {
                             $this->futures[$event->source]->onEvent($event);
                             unset($this->futures[$event->source]);
                         }
                         break;
                     case Events\Event\Type::Read:
-                        if($event->object instanceof \parallel\Future) {
+                        if ($event->object instanceof \parallel\Future) {
                             $name = $event->source;
-                            if($this->futures[$name] ?? null) {
+                            if ($this->futures[$name] ?? null) {
                                 try {
                                     $this->futures[$name]->resolve();
                                 } catch (Throwable) {
@@ -318,7 +316,7 @@ class Parallel extends LibraryAbstract
      */
     public function run(Thread $thread, ...$argv): Future
     {
-        if(!isset($this->signalHandlerId)) {
+        if (!isset($this->signalHandlerId)) {
             try {
                 $this->signalHandlerId = onSignal(SIGUSR2, fn () => $this->poll());
                 defer(function () {

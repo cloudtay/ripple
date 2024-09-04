@@ -32,12 +32,57 @@
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-namespace Psc\Core\Exception;
+namespace Psc\Core\Http\Server;
 
-/**
- * @Author cclilshy
- * @Date   2024/8/16 09:35
- */
-class Exception extends \Exception
+use function dechex;
+use function explode;
+use function strlen;
+
+class Chunk
 {
+    /**
+     * @Author cclilshy
+     * @Date   2024/9/1 15:51
+     * @param string      $event
+     * @param string      $data
+     * @param string|null $id
+     * @param int|null    $retry
+     * @return string
+     */
+    public static function event(string $event = '', string $data = '', string|null $id = null, int|null $retry = null): string
+    {
+        $output = "";
+
+        if ($event !== '') {
+            $output .= "event: {$event}\n";
+        }
+
+        if ($retry) {
+            $output .= "retry: {$retry}\n";
+        }
+
+        if ($id) {
+            $output .= "id: {$id}\n";
+        }
+
+        $lines = explode("\n", $data);
+        foreach ($lines as $line) {
+            $output .= "data: {$line}\n";
+        }
+
+        $output .= "\n";
+        return $output;
+    }
+
+    /**
+     * @Author cclilshy
+     * @Date   2024/9/1 15:51
+     * @param string $data
+     * @return string
+     */
+    public static function chunk(string $data): string
+    {
+        $length = dechex(strlen($data));
+        return "{$length}\r\n{$data}\r\n";
+    }
 }

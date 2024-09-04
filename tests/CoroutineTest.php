@@ -34,15 +34,14 @@
 
 namespace Tests;
 
-use P\IO;
-use PHPUnit\Framework\Attributes\RunClassInSeparateProcess;
+use Co\IO;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
 use Throwable;
 
 use function is_string;
-use function P\async;
-use function P\tick;
+use function Co\async;
+use function Co\tick;
 use function str_contains;
 
 class CoroutineTest extends TestCase

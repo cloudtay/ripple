@@ -38,6 +38,7 @@ use Psc\Core\Http\Client\HttpClient;
 use Psc\Core\Http\Server\HttpServer;
 use Psc\Core\LibraryAbstract;
 use Psc\Plugins\Guzzle\Guzzle;
+use Psc\Utils\Output;
 use Throwable;
 
 /**
@@ -62,12 +63,16 @@ class Http extends LibraryAbstract
     /**
      * @param string $address
      * @param mixed  $context
-     * @return HttpServer
-     * @throws Throwable
+     * @return HttpServer|false
      */
-    public function server(string $address, mixed $context = null): HttpServer
+    public function server(string $address, mixed $context = null): HttpServer|false
     {
-        return new HttpServer($address, $context);
+        try {
+            return new HttpServer($address, $context);
+        } catch (Throwable $exception) {
+            Output::error('Failed to create server: ' . $exception->getMessage());
+            return false;
+        }
     }
 
     /**

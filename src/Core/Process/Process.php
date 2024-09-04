@@ -37,9 +37,10 @@ namespace Psc\Core\Process;
 use Closure;
 use Co\Coroutine;
 use Fiber;
-use Psc\Core\Coroutine\EscapeException;
+use Psc\Core\Coroutine\Exception\EscapeException;
 use Psc\Core\LibraryAbstract;
 use Psc\Core\Process\Exception\ProcessException;
+use Psc\Kernel;
 use Psc\Utils\Output;
 use Revolt\EventLoop;
 use Revolt\EventLoop\UnsupportedFeatureException;
@@ -60,7 +61,6 @@ use const SIGCHLD;
 use const SIGKILL;
 use const WNOHANG;
 use const WUNTRACED;
-use const PHP_OS_FAMILY;
 
 /**
  * @compatible:Windows
@@ -98,7 +98,7 @@ class Process extends LibraryAbstract
          * @compatible:Windows
          * Windows 不支持pcntl扩展
          */
-        if (PHP_OS_FAMILY === 'Windows') {
+        if (!Kernel::getInstance()->supportProcessControl()) {
             $this->rootProcessId = getmypid();
             $this->processId     = getmypid();
             return;
@@ -124,7 +124,7 @@ class Process extends LibraryAbstract
          * @compatible:Windows
          * Windows 不注册信号处理器
          */
-        if (PHP_OS_FAMILY === 'Windows') {
+        if (!Kernel::getInstance()->supportProcessControl()) {
             return;
         }
 
@@ -255,7 +255,7 @@ class Process extends LibraryAbstract
              * 由于__destruct与Fiber生命周期的原因
              * Windows下的Runtime一旦被销毁,会导致整个进程退出, 并且不会触发任何promise回调
              */
-            if (PHP_OS_FAMILY === 'Windows') {
+            if (!Kernel::getInstance()->supportProcessControl()) {
                 call_user_func($closure, ...$args);
                 return new Runtime(promise(static function () {}), getmypid());
             }

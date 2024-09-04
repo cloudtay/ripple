@@ -34,13 +34,13 @@
 
 namespace Tests;
 
-use P\System;
+use Co\System;
 use PHPUnit\Framework\Attributes\RunClassInSeparateProcess;
 use PHPUnit\Framework\TestCase;
 use Throwable;
 
 use function mt_rand;
-use function P\thread;
+use function Co\thread;
 use function sleep;
 
 #[RunClassInSeparateProcess]

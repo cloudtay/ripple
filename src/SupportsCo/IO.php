@@ -36,7 +36,7 @@ namespace Co;
 
 use Psc\Core\Channel\ChannelLibrary;
 use Psc\Core\File\File;
-use Psc\Core\Lock\LockLibrary;
+use Psc\Core\File\Lock\LockLibrary;
 use Psc\Core\Socket\Socket;
 
 /**

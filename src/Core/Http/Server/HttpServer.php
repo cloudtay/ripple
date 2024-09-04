@@ -36,10 +36,11 @@ namespace Psc\Core\Http\Server;
 
 use Closure;
 use Co\IO;
-use Psc\Core\Exception\ConnectionException;
 use Psc\Core\Http\Server\Exception\FormatException;
 use Psc\Core\Socket\SocketStream;
+use Psc\Core\Stream\Exception\ConnectionException;
 use Psc\Core\Stream\Exception\RuntimeException;
+use Psc\Kernel;
 use Psc\Utils\Output;
 use Throwable;
 
@@ -50,7 +51,6 @@ use function str_contains;
 use function strlen;
 use function strtolower;
 
-use const PHP_OS_FAMILY;
 use const SO_KEEPALIVE;
 use const SO_RCVBUF;
 use const SO_REUSEADDR;
@@ -98,9 +98,8 @@ class HttpServer
          * @var SocketStream $server
          */
         $this->server = match ($scheme) {
-            'http' => IO::Socket()->streamSocketServer("tcp://{$host}:{$port}", $context),
-            'https' => IO::Socket()->streamSocketServer("tcp://{$host}:{$port}", $context),
-            default => throw new RuntimeException('Address format error')
+            'http', 'https' => IO::Socket()->streamSocketServer("tcp://{$host}:{$port}", $context),
+            default         => throw new RuntimeException('Address format error')
         };
 
         $this->server->setOption(SOL_SOCKET, SO_REUSEADDR, 1);
@@ -108,7 +107,7 @@ class HttpServer
         /**
          * @compatible:Windows
          */
-        if (PHP_OS_FAMILY !== 'Windows') {
+        if (Kernel::getInstance()->supportProcessControl()) {
             $this->server->setOption(SOL_SOCKET, SO_REUSEPORT, 1);
         }
 
@@ -167,34 +166,33 @@ class HttpServer
      */
     private function addClient(SocketStream $stream): void
     {
-        $client =  new Connection($stream);
+        $client = new Connection($stream);
         $stream->onReadable(function (SocketStream $stream) use ($client) {
-            $content = $stream->read(1024);
+            $content = '';
+            while ($buffer = $stream->read(1024)) {
+                $content .= $buffer;
+            }
+
             if ($content === '') {
-                if($stream->eof()) {
+                if ($stream->eof()) {
                     $stream->close();
                 }
                 return;
             }
 
             try {
-                if(!$symfonyRequest = $client->tick($content)) {
+                if (!$symfonyRequest = $client->tick($content)) {
                     return;
                 }
 
-                $keepAlive = true;
-                if($connection = $symfonyRequest->headers->get('Connection')) {
-                    if (str_contains(strtolower($connection), 'close')) {
-                        $keepAlive = false;
+                $keepAlive = false;
+                if ($connection = $symfonyRequest->headers->get('Connection')) {
+                    if (str_contains(strtolower($connection), 'keep-alive')) {
+                        $keepAlive = true;
                     }
                 }
 
-                $symfonyResponse = new Response($stream, function () use ($keepAlive, $stream) {
-                    if (!$keepAlive) {
-                        $stream->close();
-                    }
-                });
-
+                $symfonyResponse = new Response($stream);
                 $symfonyResponse->headers->set('Server', 'PServer');
                 if ($keepAlive) {
                     $symfonyResponse->headers->set('Connection', 'keep-alive');

@@ -37,8 +37,9 @@ namespace Psc\Core\Channel;
 use Co\IO;
 use Exception;
 use Psc\Core\Channel\Exception\ChannelException;
-use Psc\Core\Lock\Lock;
+use Psc\Core\File\Lock\Lock;
 use Psc\Core\Stream\Stream;
+use Psc\Kernel;
 use Psc\Utils\Serialization\Zx7e;
 
 use function chr;
@@ -50,12 +51,10 @@ use function md5;
 use function posix_mkfifo;
 use function serialize;
 use function sys_get_temp_dir;
+use function touch;
 use function unlink;
 use function unpack;
 use function unserialize;
-use function touch;
-
-use const PHP_OS_FAMILY;
 
 /**
  * @Author cclilshy
@@ -109,7 +108,7 @@ class Channel
             /**
              * @compatible:Windows
              */
-            if (PHP_OS_FAMILY === 'Windows') {
+            if (!Kernel::getInstance()->supportProcessControl()) {
                 touch($this->path);
             } elseif (!posix_mkfifo($this->path, 0600)) {
                 throw new ChannelException('Failed to create channel.');
@@ -136,7 +135,7 @@ class Channel
      */
     public function send(mixed $data): bool
     {
-        if(!file_exists($this->path)) {
+        if (!file_exists($this->path)) {
             throw new ChannelException('Unable to send data to a closed channel');
         }
 
@@ -159,7 +158,7 @@ class Channel
      */
     public function receive(): mixed
     {
-        if(!file_exists($this->path)) {
+        if (!file_exists($this->path)) {
             throw new ChannelException('Unable to receive data from a closed channel');
         }
 

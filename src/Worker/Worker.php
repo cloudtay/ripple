@@ -40,6 +40,7 @@ use Psc\Core\Coroutine\Promise;
 use Psc\Core\Process\Runtime;
 use Psc\Core\Socket\SocketStream;
 use Psc\Core\Stream\Exception\ConnectionException;
+use Psc\Kernel;
 use Psc\Utils\Output;
 use Psc\Utils\Serialization\Zx7e;
 
@@ -49,10 +50,9 @@ use function socket_create_pair;
 use function socket_export_stream;
 use function spl_object_hash;
 
+use const AF_INET;
 use const AF_UNIX;
 use const SOCK_STREAM;
-use const PHP_OS_FAMILY;
-use const AF_INET;
 
 /**
  * @Author cclilshy
@@ -87,56 +87,103 @@ abstract class Worker
     private array $queue = [];
 
     /**
-     * @Context  manager
-     * @Author   cclilshy
-     * @Date     2024/8/16 11:53
-     * @param Manager $manager
-     * @return void
-     */
-    abstract public function register(Manager $manager): void;
-
-    /**
      * @Context  worker
      * @Author   cclilshy
-     * @Date     2024/8/16 11:53
-     * @return void
-     */
-    abstract public function boot(): void;
-
-    /**
-     * @Context  worker
-     * 热重启时触发,被通知的进程应遵循热重启规则释放资源后退出
-     * @Author   cclilshy
-     * @Date     2024/8/17 00:59
-     * @return void
-     */
-    abstract public function onReload(): void;
-
-    /**
-     * 收到指令时触发
-     * @Context  worker
-     * @Author   cclilshy
-     * @Date     2024/8/16 11:54
+     * @Date     2024/8/17 01:03
      * @param Command $workerCommand
      * @return void
      */
-    abstract public function onCommand(Command $workerCommand): void;
+    private function _onCommand(Command $workerCommand): void
+    {
+        switch ($workerCommand->name) {
+            case Worker::COMMAND_RELOAD:
+                $this->onReload();
+                break;
+            case Worker::COMMAND_SYNC_ID:
+                $id   = $workerCommand->arguments['id'];
+                $sync = $workerCommand->arguments['sync'];
+
+                if ($callback = $this->queue[$id] ?? null) {
+                    unset($this->queue[$id]);
+                    $callback['resolve']($sync);
+                }
+                break;
+            default:
+                $this->onCommand($workerCommand);
+        }
+    }
 
     /**
-     * @Context  share
-     * @Author   cclilshy
-     * @Date     2024/8/17 01:05
-     * @return string
+     * @Author cclilshy
+     * @Date   2024/8/17 14:25
+     * @param Manager $manager
+     * @param int     $index
+     * @return bool
      */
-    abstract public function getName(): string;
+    private function guard(Manager $manager, int $index): bool
+    {
+        /**
+         * @compatible:Windows
+         */
+        $domain = !Kernel::getInstance()->supportProcessControl() ? AF_INET : AF_UNIX;
 
-    /**
-     * @Context  share
-     * @Author   cclilshy
-     * @Date     2024/8/17 01:06
-     * @return int
-     */
-    abstract public function getCount(): int;
+        if (!socket_create_pair($domain, SOCK_STREAM, 0, $sockets)) {
+            return false;
+        }
+
+        $streamA = new SocketStream(socket_export_stream($sockets[0]));
+        $streamB = new SocketStream(socket_export_stream($sockets[1]));
+        $streamA->setBlocking(false);
+        $streamB->setBlocking(false);
+        $streamA->onClose(fn () => $streamB->close());
+
+        $zx7e                  = new Zx7e();
+        $this->streams[$index] = $streamA;
+        $this->streams[$index]->onReadable(function (SocketStream $socketStream) use ($streamA, $index, $zx7e, $manager) {
+            $content = '';
+            while ($buffer = $socketStream->read(1024)) {
+                $content .= $buffer;
+            }
+
+            foreach ($zx7e->decodeStream($content) as $string) {
+                $manager->onCommand(Command::fromString($string), $this->getName(), $index);
+            }
+        });
+
+        $this->runtimes[$index] = $runtime = System::Process()->task(function () use ($streamB) {
+            $this->parent       = false;
+            $this->parentSocket = $streamB;
+            $this->boot();
+
+            $this->zx7e = new Zx7e();
+            $this->parentSocket->onReadable(function (SocketStream $socketStream) {
+                $content = '';
+                while ($buffer = $socketStream->read(1024)) {
+                    $content .= $buffer;
+                }
+
+                foreach ($this->zx7e->decodeStream($content) as $string) {
+                    $this->_onCommand(Command::fromString($string));
+                }
+            });
+        })->run();
+
+        $runtime->finally(function () use ($manager, $index) {
+            if (isset($this->streams[$index])) {
+                $this->streams[$index]->close();
+                unset($this->streams[$index]);
+            }
+
+            if (isset($this->runtimes[$index])) {
+                unset($this->runtimes[$index]);
+            }
+            delay(function () use ($manager, $index) {
+                $this->guard($manager, $index);
+            }, 0.1);
+        });
+
+        return true;
+    }
 
     /**
      * 发送指令
@@ -152,6 +199,8 @@ abstract class Worker
             $this->parentSocket->write($this->zx7e->encodeFrame($command->__toString()));
         } catch (ConnectionException $exception) {
             Output::error($exception->getMessage());
+
+            // 写入消息到父进程失败,只有一个可能父进程已经退出
             exit(1);
         }
     }
@@ -207,33 +256,6 @@ abstract class Worker
     }
 
     /**
-     * @Context  worker
-     * @Author   cclilshy
-     * @Date     2024/8/17 01:03
-     * @param Command $workerCommand
-     * @return void
-     */
-    private function _onCommand(Command $workerCommand): void
-    {
-        switch ($workerCommand->name) {
-            case Worker::COMMAND_RELOAD:
-                $this->onReload();
-                break;
-            case Worker::COMMAND_SYNC_ID:
-                $id   = $workerCommand->arguments['id'];
-                $sync = $workerCommand->arguments['sync'];
-
-                if ($callback = $this->queue[$id] ?? null) {
-                    unset($this->queue[$id]);
-                    $callback['resolve']($sync);
-                }
-                break;
-            default:
-                $this->onCommand($workerCommand);
-        }
-    }
-
-    /**
      * @Context manager
      * @var Runtime[]
      */
@@ -257,7 +279,7 @@ abstract class Worker
         /**
          * @compatible:Windows
          */
-        $count = PHP_OS_FAMILY === 'Windows' ? 1 : $this->getCount();
+        $count = !Kernel::getInstance()->supportProcessControl() ? 1 : $this->getCount();
         for ($index = 1; $index <= $count; $index++) {
             if (!$this->guard($manager, $index)) {
                 return false;
@@ -267,63 +289,54 @@ abstract class Worker
     }
 
     /**
-     * @Author cclilshy
-     * @Date   2024/8/17 14:25
+     * @Context  manager
+     * @Author   cclilshy
+     * @Date     2024/8/16 11:53
      * @param Manager $manager
-     * @param int     $index
-     * @return bool
+     * @return void
      */
-    private function guard(Manager $manager, int $index): bool
-    {
-        /**
-         * @compatible:Windows
-         */
-        $domain = PHP_OS_FAMILY === 'Windows' ? AF_INET : AF_UNIX;
+    abstract public function register(Manager $manager): void;
 
-        if (!socket_create_pair($domain, SOCK_STREAM, 0, $sockets)) {
-            return false;
-        }
+    /**
+     * @Context  worker
+     * @Author   cclilshy
+     * @Date     2024/8/16 11:53
+     * @return void
+     */
+    abstract public function boot(): void;
 
-        $streamA = new SocketStream(socket_export_stream($sockets[0]));
-        $streamB = new SocketStream(socket_export_stream($sockets[1]));
-        $streamA->setBlocking(false);
-        $streamB->setBlocking(false);
-        $streamA->onClose(fn () => $streamB->close());
+    /**
+     * @Context  worker
+     * 热重启时触发,被通知的进程应遵循热重启规则释放资源后退出
+     * @Author   cclilshy
+     * @Date     2024/8/17 00:59
+     * @return void
+     */
+    abstract public function onReload(): void;
 
-        $zx7e                  = new Zx7e();
-        $this->streams[$index] = $streamA;
-        $this->streams[$index]->onReadable(function (SocketStream $socketStream) use ($streamA, $index, $zx7e, $manager) {
-            foreach ($zx7e->decodeStream($socketStream->read(8192)) as $string) {
-                $manager->onCommand(Command::fromString($string), $this->getName(), $index);
-            }
-        });
+    /**
+     * 收到指令时触发
+     * @Context  worker
+     * @Author   cclilshy
+     * @Date     2024/8/16 11:54
+     * @param Command $workerCommand
+     * @return void
+     */
+    abstract public function onCommand(Command $workerCommand): void;
 
-        $this->runtimes[$index] = $runtime = System::Process()->task(function () use ($streamB) {
-            $this->parent       = false;
-            $this->parentSocket = $streamB;
-            $this->boot();
+    /**
+     * @Context  share
+     * @Author   cclilshy
+     * @Date     2024/8/17 01:05
+     * @return string
+     */
+    abstract public function getName(): string;
 
-            $this->zx7e = new Zx7e();
-            $this->parentSocket->onReadable(function (SocketStream $socketStream) {
-                foreach ($this->zx7e->decodeStream($socketStream->read(8192)) as $string) {
-                    $this->_onCommand(Command::fromString($string));
-                }
-            });
-        })->run();
-
-        $runtime->finally(function () use ($manager, $index) {
-            if (isset($this->streams[$index])) {
-                $this->streams[$index]->close();
-                unset($this->streams[$index]);
-            }
-
-            if (isset($this->runtimes[$index])) {
-                unset($this->runtimes[$index]);
-            }
-            delay(function () use ($manager, $index) {
-                $this->guard($manager, $index);
-            }, 0.1);
-        });
-        return true;
-    }
+    /**
+     * @Context  share
+     * @Author   cclilshy
+     * @Date     2024/8/17 01:06
+     * @return int
+     */
+    abstract public function getCount(): int;
 }
