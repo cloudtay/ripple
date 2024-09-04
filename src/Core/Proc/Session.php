@@ -104,7 +104,7 @@ class Session
             try {
                 $content = '';
                 while ($buffer = $this->streamStdError->read(1024)) {
-                    $content = $buffer;
+                    $content .= $buffer;
                 }
             } catch (Throwable) {
                 $this->close();

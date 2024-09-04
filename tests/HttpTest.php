@@ -1,6 +1,4 @@
-<?php
-
-declare(strict_types=1);
+<?php declare(strict_types=1);
 /*
  * Copyright (c) 2023-2024.
  *
@@ -36,10 +34,10 @@ declare(strict_types=1);
 
 namespace Tests;
 
-use GuzzleHttp\Client;
-use GuzzleHttp\Exception\GuzzleException;
 use Co\Net;
 use Co\Plugin;
+use GuzzleHttp\Client;
+use GuzzleHttp\Exception\GuzzleException;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 use Psc\Core\Http\Server\Request;
@@ -47,23 +45,19 @@ use Psc\Core\Http\Server\Response;
 use Psc\Utils\Output;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Throwable;
-
 use function Co\async;
+use function Co\cancelAll;
 use function file_put_contents;
 use function fopen;
 use function gc_collect_cycles;
 use function md5;
 use function md5_file;
 use function memory_get_usage;
-use function Co\cancelAll;
-use function Co\defer;
-use function Co\tick;
 use function str_repeat;
 use function stream_context_create;
 use function sys_get_temp_dir;
 use function tempnam;
 use function uniqid;
-
 use const PHP_EOL;
 
 class HttpTest extends TestCase
@@ -75,70 +69,6 @@ class HttpTest extends TestCase
     #[Test]
     public function test_httpServer(): void
     {
-        defer(function () {
-            /**
-             * 内存泄漏测试
-             */
-            for ($i = 0; $i < 10; $i++) {
-                try {
-                    $this->httpGet();
-                } catch (Throwable $exception) {
-                    Output::exception($exception);
-                }
-
-                try {
-                    $this->httpPost();
-                } catch (Throwable $exception) {
-                    Output::exception($exception);
-                }
-
-                try {
-                    $this->httpFile();
-                } catch (Throwable $exception) {
-                    Output::exception($exception);
-                }
-            }
-
-            gc_collect_cycles();
-            $baseMemory = memory_get_usage();
-
-            for ($i = 0; $i < 10; $i++) {
-                try {
-                    $this->httpGet();
-                } catch (Throwable $exception) {
-                    Output::exception($exception);
-                }
-
-                try {
-                    $this->httpPost();
-                } catch (Throwable $exception) {
-                    Output::exception($exception);
-                }
-
-                try {
-                    $this->httpFile();
-                } catch (Throwable $exception) {
-                    Output::exception($exception);
-                }
-            }
-
-            gc_collect_cycles();
-            if ($baseMemory !== memory_get_usage()) {
-                echo('There may be a memory leak' . PHP_EOL);
-            }
-
-            /**
-             * HttpClient测试
-             */
-            try {
-                $this->httpClient();
-            } catch (Throwable $exception) {
-                echo($exception->getMessage() . PHP_EOL);
-            }
-
-            cancelAll();
-        });
-
         $context = stream_context_create([
             'socket' => [
                 'so_reuseport' => 1,
@@ -174,7 +104,73 @@ class HttpTest extends TestCase
         });
 
         $server->listen();
-        tick();
+
+        for ($i = 0; $i < 10; $i++) {
+            try {
+                $this->httpGet();
+            } catch (Throwable $exception) {
+                Output::exception($exception);
+                throw $exception;
+            }
+
+            try {
+                $this->httpPost();
+            } catch (Throwable $exception) {
+                Output::exception($exception);
+                throw $exception;
+            }
+
+            try {
+                $this->httpFile();
+            } catch (Throwable $exception) {
+                Output::exception($exception);
+                throw $exception;
+            }
+        }
+
+        gc_collect_cycles();
+        $baseMemory = memory_get_usage();
+
+        for ($i = 0; $i < 10; $i++) {
+            try {
+                $this->httpGet();
+            } catch (Throwable $exception) {
+                Output::exception($exception);
+                throw $exception;
+            }
+
+            try {
+                $this->httpPost();
+            } catch (Throwable $exception) {
+                Output::exception($exception);
+                throw $exception;
+            }
+
+            try {
+                $this->httpFile();
+            } catch (Throwable $exception) {
+                Output::exception($exception);
+                throw $exception;
+            }
+        }
+
+        Plugin::Guzzle()->getHttpClient()->getConnectionPool()->clearConnectionPool();
+        gc_collect_cycles();
+
+        if ($baseMemory !== memory_get_usage()) {
+            echo "\nThere may be a memory leak.\n";
+        }
+
+        /**
+         * HttpClient测试
+         */
+        try {
+            $this->httpClient();
+        } catch (Throwable $exception) {
+            echo($exception->getMessage() . PHP_EOL);
+        }
+
+        cancelAll();
     }
 
     /**
@@ -260,13 +256,12 @@ class HttpTest extends TestCase
             'https://www.sina.com.cn/',
             'https://www.sohu.com/',
             'https://www.ifeng.com/',
-            'https://juejin.cn',
-            'https://www.csdn.net',
+            'https://juejin.cn/',
+            'https://www.csdn.net/',
             'https://www.cnblogs.com/',
             'https://business.oceanengine.com/login',
             'https://www.laruence.com/',
             'https://www.php.net/',
-            'https://www.google.com/'
         ];
 
         $x = 0;
@@ -281,7 +276,7 @@ class HttpTest extends TestCase
                         $x++;
                     }
 
-                    //                    echo "Request ({$i}){$url} response: {$response->getStatusCode()}\n";
+                    echo "Request ({$i}){$url} response: {$response->getStatusCode()}\n";
                 } catch (Throwable $exception) {
                     echo "\n";
                     echo "Request ({$i}){$url} error: {$exception->getMessage()}\n";
@@ -294,7 +289,7 @@ class HttpTest extends TestCase
                         $y++;
                     }
 
-                    //                    echo "GuzzleRequest ({$i}){$url} response: {$guzzleResponse->getStatusCode()}\n";
+                    echo "GuzzleRequest ({$i}){$url} response: {$guzzleResponse->getStatusCode()}\n";
                 } catch (Throwable $exception) {
                     echo "\n";
                     echo "GuzzleRequest ({$i}){$url} error: {$exception->getMessage()}\n";

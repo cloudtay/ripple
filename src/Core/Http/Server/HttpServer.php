@@ -170,7 +170,7 @@ class HttpServer
         $stream->onReadable(function (SocketStream $stream) use ($client) {
             $content = '';
             while ($buffer = $stream->read(1024)) {
-                $content = $buffer;
+                $content .= $buffer;
             }
 
             if ($content === '') {
@@ -185,10 +185,10 @@ class HttpServer
                     return;
                 }
 
-                $keepAlive = true;
+                $keepAlive = false;
                 if ($connection = $symfonyRequest->headers->get('Connection')) {
-                    if (str_contains(strtolower($connection), 'close')) {
-                        $keepAlive = false;
+                    if (str_contains(strtolower($connection), 'keep-alive')) {
+                        $keepAlive = true;
                     }
                 }
 
