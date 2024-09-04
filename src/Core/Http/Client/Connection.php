@@ -46,11 +46,11 @@ use function fclose;
 use function fwrite;
 use function hexdec;
 use function intval;
+use function is_resource;
 use function strlen;
 use function strpos;
 use function strtok;
 use function substr;
-use function is_resource;
 
 /**
  * @Author cclilshy
@@ -80,13 +80,24 @@ class Connection
     private int  $chunkStep   = 0;
 
     /**
-     * @param string $content
+     * @param string|false $content
      * @return ResponseInterface|null
      * @throws RuntimeException
      */
-    public function tick(string $content): ResponseInterface|null
+    public function tick(string|false $content): ResponseInterface|null
     {
+        if ($content === false) {
+            if ($this->headers['Content-Length'] ?? null) {
+                throw new RuntimeException('Response content length is required');
+            } elseif ($this->chunk) {
+                throw new RuntimeException('Response chunked is required');
+            } else {
+                $this->step = 2;
+            }
+        }
+
         $this->buffer .= $content;
+
         if ($this->step === 0) {
             if ($headerEnd = strpos($this->buffer, "\r\n\r\n")) {
                 $buffer = $this->freeBuffer();
@@ -121,17 +132,13 @@ class Connection
                     $this->buffer = substr($buffer, $headerEnd + 4);
                 } else {
                     $contentLength = $this->headers['Content-Length'] ?? null;
-                    if ($this->statusCode === 200) {
-                        if ($contentLength === null) {
-                            throw new RuntimeException('Response content length is required');
+                    if ($this->contentLength = intval($contentLength)) {
+                        $buffer = substr($buffer, $headerEnd + 4);
+                        $this->output($buffer);
+                        $this->bodyLength += strlen($buffer);
+                        if ($this->bodyLength === $this->contentLength) {
+                            $this->step = 2;
                         }
-                    }
-                    $this->contentLength = intval($contentLength);
-                    $buffer              = substr($buffer, $headerEnd + 4);
-                    $this->output($buffer);
-                    $this->bodyLength += strlen($buffer);
-                    if ($this->bodyLength === $this->contentLength) {
-                        $this->step = 2;
                     }
                 }
             }
