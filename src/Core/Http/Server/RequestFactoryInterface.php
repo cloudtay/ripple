@@ -34,11 +34,7 @@
 
 namespace Psc\Core\Http\Server;
 
-use Symfony\Component\HttpFoundation\Request as SymfonyRequest;
-
-/**
- * 请求实体
- */
-class Request extends SymfonyRequest
+interface RequestFactoryInterface
 {
+    public function __invoke(array $query, array $request, array $attributes, array $cookies, array $files, array $server, mixed $content): mixed;
 }

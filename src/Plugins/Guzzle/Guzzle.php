@@ -35,7 +35,7 @@
 namespace Psc\Plugins\Guzzle;
 
 use GuzzleHttp\Client;
-use Psc\Core\Http\Client\HttpClient;
+use Psc\Core\Http\Client\Client as HttpClient;
 use Psc\Core\LibraryAbstract;
 use Psc\Plugins\Guzzle\Handler\PHandler;
 

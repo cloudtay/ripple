@@ -34,8 +34,8 @@
 
 namespace Psc\Core\Http;
 
-use Psc\Core\Http\Client\HttpClient;
-use Psc\Core\Http\Server\HttpServer;
+use Psc\Core\Http\Client\Client;
+use Psc\Core\Http\Server\Server;
 use Psc\Core\LibraryAbstract;
 use Psc\Plugins\Guzzle\Guzzle;
 use Psc\Utils\Output;
@@ -64,12 +64,12 @@ class Http extends LibraryAbstract
      * @param string $address
      * @param mixed  $context
      *
-     * @return HttpServer|false
+     * @return Server|false
      */
-    public function server(string $address, mixed $context = null): HttpServer|false
+    public function server(string $address, mixed $context = null): Server|false
     {
         try {
-            return new HttpServer($address, $context);
+            return new Server($address, $context);
         } catch (Throwable $exception) {
             Output::error('Failed to create server: ' . $exception->getMessage());
             return false;
@@ -79,10 +79,10 @@ class Http extends LibraryAbstract
     /**
      * @param array $config
      *
-     * @return HttpClient
+     * @return Client
      */
-    public function client(array $config): HttpClient
+    public function client(array $config): Client
     {
-        return new HttpClient($config);
+        return new Client($config);
     }
 }

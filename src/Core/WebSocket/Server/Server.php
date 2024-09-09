@@ -62,19 +62,13 @@ use const TCP_NODELAY;
  */
 class Server
 {
-    /**
-     * @var Closure(string $data, Connection $connection):void
-     */
+    /*** @var Closure(string $data, Connection $connection):void */
     private Closure $onMessage;
 
-    /**
-     * @var Closure(Connection $connection):void
-     */
+    /*** @var Closure(Connection $connection):void */
     private Closure $onConnect;
 
-    /**
-     * @var Closure(Connection $connection):void
-     */
+    /*** @var Closure(Connection $connection):void */
     private Closure $onClose;
 
     /*** @var Closure */

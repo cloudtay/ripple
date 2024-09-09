@@ -60,7 +60,7 @@ use function parse_url;
 use function str_contains;
 use function strtolower;
 
-class HttpClient
+class Client
 {
     /*** @var ConnectionPool */
     private ConnectionPool $connectionPool;

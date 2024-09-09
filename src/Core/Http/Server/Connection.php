@@ -128,11 +128,11 @@ class Connection
     /**
      * @param string $content
      *
-     * @return Request|null
+     * @return array|null
      * @throws Exception\FormatException
      * @throws RuntimeException
      */
-    public function tick(string $content): Request|null
+    public function tick(string $content): array|null
     {
         $this->buffer .= $content;
         if ($this->step === 0) {
@@ -210,6 +210,7 @@ class Connection
                         } else {
                             $this->step             = 3;
                             $this->multipartHandler = new MultipartHandler($matches[1]);
+                            // If the response is closed, the corresponding file transfer channel should be closed.
                             $this->stream->getTransaction()->onClose(fn () => $this->multipartHandler?->cancel());
 
                             foreach ($this->multipartHandler->tick($body) as $name => $multipartResult) {
@@ -331,19 +332,28 @@ class Connection
                 $this->server['HTTPS'] = $xForwardedProto === 'https' ? 'on' : 'off';
             }
 
-            $request = new Request(
-                $this->query,
-                $this->request,
-                $this->attributes,
-                $this->cookies,
-                $this->files,
-                $this->server,
-                $this->content,
-            );
-            $request->setStream($this->stream);
-
+            //            $request = new Request(
+            //                $this->query,
+            //                $this->request,
+            //                $this->attributes,
+            //                $this->cookies,
+            //                $this->files,
+            //                $this->server,
+            //                $this->content,
+            //            );
+            $result = [
+                'query'      => $this->query,
+                'request'    => $this->request,
+                'attributes' => $this->attributes,
+                'cookies'    => $this->cookies,
+                'files'      => $this->files,
+                'server'     => $this->server,
+                'content'    => $this->content,
+            ];
+            //            $request->setStream($this->stream);
             $this->reset();
-            return $request;
+            return $result;
+            //            return $request;
         }
         return null;
     }
