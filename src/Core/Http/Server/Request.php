@@ -48,21 +48,23 @@ class Request extends SymfonyRequest
     private SocketStream $stream;
 
     /**
-     * @Author cclilshy
-     * @Date   2024/9/1 14:14
-     * @param SocketStream $stream
-     * @return void
-     */
-    public function setStream(SocketStream $stream): void
-    {
-        $this->stream = $stream;
-    }
-
-    /**
      * @return SocketStream
      */
     public function getStream(): SocketStream
     {
         return $this->stream;
+    }
+
+    /**
+     * @Author cclilshy
+     * @Date   2024/9/1 14:14
+     *
+     * @param SocketStream $stream
+     *
+     * @return void
+     */
+    public function setStream(SocketStream $stream): void
+    {
+        $this->stream = $stream;
     }
 }

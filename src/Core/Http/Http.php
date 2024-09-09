@@ -63,6 +63,7 @@ class Http extends LibraryAbstract
     /**
      * @param string $address
      * @param mixed  $context
+     *
      * @return HttpServer|false
      */
     public function server(string $address, mixed $context = null): HttpServer|false
@@ -77,6 +78,7 @@ class Http extends LibraryAbstract
 
     /**
      * @param array $config
+     *
      * @return HttpClient
      */
     public function client(array $config): HttpClient

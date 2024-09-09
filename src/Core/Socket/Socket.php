@@ -70,12 +70,13 @@ class Socket extends LibraryAbstract
      * @param string     $address
      * @param int        $timeout
      * @param mixed|null $context
+     *
      * @return Promise
      */
     public function streamSocketClientSSL(string $address, int $timeout = 0, mixed $context = null): Promise
     {
         return promise(function (Closure $r, Closure $d) use ($address, $timeout, $context) {
-            $address                   = str_replace('ssl://', 'tcp://', $address);
+            $address = str_replace('ssl://', 'tcp://', $address);
 
             /**
              * @var SocketStream $streamSocket
@@ -98,6 +99,7 @@ class Socket extends LibraryAbstract
      * @param string     $address
      * @param int        $timeout
      * @param mixed|null $context
+     *
      * @return Promise<SocketStream>
      */
     public function streamSocketClient(string $address, int $timeout = 0, mixed $context = null): Promise
@@ -120,7 +122,7 @@ class Socket extends LibraryAbstract
             $stream = new SocketStream($connection, $address);
 
             if ($timeout > 0) {
-                $timeoutEventId = delay(static function () use ($stream, $d) {
+                $timeoutEventId     = delay(static function () use ($stream, $d) {
                     $stream->close();
                     $d(new Exception('Connection timeout.'));
                 }, $timeout);
@@ -139,6 +141,7 @@ class Socket extends LibraryAbstract
 
     /**
      * @param SocketStream $stream
+     *
      * @return Promise
      */
     public function streamEnableCrypto(SocketStream $stream): Promise
@@ -186,6 +189,7 @@ class Socket extends LibraryAbstract
     /**
      * @param string     $address
      * @param mixed|null $context
+     *
      * @return SocketStream
      * @throws Exception
      */

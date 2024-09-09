@@ -43,10 +43,12 @@ class Chunk
     /**
      * @Author cclilshy
      * @Date   2024/9/1 15:51
+     *
      * @param string      $event
      * @param string      $data
      * @param string|null $id
      * @param int|null    $retry
+     *
      * @return string
      */
     public static function event(string $event = '', string $data = '', string|null $id = null, int|null $retry = null): string
@@ -77,7 +79,9 @@ class Chunk
     /**
      * @Author cclilshy
      * @Date   2024/9/1 15:51
+     *
      * @param string $data
+     *
      * @return string
      */
     public static function chunk(string $data): string

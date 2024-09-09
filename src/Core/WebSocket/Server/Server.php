@@ -97,6 +97,7 @@ class Server
      * @param string       $address
      * @param mixed|null   $context
      * @param Options|null $options
+     *
      * @throws Throwable
      */
     public function __construct(string $address, mixed $context = null, Options|null $options = null)
@@ -130,56 +131,6 @@ class Server
     }
 
     /**
-     * @param string     $data
-     * @param Connection $connection
-     * @return void
-     */
-    private function message(string $data, Connection $connection): void
-    {
-        if (isset($this->onMessage)) {
-            ($this->onMessage)($data, $connection);
-        }
-    }
-
-    /**
-     * @param Connection $connection
-     * @return void
-     */
-    private function connect(Connection $connection): void
-    {
-        if (isset($this->onConnect)) {
-            ($this->onConnect)($connection);
-        }
-    }
-
-    /**
-     * @param Connection $connection
-     * @return void
-     */
-    private function close(Connection $connection): void
-    {
-        if (isset($this->onClose)) {
-            ($this->onClose)($connection);
-        }
-
-        unset($this->client2connection[$connection->getId()]);
-    }
-
-    /**
-     * @Author cclilshy
-     * @Date   2024/8/30 15:15
-     * @param Request    $request
-     * @param Connection $connection
-     * @return void
-     */
-    private function request(Request $request, Connection $connection): void
-    {
-        if (isset($this->onRequest)) {
-            ($this->onRequest)($request, $connection);
-        }
-    }
-
-    /**
      * @return void
      */
     public function listen(): void
@@ -205,8 +156,108 @@ class Server
     }
 
     /**
+     * @param Closure $onMessage
+     *
+     * @return void
+     */
+    public function onMessage(Closure $onMessage): void
+    {
+        $this->onMessage = $onMessage;
+    }
+
+    /**
+     * @param string     $data
+     * @param Connection $connection
+     *
+     * @return void
+     */
+    private function message(string $data, Connection $connection): void
+    {
+        if (isset($this->onMessage)) {
+            ($this->onMessage)($data, $connection);
+        }
+    }
+
+    /**
+     * @param Closure $onConnect
+     *
+     * @return void
+     */
+    public function onConnect(Closure $onConnect): void
+    {
+        $this->onConnect = $onConnect;
+    }
+
+    /**
+     * @param Connection $connection
+     *
+     * @return void
+     */
+    private function connect(Connection $connection): void
+    {
+        if (isset($this->onConnect)) {
+            ($this->onConnect)($connection);
+        }
+    }
+
+    /**
+     * @param Closure $onClose
+     *
+     * @return void
+     */
+    public function onClose(Closure $onClose): void
+    {
+        $this->onClose = $onClose;
+    }
+
+    /**
+     * @param Connection $connection
+     *
+     * @return void
+     */
+    private function close(Connection $connection): void
+    {
+        if (isset($this->onClose)) {
+            ($this->onClose)($connection);
+        }
+
+        unset($this->client2connection[$connection->getId()]);
+    }
+
+    /**
+     * @Author cclilshy
+     * @Date   2024/8/30 15:14
+     *
+     * @param Closure $onRequest
+     *
+     * @return void
+     */
+    public function onRequest(Closure $onRequest): void
+    {
+        $this->onRequest = $onRequest;
+    }
+
+    /**
+     * @Author cclilshy
+     * @Date   2024/8/30 15:15
+     *
+     * @param Request    $request
+     * @param Connection $connection
+     *
+     * @return void
+     */
+    private function request(Request $request, Connection $connection): void
+    {
+        if (isset($this->onRequest)) {
+            ($this->onRequest)($request, $connection);
+        }
+    }
+
+    /**
      * Broadcast a message and return the number of clients successfully sent
+     *
      * @param string $data messageContent
+     *
      * @return int Number of clients sent successfully
      */
     public function broadcast(string $data): int
@@ -233,44 +284,6 @@ class Server
     public function getConnections(): array
     {
         return $this->client2connection;
-    }
-
-    /**
-     * @param Closure $onMessage
-     * @return void
-     */
-    public function onMessage(Closure $onMessage): void
-    {
-        $this->onMessage = $onMessage;
-    }
-
-    /**
-     * @param Closure $onConnect
-     * @return void
-     */
-    public function onConnect(Closure $onConnect): void
-    {
-        $this->onConnect = $onConnect;
-    }
-
-    /**
-     * @param Closure $onClose
-     * @return void
-     */
-    public function onClose(Closure $onClose): void
-    {
-        $this->onClose = $onClose;
-    }
-
-    /**
-     * @Author cclilshy
-     * @Date   2024/8/30 15:14
-     * @param Closure $onRequest
-     * @return void
-     */
-    public function onRequest(Closure $onRequest): void
-    {
-        $this->onRequest = $onRequest;
     }
 
     public function getOptions(): Options

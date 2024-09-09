@@ -142,84 +142,6 @@ class Connection
     /**
      * @Author cclilshy
      * @Date   2024/8/15 14:48
-     * @return void
-     * @throws ConnectionException
-     */
-    private function tick(): void
-    {
-        while (strlen($this->buffer) >= 2) {
-            $firstByte     = ord($this->buffer[0]);
-            $fin           = ($firstByte & 0x80) === 0x80;
-            $opcode        = $firstByte & 0x0f;
-            $secondByte    = ord($this->buffer[1]);
-            $masked        = ($secondByte & 0x80) === 0x80;
-            $payloadLength = $secondByte & 0x7f;
-            $offset        = 2;
-            if ($payloadLength === 126) {
-                if (strlen($this->buffer) < 4) {
-                    return;
-                }
-                $payloadLength = unpack('n', substr($this->buffer, 2, 2))[1];
-                $offset        += 2;
-            } elseif ($payloadLength === 127) {
-                if (strlen($this->buffer) < 10) {
-                    return;
-                }
-                $payloadLength = unpack('J', substr($this->buffer, 2, 8))[1];
-                $offset        += 8;
-            }
-
-            if ($masked) {
-                if (strlen($this->buffer) < $offset + 4) {
-                    return;
-                }
-                $maskingKey = substr($this->buffer, $offset, 4);
-                $offset     += 4;
-            }
-
-            if (strlen($this->buffer) < $offset + $payloadLength) {
-                return;
-            }
-
-            $payloadData = substr($this->buffer, $offset, $payloadLength);
-            $offset      += $payloadLength;
-
-            if ($masked) {
-                $unmaskedData = '';
-                for ($i = 0; $i < $payloadLength; $i++) {
-                    $unmaskedData .= chr(ord($payloadData[$i]) ^ ord($maskingKey[$i % 4]));
-                }
-            } else {
-                $unmaskedData = $payloadData;
-            }
-
-            switch ($opcode) {
-                case 0x1: // 文本
-                    break;
-                case 0x2: // 二进制
-                    break;
-                case 0x8: // 关闭
-                    $this->close();
-                    return;
-                case 0x9: // ping
-                    // 发送pong响应
-                    $pongFrame = chr(0x8A) . chr(0x00);
-                    $this->stream->write($pongFrame);
-                    return;
-                case 0xA: // pong
-                    return;
-                default:
-                    break;
-            }
-
-            $this->message($unmaskedData, $opcode);
-            $this->buffer = substr($this->buffer, $offset);
-        }
-    }
-
-    /**
-     * @Author cclilshy
-     * @Date   2024/8/15 14:48
      * @return Promise
      */
     private function handshake(): Promise
@@ -237,8 +159,8 @@ class Connection
             $hostPortExploded = explode(':', $hostPort);
             $host             = $hostPortExploded[0];
             $port             = $hostPortExploded[1] ?? match ($scheme) {
-                'ws' => 80,
-                'wss' => 443,
+                'ws'    => 80,
+                'wss'   => 443,
                 default => throw new Exception('Unsupported scheme')
             };
 
@@ -246,8 +168,8 @@ class Connection
             $path = "/{$path}";
 
             $this->stream = match ($scheme) {
-                'ws' => await(IO::Socket()->streamSocketClient("tcp://{$host}:{$port}", $this->timeout, $this->context)),
-                'wss' => await(IO::Socket()->streamSocketClientSSL("ssl://{$host}:{$port}", $this->timeout, $this->context)),
+                'ws'    => await(IO::Socket()->streamSocketClient("tcp://{$host}:{$port}", $this->timeout, $this->context)),
+                'wss'   => await(IO::Socket()->streamSocketClientSSL("ssl://{$host}:{$port}", $this->timeout, $this->context)),
                 default => throw new Exception('Unsupported scheme')
             };
 
@@ -341,7 +263,9 @@ class Connection
     /**
      * @Author cclilshy
      * @Date   2024/8/15 14:47
+     *
      * @param Throwable $e
+     *
      * @return void
      */
     private function error(Throwable $e): void
@@ -357,9 +281,109 @@ class Connection
 
     /**
      * @Author cclilshy
+     * @Date   2024/8/15 14:48
+     * @return void
+     * @throws ConnectionException
+     */
+    private function tick(): void
+    {
+        while (strlen($this->buffer) >= 2) {
+            $firstByte     = ord($this->buffer[0]);
+            $fin           = ($firstByte & 0x80) === 0x80;
+            $opcode        = $firstByte & 0x0f;
+            $secondByte    = ord($this->buffer[1]);
+            $masked        = ($secondByte & 0x80) === 0x80;
+            $payloadLength = $secondByte & 0x7f;
+            $offset        = 2;
+            if ($payloadLength === 126) {
+                if (strlen($this->buffer) < 4) {
+                    return;
+                }
+                $payloadLength = unpack('n', substr($this->buffer, 2, 2))[1];
+                $offset        += 2;
+            } elseif ($payloadLength === 127) {
+                if (strlen($this->buffer) < 10) {
+                    return;
+                }
+                $payloadLength = unpack('J', substr($this->buffer, 2, 8))[1];
+                $offset        += 8;
+            }
+
+            if ($masked) {
+                if (strlen($this->buffer) < $offset + 4) {
+                    return;
+                }
+                $maskingKey = substr($this->buffer, $offset, 4);
+                $offset     += 4;
+            }
+
+            if (strlen($this->buffer) < $offset + $payloadLength) {
+                return;
+            }
+
+            $payloadData = substr($this->buffer, $offset, $payloadLength);
+            $offset      += $payloadLength;
+
+            if ($masked) {
+                $unmaskedData = '';
+                for ($i = 0; $i < $payloadLength; $i++) {
+                    $unmaskedData .= chr(ord($payloadData[$i]) ^ ord($maskingKey[$i % 4]));
+                }
+            } else {
+                $unmaskedData = $payloadData;
+            }
+
+            switch ($opcode) {
+                case 0x1: // 文本
+                    break;
+                case 0x2: // 二进制
+                    break;
+                case 0x8: // 关闭
+                    $this->close();
+                    return;
+                case 0x9: // ping
+                    // 发送pong响应
+                    $pongFrame = chr(0x8A) . chr(0x00);
+                    $this->stream->write($pongFrame);
+                    return;
+                case 0xA: // pong
+                    return;
+                default:
+                    break;
+            }
+
+            $this->message($unmaskedData, $opcode);
+            $this->buffer = substr($this->buffer, $offset);
+        }
+    }
+
+    /**
+     * @Author cclilshy
      * @Date   2024/8/15 14:47
+     * @return void
+     */
+    public function close(): void
+    {
+        if (isset($this->stream)) {
+            $this->stream->close();
+
+            if (isset($this->onClose)) {
+                try {
+                    call_user_func($this->onClose, $this);
+                } catch (Throwable $e) {
+                    Output::error($e->getMessage());
+                }
+            }
+        }
+    }
+
+    /**
+     * @Author cclilshy
+     * @Date   2024/8/15 14:47
+     *
      * @param string $unmaskedData
      * @param int    $opcode
+     *
      * @return void
      */
     private function message(string $unmaskedData, int $opcode): void
@@ -376,7 +400,9 @@ class Connection
     /**
      * @Author cclilshy
      * @Date   2024/8/15 14:47
+     *
      * @param string $data
+     *
      * @return void
      * @throws ConnectionException
      * @throws Throwable
@@ -410,7 +436,9 @@ class Connection
     /**
      * @Author cclilshy
      * @Date   2024/8/15 14:47
+     *
      * @param Closure $onOpen
+     *
      * @return void
      */
     public function onConnect(Closure $onOpen): void
@@ -421,40 +449,9 @@ class Connection
     /**
      * @Author cclilshy
      * @Date   2024/8/15 14:47
-     * @param Closure $onMessage
-     * @return void
-     */
-    public function onMessage(Closure $onMessage): void
-    {
-        $this->onMessage = $onMessage;
-    }
-
-    /**
-     * @Author cclilshy
-     * @Date   2024/8/15 14:47
-     * @param Closure $onClose
-     * @return void
-     */
-    public function onClose(Closure $onClose): void
-    {
-        $this->onClose = $onClose;
-    }
-
-    /**
-     * @Author cclilshy
-     * @Date   2024/8/15 14:47
-     * @param Closure $onError
-     * @return void
-     */
-    public function onError(Closure $onError): void
-    {
-        $this->onError = $onError;
-    }
-
-    /**
-     * @Author cclilshy
-     * @Date   2024/8/15 14:47
+     *
      * @param Closure $onOpen
+     *
      * @return void
      */
     public function onOpen(Closure $onOpen): void
@@ -465,20 +462,39 @@ class Connection
     /**
      * @Author cclilshy
      * @Date   2024/8/15 14:47
+     *
+     * @param Closure $onMessage
+     *
      * @return void
      */
-    public function close(): void
+    public function onMessage(Closure $onMessage): void
     {
-        if (isset($this->stream)) {
-            $this->stream->close();
+        $this->onMessage = $onMessage;
+    }
 
-            if (isset($this->onClose)) {
-                try {
-                    call_user_func($this->onClose, $this);
-                } catch (Throwable $e) {
-                    Output::error($e->getMessage());
-                }
-            }
-        }
+    /**
+     * @Author cclilshy
+     * @Date   2024/8/15 14:47
+     *
+     * @param Closure $onClose
+     *
+     * @return void
+     */
+    public function onClose(Closure $onClose): void
+    {
+        $this->onClose = $onClose;
+    }
+
+    /**
+     * @Author cclilshy
+     * @Date   2024/8/15 14:47
+     *
+     * @param Closure $onError
+     *
+     * @return void
+     */
+    public function onError(Closure $onError): void
+    {
+        $this->onError = $onError;
     }
 }

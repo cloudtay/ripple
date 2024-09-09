@@ -65,15 +65,21 @@ use const SOL_SOCKET;
  */
 class SocketStream extends Stream
 {
+    /**
+     * @var Socket
+     */
     public Socket $socket;
+
     /**
      * @var bool
      */
     private bool $blocking = false;
+
     /**
      * @var Stream|null
      */
     private Stream|null $storageCacheWrite = null;
+
     /**
      * @var Stream|null
      */
@@ -105,6 +111,7 @@ class SocketStream extends Stream
         if (!$socket = socket_import_stream($this->stream)) {
             throw new RuntimeException('Failed to import stream');
         }
+
         $this->socket = $socket;
 
         if (!$peerName) {
@@ -140,6 +147,7 @@ class SocketStream extends Stream
      * @param int   $level
      * @param int   $option
      * @param mixed $value
+     *
      * @return void
      */
     public function setOption(int $level, int $option, mixed $value): void
@@ -152,9 +160,11 @@ class SocketStream extends Stream
     /**
      * @Author cclilshy
      * @Date   2024/9/2 20:41
+     *
      * @param int      $length
      * @param mixed    $target
      * @param int|null $flags
+     *
      * @return int
      * @throws ConnectionException
      */
@@ -169,6 +179,7 @@ class SocketStream extends Stream
 
     /**
      * @param string $string
+     *
      * @return int
      * @throws ConnectionException
      */
@@ -178,10 +189,11 @@ class SocketStream extends Stream
             if ($this->storageCacheWrite === null) {
                 $tempFilePath            = sys_get_temp_dir() . '/' . uniqid('buf_');
                 $this->storageCacheWrite = IO::File()->open($tempFilePath, 'w+');
-                $this->storageCacheWrite->setBlocking(true);
-                $this->storageCacheRead = IO::File()->open($tempFilePath, 'r+');
+                $this->storageCacheRead  = IO::File()->open($tempFilePath, 'r+');
 
-                $this->onClose(function () use ($tempFilePath) {
+                $this->storageCacheWrite->setBlocking(true);
+
+                $closeEventId = $this->onClose(function () use ($tempFilePath) {
                     $this->storageCacheWrite->close();
                     $this->storageCacheRead->close();
 
@@ -190,7 +202,7 @@ class SocketStream extends Stream
                     }
                 });
 
-                $this->onWritable(function ($_, $cancel) use ($tempFilePath) {
+                $this->onWritable(function ($_, $cancel) use ($tempFilePath, $closeEventId) {
                     if ($this->storageCacheRead->eof()) {
                         $this->blocking = false;
                         $this->storageCacheWrite->close();
@@ -203,12 +215,11 @@ class SocketStream extends Stream
                         $this->storageCacheWrite = null;
                         $this->storageCacheRead  = null;
                         $cancel();
+                        $this->cancelOnClose($closeEventId);
                         return;
                     }
 
-                    $string = $this->storageCacheRead->read(
-                        $this->getOption(SOL_SOCKET, SO_SNDLOWAT)
-                    );
+                    $string = $this->storageCacheRead->read($this->getOption(SOL_SOCKET, SO_SNDLOWAT));
                     parent::write($string);
                 });
             }
@@ -230,6 +241,7 @@ class SocketStream extends Stream
     /**
      * @param int $level
      * @param int $option
+     *
      * @return array|int
      */
     public function getOption(int $level, int $option): array|int

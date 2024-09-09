@@ -45,22 +45,24 @@ class Future
     /*** @var Closure */
     private Closure $onError;
     private mixed   $result;
+    /**
+     * @var Closure
+     */
+    private Closure $onValue;
+    /**
+     * @deprecated 用户的主动行为是否应该回调？
+     * @var Closure
+     */
+    private Closure $onCancelled;
+    /**
+     * @deprecated 用户的主动行为是否应该回调？
+     * @var Closure
+     */
+    private Closure $onKilled;
 
     /*** @param \parallel\Future $future */
     public function __construct(public readonly \parallel\Future $future)
     {
-    }
-
-    /**
-     * @return mixed
-     * @throws Throwable
-     */
-    public function value(): mixed
-    {
-        if (isset($this->result)) {
-            return $this->result;
-        }
-        return $this->result = $this->future->value();
     }
 
     /**
@@ -89,6 +91,7 @@ class Future
 
     /**
      * @param Closure $onError
+     *
      * @return Future
      */
     public function onError(Closure $onError): Future
@@ -99,6 +102,7 @@ class Future
 
     /**
      * @param Event $event
+     *
      * @return void
      */
     public function onEvent(Events\Event $event): void
@@ -129,12 +133,8 @@ class Future
     }
 
     /**
-     * @var Closure
-     */
-    private Closure $onValue;
-
-    /**
      * @param Closure $onValue
+     *
      * @return $this
      */
     public function onValue(Closure $onValue): Future
@@ -155,21 +155,22 @@ class Future
     }
 
     /**
-     * @deprecated 用户的主动行为是否应该回调？
-     * @var Closure
+     * @return mixed
+     * @throws Throwable
      */
-    private Closure $onCancelled;
+    public function value(): mixed
+    {
+        if (isset($this->result)) {
+            return $this->result;
+        }
+        return $this->result = $this->future->value();
+    }
 
     /**
-     * @deprecated 用户的主动行为是否应该回调？
-     * @var Closure
-     */
-    private Closure $onKilled;
-
-    /**
-     * @deprecated 用户的主动行为是否应该回调？
      * @param Closure $onKilled
+     *
      * @return Future
+     * @deprecated 用户的主动行为是否应该回调？
      */
     public function onKilled(Closure $onKilled): Future
     {
@@ -178,9 +179,10 @@ class Future
     }
 
     /**
-     * @deprecated 用户的主动行为是否应该回调？
      * @param Closure $onCancelled
+     *
      * @return Future
+     * @deprecated 用户的主动行为是否应该回调？
      */
     public function onCancelled(Closure $onCancelled): Future
     {

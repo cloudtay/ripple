@@ -35,9 +35,9 @@
 namespace Psc\Core\Http\Client;
 
 use Co\IO;
+use Psc\Core\Socket\SocketStream;
 use Psc\Core\Socket\Tunnel\ProxyHttp;
 use Psc\Core\Socket\Tunnel\ProxySocks5;
-use Psc\Core\Socket\SocketStream;
 use Psc\Core\Stream\Exception\ConnectionException;
 use Throwable;
 
@@ -63,12 +63,6 @@ class ConnectionPool
         $this->registerForkHandler();
     }
 
-    public function __destruct()
-    {
-        $this->clearConnectionPool();
-        cancelForkHandler($this->forkEventId);
-    }
-
     /**
      * @Author cclilshy
      * @Date   2024/8/29 23:18
@@ -83,20 +77,56 @@ class ConnectionPool
     }
 
     /**
+     * @Author cclilshy
+     * @Date   2024/8/29 23:18
+     *
+     * @param string|null $key
+     *
+     * @return void
+     */
+    public function clearConnectionPool(string|null $key = null): void
+    {
+        if ($key) {
+            if (!isset($this->idleConnections[$key])) {
+                return;
+            }
+            foreach ($this->idleConnections[$key] as $connection) {
+                $connection->stream->close();
+            }
+            unset($this->idleConnections[$key]);
+            return;
+        }
+
+        foreach ($this->idleConnections as $keyI => $connections) {
+            foreach ($connections as $keyK => $connection) {
+                $connection->stream->close();
+                unset($this->idleConnections[$keyI][$keyK]);
+            }
+        }
+    }
+
+    public function __destruct()
+    {
+        $this->clearConnectionPool();
+        cancelForkHandler($this->forkEventId);
+    }
+
+    /**
      * @param string      $host
      * @param int         $port
      * @param bool        $ssl
      * @param int|float   $timeout
      * @param string|null $proxy http://username:password@proxy.example.com:8080
+     *
      * @return Connection
      * @throws ConnectionException
      * @throws Throwable
      */
     public function pullConnection(
-        string $host,
-        int $port,
-        bool $ssl = false,
-        int|float $timeout = 0,
+        string      $host,
+        int         $port,
+        bool        $ssl = false,
+        int|float   $timeout = 0,
         string|null $proxy = null,
     ): Connection {
         $key = ConnectionPool::generateConnectionKey($host, $port);
@@ -120,12 +150,28 @@ class ConnectionPool
 
     /**
      * @Author cclilshy
+     * @Date   2024/8/29 09:43
+     *
+     * @param string $host
+     * @param int    $port
+     *
+     * @return string
+     */
+    public static function generateConnectionKey(string $host, int $port): string
+    {
+        return "{$host}:{$port}";
+    }
+
+    /**
+     * @Author cclilshy
      * @Date   2024/8/29 23:18
+     *
      * @param string      $host
      * @param int         $port
      * @param bool        $ssl
      * @param int|float   $timeout
      * @param string|null $proxy
+     *
      * @return Connection
      * @throws ConnectionException
      * @throws Throwable
@@ -155,8 +201,10 @@ class ConnectionPool
     /**
      * @Author cclilshy
      * @Date   2024/8/29 23:18
+     *
      * @param array $parse
      * @param array $payload
+     *
      * @return SocketStream
      * @throws ConnectionException
      * @throws Throwable
@@ -179,55 +227,10 @@ class ConnectionPool
     /**
      * @Author cclilshy
      * @Date   2024/8/29 23:18
-     * @param string     $key
-     * @param Connection $connection
-     * @return void
-     */
-    private function removeConnection(string $key, Connection $connection): void
-    {
-        $streamId = $connection->stream->id;
-        unset($this->idleConnections[$key][$streamId]);
-        if (empty($this->idleConnections[$key])) {
-            unset($this->idleConnections[$key]);
-        }
-        if (isset($this->listenEventMap[$streamId])) {
-            cancel($this->listenEventMap[$streamId]);
-            unset($this->listenEventMap[$streamId]);
-        }
-    }
-
-    /**
-     * @Author cclilshy
-     * @Date   2024/8/29 23:18
-     * @param string|null $key
-     * @return void
-     */
-    public function clearConnectionPool(string|null $key = null): void
-    {
-        if ($key) {
-            if (!isset($this->idleConnections[$key])) {
-                return;
-            }
-            foreach ($this->idleConnections[$key] as $connection) {
-                $connection->stream->close();
-            }
-            unset($this->idleConnections[$key]);
-            return;
-        }
-
-        foreach ($this->idleConnections as $keyI => $connections) {
-            foreach ($connections as $keyK => $connection) {
-                $connection->stream->close();
-                unset($this->idleConnections[$keyI][$keyK]);
-            }
-        }
-    }
-
-    /**
-     * @Author cclilshy
-     * @Date   2024/8/29 23:18
+     *
      * @param Connection $connection
      * @param string     $key
+     *
      * @return void
      */
     public function pushConnection(Connection $connection, string $key): void
@@ -252,13 +255,23 @@ class ConnectionPool
 
     /**
      * @Author cclilshy
-     * @Date   2024/8/29 09:43
-     * @param string $host
-     * @param int    $port
-     * @return string
+     * @Date   2024/8/29 23:18
+     *
+     * @param string     $key
+     * @param Connection $connection
+     *
+     * @return void
      */
-    public static function generateConnectionKey(string $host, int $port): string
+    private function removeConnection(string $key, Connection $connection): void
     {
-        return  "{$host}:{$port}";
+        $streamId = $connection->stream->id;
+        unset($this->idleConnections[$key][$streamId]);
+        if (empty($this->idleConnections[$key])) {
+            unset($this->idleConnections[$key]);
+        }
+        if (isset($this->listenEventMap[$streamId])) {
+            cancel($this->listenEventMap[$streamId]);
+            unset($this->listenEventMap[$streamId]);
+        }
     }
 }

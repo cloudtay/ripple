@@ -35,6 +35,8 @@
     "psr/http-message": "*"
   },
   "require-dev": {
+    "ext-posix": "*",
+    "ext-pcntl": "*",
     "ext-curl": "*",
     "ext-parallel": "*",
     "phpunit/phpunit": "*",

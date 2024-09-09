@@ -43,8 +43,8 @@ use Psc\Core\LibraryAbstract;
 use Psc\Kernel;
 use ReflectionClass;
 use Revolt\EventLoop;
-use Throwable;
 use RuntimeException;
+use Throwable;
 
 use function Co\cancel;
 use function Co\defer;
@@ -89,30 +89,35 @@ class Parallel extends LibraryAbstract
 
     /**
      * 索引
+     *
      * @var int
      */
     private int $index;
 
     /**
      * 事件分发线程
+     *
      * @var Runtime
      */
     private Runtime $counterRuntime;
 
     /**
      * 事件分发线程Future
+     *
      * @var \parallel\Future
      */
     private \parallel\Future $counterFuture;
 
     /**
      * 事件计数通道
+     *
      * @var Channel
      */
     private Channel $counterChannel;
 
     /**
      * 事件计数标量
+     *
      * @var Sync
      */
     private Sync $eventScalar;
@@ -129,31 +134,13 @@ class Parallel extends LibraryAbstract
     }
 
     /**
-     * @Author cclilshy
-     * @Date   2024/8/30 22:11
-     * @return static
-     * @throws RuntimeException
-     */
-    public static function getInstance(): static
-    {
-        /**
-         * @compatible:Windows
-         */
-        if (!Kernel::getInstance()->supportProcessControl()) {
-            throw new RuntimeException('Parallel is not supported on Windows');
-        }
-
-        return parent::getInstance();
-    }
-
-    /**
      * @return void
      */
     private function initialize(): void
     {
         // 初始化自动加载地址
-        $reflector = new ReflectionClass(ClassLoader::class);
-        $vendorDir = dirname($reflector->getFileName(), 2);
+        $reflector          = new ReflectionClass(ClassLoader::class);
+        $vendorDir          = dirname($reflector->getFileName(), 2);
         Parallel::$autoload = "{$vendorDir}/autoload.php";
 
         // 获取CPU核心数
@@ -191,9 +178,9 @@ class Parallel extends LibraryAbstract
 
         // 初始化标量同步器
         $this->counterChannel = $this->makeChannel('counter');
-        $this->eventScalar = new Sync(0);
+        $this->eventScalar    = new Sync(0);
         $this->counterRuntime = new Runtime(Parallel::$autoload);
-        $this->counterFuture = $this->counterRuntime->run(static function ($channel, $eventScalar) {
+        $this->counterFuture  = $this->counterRuntime->run(static function ($channel, $eventScalar) {
             $eventScalar(fn () => $eventScalar->wait());
             /**
              * @compatible:Windows
@@ -235,13 +222,49 @@ class Parallel extends LibraryAbstract
     }
 
     /**
+     * @param string   $name
+     * @param int|null $capacity
+     *
+     * @return Channel
+     */
+    public function makeChannel(string $name, int|null $capacity = null): Channel
+    {
+        return is_int($capacity)
+            ? new Channel(\parallel\Channel::make($name, $capacity))
+            : new Channel(\parallel\Channel::make($name));
+    }
+
+    /**
+     * @param Thread $thread
+     * @param        ...$argv
+     *
+     * @return Future
+     */
+    public function run(Thread $thread, ...$argv): Future
+    {
+        if (!isset($this->signalHandlerId)) {
+            try {
+                $this->signalHandlerId = onSignal(SIGUSR2, fn () => $this->poll());
+                defer(function () {
+                    $this->eventScalar->notify();
+                });
+            } catch (EventLoop\UnsupportedFeatureException) {
+            }
+        }
+        $future                       = $thread(...$argv);
+        $this->futures[$thread->name] = $future;
+        $this->events->addFuture($thread->name, $future->future);
+        return $future;
+    }
+
+    /**
      * @return void
      */
     private function poll(): void
     {
         while ($number = $this->eventScalar->get()) {
             for ($i = 0; $i < $number; $i++) {
-                $event =  $this->events->poll();
+                $event = $this->events->poll();
                 if (!$event) {
                     continue;
                 }
@@ -279,7 +302,26 @@ class Parallel extends LibraryAbstract
     }
 
     /**
+     * @Author cclilshy
+     * @Date   2024/8/30 22:11
+     * @return static
+     * @throws RuntimeException
+     */
+    public static function getInstance(): static
+    {
+        /**
+         * @compatible:Windows
+         */
+        if (!Kernel::getInstance()->supportProcessControl()) {
+            throw new RuntimeException('Parallel is not supported on Windows');
+        }
+
+        return parent::getInstance();
+    }
+
+    /**
      * @param string $name
+     *
      * @return Channel
      */
     public function openChannel(string $name): Channel
@@ -288,47 +330,14 @@ class Parallel extends LibraryAbstract
     }
 
     /**
-     * @param string   $name
-     * @param int|null $capacity
-     * @return Channel
-     */
-    public function makeChannel(string $name, int|null $capacity = null): Channel
-    {
-        return is_int($capacity)
-            ? new Channel(\parallel\Channel::make($name, $capacity))
-            : new Channel(\parallel\Channel::make($name));
-    }
-
-    /**
      * @param Closure $closure
+     *
      * @return Thread
      */
     public function thread(Closure $closure): Thread
     {
         $name = strval($this->index++);
         return new Thread($closure, $name);
-    }
-
-    /**
-     * @param Thread $thread
-     * @param        ...$argv
-     * @return Future
-     */
-    public function run(Thread $thread, ...$argv): Future
-    {
-        if (!isset($this->signalHandlerId)) {
-            try {
-                $this->signalHandlerId = onSignal(SIGUSR2, fn () => $this->poll());
-                defer(function () {
-                    $this->eventScalar->notify();
-                });
-            } catch (EventLoop\UnsupportedFeatureException) {
-            }
-        }
-        $future = $thread(...$argv);
-        $this->futures[$thread->name] = $future;
-        $this->events->addFuture($thread->name, $future->future);
-        return $future;
     }
 
     /**

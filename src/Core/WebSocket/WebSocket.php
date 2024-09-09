@@ -54,6 +54,7 @@ class WebSocket extends LibraryAbstract
      * @param string     $address
      * @param int|float  $timeout
      * @param mixed|null $context
+     *
      * @return Connection
      */
     public function connect(string $address, int|float $timeout = 10, mixed $context = null): Connection
@@ -65,6 +66,7 @@ class WebSocket extends LibraryAbstract
      * @param string       $address
      * @param mixed        $context
      * @param Options|null $options
+     *
      * @return Server
      * @throws Throwable
      */

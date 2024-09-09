@@ -134,6 +134,7 @@ class ServerSentEvents
      * 解析 Headers
      *
      * @param string $header
+     *
      * @return void
      */
     private function parseHeaders(string $header): void
@@ -178,6 +179,7 @@ class ServerSentEvents
      * Parse single event data
      *
      * @param string $eventData
+     *
      * @return array
      */
     private function parseEvent(string $eventData): array

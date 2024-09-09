@@ -36,10 +36,12 @@ namespace Psc\Core\Http\Server;
 
 use Closure;
 use Co\IO;
+use Exception;
 use Psc\Core\Http\Server\Exception\FormatException;
 use Psc\Core\Socket\SocketStream;
 use Psc\Core\Stream\Exception\ConnectionException;
 use Psc\Core\Stream\Exception\RuntimeException;
+use Psc\Core\Stream\Transaction;
 use Psc\Kernel;
 use Psc\Utils\Output;
 use Throwable;
@@ -52,13 +54,9 @@ use function strlen;
 use function strtolower;
 
 use const SO_KEEPALIVE;
-use const SO_RCVBUF;
 use const SO_REUSEADDR;
 use const SO_REUSEPORT;
-use const SO_SNDBUF;
 use const SOL_SOCKET;
-use const SOL_TCP;
-use const TCP_NODELAY;
 
 /**
  * Http服务类
@@ -67,6 +65,7 @@ class HttpServer
 {
     /**
      * 请求处理器
+     *
      * @var Closure
      */
     public Closure       $onRequest;
@@ -75,6 +74,7 @@ class HttpServer
     /**
      * @param string     $address
      * @param mixed|null $context
+     *
      * @throws Throwable
      */
     public function __construct(string $address, mixed $context = null)
@@ -89,7 +89,7 @@ class HttpServer
         $tcpAddressExploded = explode(':', $tcpAddress);
         $host               = $tcpAddressExploded[0];
         $port               = $tcpAddressExploded[1] ?? match ($scheme) {
-            'http' => 80,
+            'http'  => 80,
             'https' => 443,
             default => throw new RuntimeException('Address format error')
         };
@@ -132,27 +132,29 @@ class HttpServer
             /**
              * Debug: 低水位 & 缓冲区
              */
-            //$lowWaterMarkRecv = socket_get_option($clientSocket, SOL_SOCKET, SO_RCVLOWAT);
-            //$lowWaterMarkSend = socket_get_option($clientSocket, SOL_SOCKET, SO_SNDLOWAT);
-            //$recvBuffer       = socket_get_option($clientSocket, SOL_SOCKET, SO_RCVBUF);
-            //$sendBuffer       = socket_get_option($clientSocket, SOL_SOCKET, SO_SNDBUF);
-            //var_dump($lowWaterMarkRecv, $lowWaterMarkSend, $recvBuffer, $sendBuffer);
+            //            $lowWaterMarkRecv = socket_get_option($clientSocket, SOL_SOCKET, SO_RCVLOWAT);
+            //            $lowWaterMarkSend = socket_get_option($clientSocket, SOL_SOCKET, SO_SNDLOWAT);
+            //            $recvBuffer       = socket_get_option($clientSocket, SOL_SOCKET, SO_RCVBUF);
+            //            $sendBuffer       = socket_get_option($clientSocket, SOL_SOCKET, SO_SNDBUF);
+            //            var_dump($lowWaterMarkRecv, $lowWaterMarkSend, $recvBuffer, $sendBuffer);
 
             /**
              * 优化缓冲区: 256kb标准速率帧
              */
-            $client->setOption(SOL_SOCKET, SO_RCVBUF, 256000);
-            $client->setOption(SOL_SOCKET, SO_SNDBUF, 256000);
-            $client->setOption(SOL_TCP, TCP_NODELAY, 1);
+            //            $client->setOption(SOL_SOCKET, SO_RCVBUF, 256000);
+            //            $client->setOption(SOL_SOCKET, SO_SNDBUF, 256000);
+            //            $client->setOption(SOL_TCP, TCP_NODELAY, 1);
 
             /**
              * 设置发送低水位防止充盈内存
+             *
              * @deprecated 兼容未覆盖
              */
             //$client->setOption(SOL_SOCKET, SO_SNDLOWAT, 1024);
 
             /**
              * CPU亲密度
+             *
              * @deprecated 兼容未覆盖
              */
             //socket_set_option($clientSocket, SOL_SOCKET, SO_INCOMING_CPU, 1);
@@ -162,6 +164,7 @@ class HttpServer
 
     /**
      * @param SocketStream $stream
+     *
      * @return void
      */
     private function addClient(SocketStream $stream): void
@@ -239,10 +242,22 @@ class HttpServer
                 return;
             }
         });
+
+        while (1) {
+            try {
+                $stream->transaction(function (Transaction $transaction) {
+                    $transaction->onClose(static fn () => $transaction->fail(new Exception('connection close')));
+                    $transaction->getPromise()->await();
+                });
+            } catch (Throwable) {
+                break;
+            }
+        }
     }
 
     /**
      * @param Closure $onRequest
+     *
      * @return void
      */
     public function onRequest(Closure $onRequest): void

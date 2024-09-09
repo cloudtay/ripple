@@ -52,7 +52,7 @@ use function substr;
  */
 class ProxySocks5 extends Base
 {
-    private int $step = 0;
+    private int    $step   = 0;
     private string $readEventId;
     private string $buffer = '';
 
@@ -98,6 +98,7 @@ class ProxySocks5 extends Base
     /**
      * @param Closure $resolve
      * @param Closure $reject
+     *
      * @return void
      * @throws ConnectionException
      */
@@ -122,6 +123,7 @@ class ProxySocks5 extends Base
     /**
      * @param Closure $resolve
      * @param Closure $reject
+     *
      * @return void
      * @throws ConnectionException
      */
@@ -131,7 +133,7 @@ class ProxySocks5 extends Base
             return;
         }
 
-        $response = substr($this->buffer, 0, 2);
+        $response     = substr($this->buffer, 0, 2);
         $this->buffer = substr($this->buffer, 2);
 
         if ($response === "\x05\x00") {
@@ -151,8 +153,37 @@ class ProxySocks5 extends Base
     }
 
     /**
+     * @param string $host
+     * @param int    $port
+     *
+     * @return void
+     * @throws ConnectionException
+     */
+    private function sendBindRequest(string $host, int $port): void
+    {
+        $hostLen    = chr(strlen($host));
+        $portPacked = pack('n', $port);
+        $request    = "\x05\x01\x00\x03" . $hostLen . $host . $portPacked;
+        $this->proxy->write($request);
+    }
+
+    /**
+     * @param string $username
+     * @param string $password
+     *
+     * @return void
+     * @throws ConnectionException
+     */
+    private function sendAuthRequest(string $username, string $password): void
+    {
+        $request = "\x01" . chr(strlen($username)) . $username . chr(strlen($password)) . $password;
+        $this->proxy->write($request);
+    }
+
+    /**
      * @param Closure $resolve
      * @param Closure $reject
+     *
      * @return void
      */
     private function handleBindResponse(Closure $resolve, Closure $reject): void
@@ -161,7 +192,7 @@ class ProxySocks5 extends Base
             return;
         }
 
-        $response = substr($this->buffer, 0, 10);
+        $response     = substr($this->buffer, 0, 10);
         $this->buffer = substr($this->buffer, 10);
 
         if ($response[1] === "\x00") {
@@ -178,6 +209,7 @@ class ProxySocks5 extends Base
     /**
      * @param Closure $resolve
      * @param Closure $reject
+     *
      * @return void
      * @throws ConnectionException
      */
@@ -187,7 +219,7 @@ class ProxySocks5 extends Base
             return;
         }
 
-        $response = substr($this->buffer, 0, 2);
+        $response     = substr($this->buffer, 0, 2);
         $this->buffer = substr($this->buffer, 2);
 
         if ($response === "\x01\x00") {
@@ -196,31 +228,5 @@ class ProxySocks5 extends Base
         } else {
             $reject(new Exception("Authentication failed with response: " . bin2hex($response)));
         }
-    }
-
-    /**
-     * @param string $username
-     * @param string $password
-     * @return void
-     * @throws ConnectionException
-     */
-    private function sendAuthRequest(string $username, string $password): void
-    {
-        $request = "\x01" . chr(strlen($username)) . $username . chr(strlen($password)) . $password;
-        $this->proxy->write($request);
-    }
-
-    /**
-     * @param string $host
-     * @param int    $port
-     * @return void
-     * @throws ConnectionException
-     */
-    private function sendBindRequest(string $host, int $port): void
-    {
-        $hostLen    = chr(strlen($host));
-        $portPacked = pack('n', $port);
-        $request    = "\x05\x01\x00\x03" . $hostLen . $host . $portPacked;
-        $this->proxy->write($request);
     }
 }

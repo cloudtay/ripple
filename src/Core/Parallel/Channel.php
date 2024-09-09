@@ -43,6 +43,7 @@ class Channel
 
     /**
      * @param mixed $value
+     *
      * @return void
      */
     public function send(mixed $value): void

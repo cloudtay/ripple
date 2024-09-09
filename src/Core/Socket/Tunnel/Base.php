@@ -54,6 +54,7 @@ abstract class Base
 {
     /**
      * 与代理之间的套接字连接
+     *
      * @var SocketStream
      */
     protected SocketStream $proxy;
@@ -62,6 +63,7 @@ abstract class Base
      * @param string $address
      * @param array  $payload
      * @param bool   $ssl
+     *
      * @throws Throwable
      */
     public function __construct(protected string $address, protected array $payload, bool $ssl = false)
@@ -82,16 +84,6 @@ abstract class Base
 
     /**
      * @Author cclilshy
-     * @Date   2024/8/29 12:33
-     * @return SocketStream
-     */
-    public function getSocketStream(): SocketStream
-    {
-        return $this->proxy;
-    }
-
-    /**
-     * @Author cclilshy
      * @Date   2024/8/29 11:34
      * @return Promise<bool>
      */
@@ -100,14 +92,26 @@ abstract class Base
     /**
      * @Author cclilshy
      * @Date   2024/8/29 12:38
+     *
      * @param string $address
      * @param array  $payload
      * @param bool   $ssl
+     *
      * @return static
      * @throws Throwable
      */
     public static function connect(string $address, array $payload, bool $ssl = false): static
     {
-        return new static($address, $payload,$ssl);
+        return new static($address, $payload, $ssl);
+    }
+
+    /**
+     * @Author cclilshy
+     * @Date   2024/8/29 12:33
+     * @return SocketStream
+     */
+    public function getSocketStream(): SocketStream
+    {
+        return $this->proxy;
     }
 }

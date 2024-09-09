@@ -1,4 +1,38 @@
-<?php declare(strict_types=1);
+<?php
+/*
+ * Copyright (c) 2023-2024.
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *
+ * 特此免费授予任何获得本软件及相关文档文件（“软件”）副本的人，不受限制地处理
+ * 本软件，包括但不限于使用、复制、修改、合并、出版、发行、再许可和/或销售
+ * 软件副本的权利，并允许向其提供本软件的人做出上述行为，但须符合以下条件：
+ *
+ * 上述版权声明和本许可声明应包含在本软件的所有副本或主要部分中。
+ *
+ * 本软件按“原样”提供，不提供任何形式的保证，无论是明示或暗示的，
+ * 包括但不限于适销性、特定目的的适用性和非侵权性的保证。在任何情况下，
+ * 无论是合同诉讼、侵权行为还是其他方面，作者或版权持有人均不对
+ * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
+ */
+
+declare(strict_types=1);
 /*
  * Copyright (c) 2023-2024.
  *
@@ -35,7 +69,10 @@
 namespace Psc\Core\Stream;
 
 use Closure;
+use Exception;
+use Psc\Core\Coroutine\Promise;
 use Psc\Core\Stream\Exception\ConnectionException;
+use Psc\Kernel;
 use Psc\Utils\Output;
 use Revolt\EventLoop;
 use Throwable;
@@ -68,11 +105,22 @@ class Stream extends StreamBase
     private array $onCloseCallbacks = array();
 
     /**
+     * @var int
+     */
+    private int $index = 0;
+
+    /**
+     * @var Transaction
+     */
+    private Transaction $transaction;
+
+    /**
      * @param mixed $resource
      */
     public function __construct(mixed $resource)
     {
         parent::__construct($resource);
+
         $this->onClose(function () {
             if (isset($this->onReadable)) {
                 cancel($this->onReadable);
@@ -86,15 +134,28 @@ class Stream extends StreamBase
 
     /**
      * @param Closure $closure
+     *
+     * @return string
+     */
+    public function onClose(Closure $closure): string
+    {
+        $this->onCloseCallbacks[$key = Kernel::int2string($this->index++)] = $closure;
+        return $key;
+    }
+
+    /**
+     * @param string $key
+     *
      * @return void
      */
-    public function onClose(Closure $closure): void
+    public function cancelOnClose(string $key): void
     {
-        $this->onCloseCallbacks[] = $closure;
+        unset($this->onCloseCallbacks[$key]);
     }
 
     /**
      * @param Closure $closure
+     *
      * @return string
      */
     public function onReadable(Closure $closure): string
@@ -120,10 +181,29 @@ class Stream extends StreamBase
         });
     }
 
+    /**
+     * @return void
+     */
+    public function close(): void
+    {
+        if (is_resource($this->stream) === false) {
+            return;
+        }
 
+        parent::close();
+
+        foreach ($this->onCloseCallbacks as $callback) {
+            try {
+                call_user_func($callback);
+            } catch (Throwable $e) {
+                Output::error($e->getMessage());
+            }
+        }
+    }
 
     /**
      * @param Closure $closure
+     *
      * @return string
      */
     public function onWritable(Closure $closure): string
@@ -143,15 +223,16 @@ class Stream extends StreamBase
                 ]);
             } catch (ConnectionException $e) {
                 $this->close();
-                Output::error($e->getMessage());
             } catch (Throwable $e) {
                 Output::error($e->getMessage());
             }
         });
     }
 
+
     /**
      * @param bool $bool
+     *
      * @return bool
      */
     public function setBlocking(bool $bool): bool
@@ -160,22 +241,54 @@ class Stream extends StreamBase
     }
 
     /**
+     * @param Transaction $transaction
+     *
      * @return void
      */
-    public function close(): void
+    private function setTransaction(Transaction $transaction): void
     {
-        if (is_resource($this->stream) === false) {
-            return;
+        if (isset($this->transaction)) {
+            $this->doneTransaction();
+            unset($this->transaction);
         }
 
-        parent::close();
+        $this->transaction = $transaction;
+    }
 
-        foreach ($this->onCloseCallbacks as $callback) {
-            try {
-                call_user_func($callback);
-            } catch (Throwable $e) {
-                Output::error($e->getMessage());
-            }
+    /**
+     * @param Closure $closure
+     *
+     * @return void
+     * @throws Throwable
+     */
+    public function transaction(Closure $closure): void
+    {
+        if (isset($this->transaction) && $this->transaction->getPromise()->getStatus() === Promise::PENDING) {
+            throw new Exception('Transaction has been completed');
+        }
+
+        $this->setTransaction(new Transaction($this));
+        call_user_func_array($closure, [$this->getTransaction()]);
+    }
+
+    /**
+     * @return \Psc\Core\Stream\Transaction|null
+     */
+    public function getTransaction(): Transaction|null
+    {
+        if (isset($this->transaction)) {
+            return $this->transaction;
+        }
+        return null;
+    }
+
+    /**
+     * @return void
+     */
+    public function doneTransaction(): void
+    {
+        if (isset($this->transaction)) {
+            $this->transaction->complete();
         }
     }
 }

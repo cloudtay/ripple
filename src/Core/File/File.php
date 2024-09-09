@@ -55,9 +55,32 @@ class File extends LibraryAbstract
      * @var LibraryAbstract
      */
     protected static LibraryAbstract $instance;
+    /**
+     * @var Monitor[]
+     */
+    private array $monitors = array();
+
+    public function __construct()
+    {
+        $this->registerOnFork();
+    }
+
+    /**
+     * @return void
+     */
+    private function registerOnFork(): void
+    {
+        registerForkHandler(function () {
+            while ($monitor = array_shift($this->monitors)) {
+                $monitor->stop();
+            }
+            $this->registerOnFork();
+        });
+    }
 
     /**
      * @param string $path
+     *
      * @return Promise
      */
     public function getContents(string $path): Promise
@@ -99,6 +122,7 @@ class File extends LibraryAbstract
     /**
      * @param string $path
      * @param string $mode
+     *
      * @return Stream
      */
     public function open(string $path, string $mode): Stream
@@ -113,28 +137,5 @@ class File extends LibraryAbstract
     {
         $this->monitors[] = $monitor = new Monitor();
         return $monitor;
-    }
-
-    /**
-     * @var Monitor[]
-     */
-    private array $monitors = array();
-
-    public function __construct()
-    {
-        $this->registerOnFork();
-    }
-
-    /**
-     * @return void
-     */
-    private function registerOnFork(): void
-    {
-        registerForkHandler(function () {
-            while ($monitor = array_shift($this->monitors)) {
-                $monitor->stop();
-            }
-            $this->registerOnFork();
-        });
     }
 }

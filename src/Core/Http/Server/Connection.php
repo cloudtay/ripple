@@ -63,37 +63,37 @@ use const PHP_URL_PATH;
 class Connection
 {
     /*** @var int */
-    private int                   $step;
+    private int $step;
 
     /*** @var array */
-    private array                 $query;
+    private array $query;
 
     /*** @var array */
-    private array                 $request;
+    private array $request;
 
     /*** @var array */
-    private array                 $attributes;
+    private array $attributes;
 
     /*** @var array */
-    private array                 $cookies;
+    private array $cookies;
 
     /*** @var array */
-    private array                 $files;
+    private array $files;
 
     /*** @var array */
-    private array                 $server;
+    private array $server;
 
     /*** @var string */
-    private string                $content;
+    private string $content;
 
     /*** @var string */
-    private string                $buffer;
+    private string $buffer;
 
     /*** @var MultipartHandler|null */
     private MultipartHandler|null $multipartHandler;
 
     /*** @var int */
-    private int                   $bodyLength;
+    private int $bodyLength;
 
     /*** @var int */
     private int $contentLength;
@@ -111,22 +111,23 @@ class Connection
      */
     private function reset(): void
     {
-        $this->step          = 0;
-        $this->query         = array();
-        $this->request       = array();
-        $this->attributes    = array();
-        $this->cookies       = array();
-        $this->files         = array();
-        $this->server        = array();
-        $this->content       = '';
-        $this->buffer        = '';
+        $this->step             = 0;
+        $this->query            = array();
+        $this->request          = array();
+        $this->attributes       = array();
+        $this->cookies          = array();
+        $this->files            = array();
+        $this->server           = array();
+        $this->content          = '';
+        $this->buffer           = '';
         $this->multipartHandler = null;
-        $this->bodyLength    = 0;
-        $this->contentLength = 0;
+        $this->bodyLength       = 0;
+        $this->contentLength    = 0;
     }
 
     /**
      * @param string $content
+     *
      * @return Request|null
      * @throws Exception\FormatException
      * @throws RuntimeException
@@ -141,9 +142,9 @@ class Connection
                 /**
                  * 切割解析head与body部分
                  */
-                $this->step       = 1;
-                $header           = substr($buffer, 0, $headerEnd);
-                $base             = strtok($header, "\r\n");
+                $this->step = 1;
+                $header     = substr($buffer, 0, $headerEnd);
+                $base       = strtok($header, "\r\n");
 
                 if (count($base = explode(' ', $base)) !== 3) {
                     throw new RuntimeException('Request head is not match');
@@ -183,7 +184,7 @@ class Connection
                     }
                 }
 
-                $body = substr($buffer, $headerEnd + 4);
+                $body             = substr($buffer, $headerEnd + 4);
                 $this->bodyLength += strlen($body);
 
                 /**
@@ -207,9 +208,9 @@ class Connection
                         if (!isset($matches[1])) {
                             throw new RuntimeException('boundary is not set');
                         } else {
-                            $this->step          = 3;
+                            $this->step             = 3;
                             $this->multipartHandler = new MultipartHandler($matches[1]);
-                            $this->stream->onClose(fn () => $this->multipartHandler?->cancel());
+                            $this->stream->getTransaction()->onClose(fn () => $this->multipartHandler?->cancel());
 
                             foreach ($this->multipartHandler->tick($body) as $name => $multipartResult) {
                                 if (is_string($multipartResult)) {
@@ -238,7 +239,7 @@ class Connection
                     } elseif ($this->bodyLength > $this->contentLength) {
                         throw new RuntimeException('Content-Length is not match 3');
                     }
-                } elseif (in_array($method, ['PUT', 'DELETE','PATCH','OPTIONS','TRACE','CONNECT'])) {
+                } elseif (in_array($method, ['PUT', 'DELETE', 'PATCH', 'OPTIONS', 'TRACE', 'CONNECT'])) {
                     //not body
                     if (!isset($this->server['HTTP_CONTENT_LENGTH'])) {
                         $this->step = 2;
@@ -257,7 +258,7 @@ class Connection
          * 持续传输
          */
         if ($this->step === 1 && $buffer = $this->freeBuffer()) {
-            $this->content .= $buffer;
+            $this->content    .= $buffer;
             $this->bodyLength += strlen($buffer);
             if ($this->bodyLength === $this->contentLength) {
                 $this->step = 2;
@@ -330,7 +331,7 @@ class Connection
                 $this->server['HTTPS'] = $xForwardedProto === 'https' ? 'on' : 'off';
             }
 
-            $request =  new Request(
+            $request = new Request(
                 $this->query,
                 $this->request,
                 $this->attributes,
@@ -352,7 +353,7 @@ class Connection
      */
     private function freeBuffer(): string
     {
-        $buffer = $this->buffer;
+        $buffer       = $this->buffer;
         $this->buffer = '';
         return $buffer;
     }

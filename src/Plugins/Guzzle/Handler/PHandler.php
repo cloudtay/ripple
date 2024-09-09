@@ -55,6 +55,7 @@ class PHandler
     /**
      * @param RequestInterface $request
      * @param array            $options
+     *
      * @return PromiseInterface
      */
     public function __invoke(RequestInterface $request, array $options): PromiseInterface

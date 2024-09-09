@@ -66,8 +66,8 @@ use const WUNTRACED;
  * @compatible:Windows
  * 20240830对Windows支持进行了调整
  *
- * @Author cclilshy
- * @Date   2024/8/16 09:36
+ * @Author    cclilshy
+ * @Date      2024/8/16 09:36
  */
 class Process extends LibraryAbstract
 {
@@ -92,6 +92,9 @@ class Process extends LibraryAbstract
     /*** @var string */
     private string $signalHandlerEventId;
 
+    /*** @var int */
+    private int $index = 0;
+
     public function __construct()
     {
         /**
@@ -108,78 +111,9 @@ class Process extends LibraryAbstract
         $this->processId     = posix_getpid();
     }
 
-
     public function __destruct()
     {
         $this->destroy();
-    }
-
-    /**
-     * @return void
-     * @throws UnsupportedFeatureException
-     */
-    private function registerSignalHandler(): void
-    {
-        /**
-         * @compatible:Windows
-         * Windows 不注册信号处理器
-         */
-        if (!Kernel::getInstance()->supportProcessControl()) {
-            return;
-        }
-
-        $this->signalHandlerEventId = $this->onSignal(SIGCHLD, fn () => $this->signalSIGCHLDHandler());
-    }
-
-    /**
-     * @return void
-     */
-    private function unregisterSignalHandler(): void
-    {
-        cancel($this->signalHandlerEventId);
-    }
-
-    /**
-     * @return void
-     */
-    private function signalSIGCHLDHandler(): void
-    {
-        while (1) {
-            $childrenId = pcntl_wait($status, WNOHANG | WUNTRACED);
-
-            if ($childrenId <= 0) {
-                break;
-            }
-
-            $this->onProcessExit($childrenId, $status);
-        }
-    }
-
-    /**
-     * @param int $processId
-     * @param int $status
-     * @return void
-     */
-    private function onProcessExit(int $processId, int $status): void
-    {
-        $exit            = pcntl_wifexited($status) ? pcntl_wexitstatus($status) : -1;
-        $promiseCallback = $this->process2promiseCallback[$processId] ?? null;
-        if (!$promiseCallback) {
-            return;
-        }
-
-        if ($exit === -1) {
-            call_user_func($promiseCallback['reject'], new ProcessException('The process is abnormal.', $exit));
-        } else {
-            call_user_func($promiseCallback['resolve'], $exit);
-        }
-
-        unset($this->process2promiseCallback[$processId]);
-        unset($this->process2runtime[$processId]);
-
-        if (empty($this->process2runtime)) {
-            $this->unregisterSignalHandler();
-        }
     }
 
     /**
@@ -192,11 +126,9 @@ class Process extends LibraryAbstract
         }
     }
 
-    /*** @var int */
-    private int $index = 0;
-
     /**
      * @param Closure $closure
+     *
      * @return int
      */
     public function registerForkHandler(Closure $closure): int
@@ -207,6 +139,7 @@ class Process extends LibraryAbstract
 
     /**
      * @param int $index
+     *
      * @return void
      */
     public function cancelForkHandler(int $index): void
@@ -215,31 +148,8 @@ class Process extends LibraryAbstract
     }
 
     /**
-     * @return void
-     * @throws UnsupportedFeatureException|Throwable
-     */
-    public function forked(): void
-    {
-        if (!empty($this->process2runtime)) {
-            $this->unregisterSignalHandler();
-        }
-
-        foreach ($this->onFork as $key => $closure) {
-            try {
-                unset($this->onFork[$key]);
-                $closure();
-            } catch (Throwable $e) {
-                Output::error($e->getMessage());
-            }
-        }
-
-        $this->process2promiseCallback = array();
-        $this->process2runtime         = array();
-        $this->processId               = posix_getpid();
-    }
-
-    /**
      * @param Closure $closure
+     *
      * @return Task|false
      */
     public function task(Closure $closure): Task|false
@@ -247,7 +157,6 @@ class Process extends LibraryAbstract
         return new Task(function (...$args) use ($closure) {
             /**
              * @compatible:Windows
-             * windows 不支持pcntl扩展
              *
              * Windows允许使用Process模块模拟一个Runtime
              * 但Runtime并非真正的子进程
@@ -257,7 +166,8 @@ class Process extends LibraryAbstract
              */
             if (!Kernel::getInstance()->supportProcessControl()) {
                 call_user_func($closure, ...$args);
-                return new Runtime(promise(static function () {}), getmypid());
+                return new Runtime(promise(static function () {
+                }), getmypid());
             }
 
             $processId = pcntl_fork();
@@ -329,14 +239,108 @@ class Process extends LibraryAbstract
     }
 
     /**
+     * @return void
+     * @throws UnsupportedFeatureException|Throwable
+     */
+    public function forked(): void
+    {
+        if (!empty($this->process2runtime)) {
+            $this->unregisterSignalHandler();
+        }
+
+        foreach ($this->onFork as $key => $closure) {
+            try {
+                unset($this->onFork[$key]);
+                $closure();
+            } catch (Throwable $e) {
+                Output::error($e->getMessage());
+            }
+        }
+
+        $this->process2promiseCallback = array();
+        $this->process2runtime         = array();
+        $this->processId               = posix_getpid();
+    }
+
+    /**
+     * @return void
+     */
+    private function unregisterSignalHandler(): void
+    {
+        cancel($this->signalHandlerEventId);
+    }
+
+    /**
+     * @return void
+     * @throws UnsupportedFeatureException
+     */
+    private function registerSignalHandler(): void
+    {
+        /**
+         * @compatible:Windows
+         * Windows 不注册信号处理器
+         */
+        if (!Kernel::getInstance()->supportProcessControl()) {
+            return;
+        }
+
+        $this->signalHandlerEventId = $this->onSignal(SIGCHLD, fn () => $this->signalSIGCHLDHandler());
+    }
+
+    /**
      * @param int     $signalCode
      * @param Closure $handler
+     *
      * @return string
      * @throws UnsupportedFeatureException
      */
     public function onSignal(int $signalCode, Closure $handler): string
     {
         return EventLoop::onSignal($signalCode, $handler);
+    }
+
+    /**
+     * @return void
+     */
+    private function signalSIGCHLDHandler(): void
+    {
+        while (1) {
+            $childrenId = pcntl_wait($status, WNOHANG | WUNTRACED);
+
+            if ($childrenId <= 0) {
+                break;
+            }
+
+            $this->onProcessExit($childrenId, $status);
+        }
+    }
+
+    /**
+     * @param int $processId
+     * @param int $status
+     *
+     * @return void
+     */
+    private function onProcessExit(int $processId, int $status): void
+    {
+        $exit            = pcntl_wifexited($status) ? pcntl_wexitstatus($status) : -1;
+        $promiseCallback = $this->process2promiseCallback[$processId] ?? null;
+        if (!$promiseCallback) {
+            return;
+        }
+
+        if ($exit === -1) {
+            call_user_func($promiseCallback['reject'], new ProcessException('The process is abnormal.', $exit));
+        } else {
+            call_user_func($promiseCallback['resolve'], $exit);
+        }
+
+        unset($this->process2promiseCallback[$processId]);
+        unset($this->process2runtime[$processId]);
+
+        if (empty($this->process2runtime)) {
+            $this->unregisterSignalHandler();
+        }
     }
 
     /**

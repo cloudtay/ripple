@@ -71,7 +71,7 @@ class HttpClient
     /*** @param array $config */
     public function __construct(private readonly array $config = [])
     {
-        $pool = $this->config['pool'] ?? 'off';
+        $pool       = $this->config['pool'] ?? 'off';
         $this->pool = in_array($pool, [true, 1, 'on'], true);
 
         if ($this->pool) {
@@ -82,6 +82,7 @@ class HttpClient
     /**
      * @param RequestInterface $request
      * @param array            $option
+     *
      * @return Promise<ResponseInterface>
      */
     public function request(RequestInterface $request, array $option = []): Promise
@@ -244,6 +245,7 @@ class HttpClient
      * @param bool        $ssl
      * @param int         $timeout
      * @param string|null $tunnel
+     *
      * @return Connection
      * @throws ConnectionException
      * @throws Throwable
@@ -288,7 +290,7 @@ class HttpClient
                         throw new ConnectionException('Unsupported proxy protocol');
                 }
             } else {
-                $connection =  $ssl
+                $connection = $ssl
                     ? new Connection(await(IO::Socket()->streamSocketClientSSL("ssl://{$host}:{$port}", $timeout)))
                     : new Connection(await(IO::Socket()->streamSocketClient("tcp://{$host}:{$port}", $timeout)));
             }
@@ -301,6 +303,7 @@ class HttpClient
     /**
      * @param Connection $connection
      * @param string     $key
+     *
      * @return void
      */
     private function pushConnection(Connection $connection, string $key): void

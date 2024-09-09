@@ -69,8 +69,8 @@ class Guzzle extends LibraryAbstract
     public function __construct(array $config = [])
     {
         $this->httpClient = new HttpClient(array_merge(['pool' => PHP_SAPI === 'cli'], $config));
-        $this->pHandler = new PHandler($this->httpClient);
-        $this->client   = new Client(['handler' => $this->pHandler]);
+        $this->pHandler   = new PHandler($this->httpClient);
+        $this->client     = new Client(['handler' => $this->pHandler]);
     }
 
     /**
@@ -86,7 +86,9 @@ class Guzzle extends LibraryAbstract
     /**
      * @Author cclilshy
      * @Date   2024/8/31 11:46
+     *
      * @param array $config
+     *
      * @return Client
      */
     public function newClient(array $config = []): Client

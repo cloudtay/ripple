@@ -40,11 +40,12 @@ use Psc\Core\Parallel\Thread;
 use Psc\Kernel;
 use Revolt\EventLoop;
 use Revolt\EventLoop\UnsupportedFeatureException;
-use Throwable;
 use RuntimeException;
+use Throwable;
 
 /**
  * @param Promise $promise
+ *
  * @return mixed
  * @throws Throwable
  */
@@ -55,7 +56,9 @@ function await(Promise $promise): mixed
 
 /**
  * async闭包中抛出的异常落地位置可能为调用上下文/挂起恢复处,因此对异常的管理要谨慎
+ *
  * @param Closure $closure
+ *
  * @return Promise
  */
 function async(Closure $closure): Promise
@@ -65,6 +68,7 @@ function async(Closure $closure): Promise
 
 /**
  * @param Closure $closure
+ *
  * @return Promise
  */
 function promise(Closure $closure): Promise
@@ -74,6 +78,7 @@ function promise(Closure $closure): Promise
 
 /**
  * @param int|float $second
+ *
  * @return void
  */
 function sleep(int|float $second): void
@@ -85,6 +90,7 @@ function sleep(int|float $second): void
 /**
  * @param Closure   $closure
  * @param int|float $second
+ *
  * @return string
  */
 function delay(Closure $closure, int|float $second): string
@@ -96,6 +102,7 @@ function delay(Closure $closure, int|float $second): string
 /**
  * @param Closure(Closure):void $closure
  * @param int|float             $second
+ *
  * @return string
  */
 function repeat(Closure $closure, int|float $second): string
@@ -106,7 +113,9 @@ function repeat(Closure $closure, int|float $second): string
 /**
  * @Author cclilshy
  * @Date   2024/8/29 00:07
+ *
  * @param Closure $closure
+ *
  * @return void
  */
 function queue(Closure $closure): void
@@ -116,6 +125,7 @@ function queue(Closure $closure): void
 
 /**
  * @param Closure $closure
+ *
  * @return void
  */
 function defer(Closure $closure): void
@@ -125,6 +135,7 @@ function defer(Closure $closure): void
 
 /**
  * @param Closure $closure
+ *
  * @return Thread
  * @throws RuntimeException
  */
@@ -135,6 +146,7 @@ function thread(Closure $closure): Thread
 
 /**
  * @param string $id
+ *
  * @return void
  */
 function cancel(string $id): void
@@ -144,6 +156,7 @@ function cancel(string $id): void
 
 /**
  * @param int $index
+ *
  * @return void
  */
 function cancelForkHandler(int $index): void
@@ -162,6 +175,7 @@ function cancelAll(): void
 /**
  * @param int     $signal
  * @param Closure $closure
+ *
  * @return string
  * @throws UnsupportedFeatureException
  */
@@ -172,6 +186,7 @@ function onSignal(int $signal, Closure $closure): string
 
 /**
  * @param Closure $closure
+ *
  * @return int
  */
 function registerForkHandler(Closure $closure): int
@@ -182,6 +197,7 @@ function registerForkHandler(Closure $closure): int
 
 /**
  * @param Closure|null $closure
+ *
  * @return void
  */
 function tick(Closure|null $closure = null): void
