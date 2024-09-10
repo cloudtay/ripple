@@ -41,13 +41,16 @@ use RuntimeException;
 
 use function array_shift;
 use function count;
+use function ctype_xdigit;
 use function explode;
+use function hexdec;
 use function str_contains;
+use function strlen;
 use function strpos;
+use function strtolower;
+use function strtoupper;
 use function substr;
 use function trim;
-
-// 使用 GuzzleHttp 作为 Response 实现
 
 /**
  * @Author cclilshy
@@ -64,16 +67,19 @@ class ServerSentEvents
     /*** @var bool */
     private bool $isSSE = false;
 
-    /*** @var Closure */
-    private Closure $onEvent;
+    /*** @var \Closure|null */
+    private Closure|null $onEvent = null;
 
-    /*** @var ResponseInterface|null */
-    private ?ResponseInterface $response = null; // 用于记录构建的响应
+    /*** @var \Psr\Http\Message\ResponseInterface|null */
+    private ResponseInterface|null $response = null;
+
+    /*** @var bool */
+    private bool $isChunked = false;
 
     /**
-     * define Event Handler
-     *
      * @param Closure $handler
+     *
+     * @return void
      */
     public function onEvent(Closure $handler): void
     {
@@ -81,8 +87,6 @@ class ServerSentEvents
     }
 
     /**
-     * Get write catcher
-     *
      * @return Closure
      */
     public function getWriteCapture(): Closure
@@ -93,13 +97,15 @@ class ServerSentEvents
     }
 
     /**
-     * Get read catcher
-     *
      * @return Closure
      */
     public function getReadCapture(): Closure
     {
         return function (string|false $content, Closure $pass) {
+            if ($content === false) {
+                return $pass($content);
+            }
+
             $this->buffer .= $content;
             $this->processBuffer();
             return $pass($content);
@@ -107,10 +113,7 @@ class ServerSentEvents
     }
 
     /**
-     * Process data in buffer
-     *
      * @return void
-     * @throws RuntimeException
      */
     private function processBuffer(): void
     {
@@ -120,19 +123,19 @@ class ServerSentEvents
                 $header       = substr($this->buffer, 0, $headerEnd);
                 $this->buffer = substr($this->buffer, $headerEnd + 4);
                 $this->parseHeaders($header);
+
                 if (!$this->isSSE) {
                     throw new RuntimeException('Response is not SSE');
                 }
-                $this->response = new Response(200, $this->headers, '');
+
+                $this->response  = new Response(200, $this->headers, '');
+                $this->isChunked = isset($this->headers['TRANSFER-ENCODING']) && strtolower($this->headers['TRANSFER-ENCODING']) === 'chunked';
             }
         }
-
-        $this->parseEvents();
+        $this->isChunked ? $this->processChunkedBuffer() : $this->parseEvents();
     }
 
     /**
-     * 解析 Headers
-     *
      * @param string $header
      *
      * @return void
@@ -149,16 +152,52 @@ class ServerSentEvents
         foreach ($lines as $line) {
             if (str_contains($line, ': ')) {
                 [$key, $value] = explode(': ', $line, 2);
-                $this->headers[$key] = $value;
+                $this->headers[strtoupper($key)] = $value;
             }
         }
 
-        $this->isSSE = isset($this->headers['Content-Type']) && $this->headers['Content-Type'] === 'text/event-stream';
+        $this->isSSE = isset($this->headers['CONTENT-TYPE']) && str_contains($this->headers['CONTENT-TYPE'], 'text/event-stream');
     }
 
     /**
-     * Parse event data
-     *
+     * @return void
+     */
+    private function processChunkedBuffer(): void
+    {
+        while (true) {
+            $sizeEnd = strpos($this->buffer, "\r\n");
+            if ($sizeEnd === false) {
+                return;
+            }
+
+            $sizeHex = trim(substr($this->buffer, 0, $sizeEnd));
+            if (!ctype_xdigit($sizeHex)) {
+                $this->parseEvents();
+                return;
+            }
+
+            $size = hexdec($sizeHex);
+            if ($size === 0) {
+                $this->buffer = substr($this->buffer, $sizeEnd + 2);
+                break;
+            }
+
+            $chunkStart = $sizeEnd + 2;
+
+            if (strlen($this->buffer) < $chunkStart + $size + 2) {
+                return;
+            }
+
+            $chunkData    = substr($this->buffer, $chunkStart, $size);
+            $this->buffer = substr($this->buffer, $chunkStart + $size + 2);
+            $this->buffer .= $chunkData;
+        }
+
+        $this->parseEvents();
+    }
+
+
+    /**
      * @return void
      */
     private function parseEvents(): void
@@ -176,8 +215,6 @@ class ServerSentEvents
     }
 
     /**
-     * Parse single event data
-     *
      * @param string $eventData
      *
      * @return array
@@ -195,7 +232,6 @@ class ServerSentEvents
             [$field, $value] = explode(':', $line, 2);
             $event[trim($field)] = trim($value);
         }
-
         return $event;
     }
 }

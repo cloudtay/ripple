@@ -131,7 +131,6 @@ class ConnectionPool
     ): Connection {
         $key = ConnectionPool::generateConnectionKey($host, $port);
         if (!isset($this->idleConnections[$key]) || empty($this->idleConnections[$key])) {
-            // 连接创建逻辑
             return $this->createConnection($host, $port, $ssl, $timeout, $proxy);
         } else {
             /**

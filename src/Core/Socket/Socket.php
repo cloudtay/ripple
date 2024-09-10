@@ -40,7 +40,6 @@ use Psc\Core\Coroutine\Promise;
 use Psc\Core\LibraryAbstract;
 use Throwable;
 
-use function Co\await;
 use function Co\cancel;
 use function Co\delay;
 use function Co\promise;
@@ -81,7 +80,7 @@ class Socket extends LibraryAbstract
             /**
              * @var SocketStream $streamSocket
              */
-            $streamSocket = await($this->streamSocketClient($address, $timeout, $context));
+            $streamSocket = $this->streamSocketClient($address, $timeout, $context)->await();
             $promise      = $this->streamEnableCrypto($streamSocket)->then($r)->except($d);
 
             if ($timeout > 0) {

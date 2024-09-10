@@ -39,7 +39,7 @@ use Psc\Core\Coroutine\Promise;
 use Psc\Core\Socket\SocketStream;
 use Throwable;
 
-use function Co\await;
+use function is_string;
 use function stream_context_create;
 use function stream_context_set_option;
 
@@ -53,56 +53,12 @@ use function stream_context_set_option;
 abstract class Base
 {
     /**
-     * 与代理之间的套接字连接
-     *
-     * @var SocketStream
+     * @param \Psc\Core\Socket\SocketStream $proxy
+     * @param array                         $payload
      */
-    protected SocketStream $proxy;
-
-    /**
-     * @param string $address
-     * @param array  $payload
-     * @param bool   $ssl
-     *
-     * @throws Throwable
-     */
-    public function __construct(protected string $address, protected array $payload, bool $ssl = false)
+    public function __construct(protected SocketStream $proxy, protected array $payload)
     {
-        $context = stream_context_create();
-        stream_context_set_option($context, 'ssl', 'verify_peer', false);
-        stream_context_set_option($context, 'ssl', 'verify_peer_name', false);
-
-        if ($ssl) {
-            $this->proxy = await(IO::Socket()->streamSocketClientSSL($address, 10, $context));
-        } else {
-            $this->proxy = await(IO::Socket()->streamSocketClient($address, 10, $context));
-        }
-
         $this->proxy->setBlocking(false);
-        await($this->handshake());
-    }
-
-    /**
-     * @Author cclilshy
-     * @Date   2024/8/29 11:34
-     * @return Promise<bool>
-     */
-    abstract protected function handshake(): Promise;
-
-    /**
-     * @Author cclilshy
-     * @Date   2024/8/29 12:38
-     *
-     * @param string $address
-     * @param array  $payload
-     * @param bool   $ssl
-     *
-     * @return static
-     * @throws Throwable
-     */
-    public static function connect(string $address, array $payload, bool $ssl = false): static
-    {
-        return new static($address, $payload, $ssl);
     }
 
     /**
@@ -114,4 +70,41 @@ abstract class Base
     {
         return $this->proxy;
     }
+
+    /**
+     * @Author cclilshy
+     * @Date   2024/8/29 12:38
+     *
+     * @param \Psc\Core\Socket\SocketStream|string $target
+     * @param array                                $payload
+     * @param bool                                 $ssl
+     * @param bool                                 $wait
+     *
+     * @return static
+     * @throws Throwable
+     */
+    public static function connect(SocketStream|string $target, array $payload, bool $ssl = false, bool $wait = true): static
+    {
+        if (is_string($target)) {
+            $context = stream_context_create();
+            stream_context_set_option($context, 'ssl', 'verify_peer', false);
+            stream_context_set_option($context, 'ssl', 'verify_peer_name', false);
+            if ($ssl) {
+                $target = IO::Socket()->streamSocketClientSSL($target, 10, $context)->await();
+            } else {
+                $target = IO::Socket()->streamSocketClient($target, 10, $context)->await();
+            }
+        }
+
+        $tunnel = new static($target, $payload);
+        $wait && $tunnel->handshake()->await();
+        return $tunnel;
+    }
+
+    /**
+     * @Author cclilshy
+     * @Date   2024/8/29 11:34
+     * @return Promise<bool>
+     */
+    abstract public function handshake(): Promise;
 }

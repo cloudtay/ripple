@@ -47,7 +47,6 @@ use function base64_encode;
 use function call_user_func;
 use function chr;
 use function Co\async;
-use function Co\await;
 use function count;
 use function explode;
 use function ord;
@@ -113,7 +112,7 @@ class Connection
     ) {
         async(function () {
             try {
-                await($this->handshake());
+                $this->handshake()->await();
                 $this->open();
                 $this->tick();
             } catch (Throwable $e) {
@@ -128,7 +127,6 @@ class Connection
                     while ($buffer = $this->stream->read(8192)) {
                         $this->buffer .= $buffer;
                     }
-
                     $this->tick();
                 } catch (Throwable $e) {
                     $this->close();
@@ -168,8 +166,8 @@ class Connection
             $path = "/{$path}";
 
             $this->stream = match ($scheme) {
-                'ws'    => await(IO::Socket()->streamSocketClient("tcp://{$host}:{$port}", $this->timeout, $this->context)),
-                'wss'   => await(IO::Socket()->streamSocketClientSSL("ssl://{$host}:{$port}", $this->timeout, $this->context)),
+                'ws'  => IO::Socket()->streamSocketClient("tcp://{$host}:{$port}", $this->timeout, $this->context)->await(),
+                'wss' => IO::Socket()->streamSocketClientSSL("ssl://{$host}:{$port}", $this->timeout, $this->context)->await(),
                 default => throw new Exception('Unsupported scheme')
             };
 

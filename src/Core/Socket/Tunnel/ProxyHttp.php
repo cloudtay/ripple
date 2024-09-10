@@ -59,7 +59,7 @@ class ProxyHttp extends Base
     /**
      * @return Promise
      */
-    protected function handshake(): Promise
+    public function handshake(): Promise
     {
         return \Co\promise(function (Closure $resolve, Closure $reject) {
             $this->sendConnectRequest();

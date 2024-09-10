@@ -202,7 +202,12 @@ function registerForkHandler(Closure $closure): int
  */
 function tick(Closure|null $closure = null): void
 {
-    Kernel::getInstance()->tick($closure);
+    wait($closure);
+}
+
+function wait(Closure|null $closure = null): void
+{
+    Kernel::getInstance()->wait($closure);
 }
 
 /**
