@@ -28,7 +28,6 @@
     "php": ">=8.1",
     "ext-sockets": "*",
     "ext-openssl": "*",
-    "ext-zlib": "*",
     "revolt/event-loop": "^1.0",
     "symfony/http-foundation": "*",
     "guzzlehttp/guzzle": "*",
@@ -39,6 +38,7 @@
     "ext-pcntl": "*",
     "ext-curl": "*",
     "ext-parallel": "*",
+    "ext-zlib": "*",
     "phpunit/phpunit": "*",
     "friendsofphp/php-cs-fixer": "*"
   },

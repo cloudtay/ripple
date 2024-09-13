@@ -187,9 +187,7 @@ abstract class Worker
      */
     public function __invoke(Manager $manager): bool
     {
-        /**
-         * @compatible:Windows
-         */
+        /*** @compatible:Windows */
         $count = !Kernel::getInstance()->supportProcessControl() ? 1 : $this->getCount();
         for ($index = 1; $index <= $count; $index++) {
             if (!$this->guard($manager, $index)) {
@@ -218,9 +216,7 @@ abstract class Worker
      */
     private function guard(Manager $manager, int $index): bool
     {
-        /**
-         * @compatible:Windows
-         */
+        /*** @compatible:Windows */
         $domain = !Kernel::getInstance()->supportProcessControl() ? AF_INET : AF_UNIX;
 
         if (!socket_create_pair($domain, SOCK_STREAM, 0, $sockets)) {

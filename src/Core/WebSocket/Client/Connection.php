@@ -47,10 +47,10 @@ use function base64_encode;
 use function call_user_func;
 use function chr;
 use function Co\async;
-use function count;
 use function explode;
 use function ord;
 use function pack;
+use function parse_url;
 use function random_bytes;
 use function sha1;
 use function str_contains;
@@ -145,37 +145,32 @@ class Connection
     private function handshake(): Promise
     {
         return \Co\promise(function ($r) {
-            $exploded = explode('://', $this->address);
-
-            if (count($exploded) !== 2) {
+            $parsedUrl = parse_url($this->address);
+            if (!$parsedUrl || !isset($parsedUrl['scheme'], $parsedUrl['host'])) {
                 throw new Exception('Invalid address');
             }
 
-            $scheme           = $exploded[0];
-            $hostExploded     = explode('/', $exploded[1]);
-            $hostPort         = $hostExploded[0];
-            $hostPortExploded = explode(':', $hostPort);
-            $host             = $hostPortExploded[0];
-            $port             = $hostPortExploded[1] ?? match ($scheme) {
+            $scheme = $parsedUrl['scheme'];
+            $host   = $parsedUrl['host'];
+            $port   = $parsedUrl['port'] ?? match ($scheme) {
                 'ws'    => 80,
                 'wss'   => 443,
-                default => throw new Exception('Unsupported scheme')
+                default => throw new Exception('Unsupported scheme'),
             };
 
-            $path = $hostExploded[1] ?? '';
-            $path = "/{$path}";
-
+            $path         = $parsedUrl['path'] ?? '';
+            $path         = $path !== '' ? $path : '/';
             $this->stream = match ($scheme) {
-                'ws'  => IO::Socket()->streamSocketClient("tcp://{$host}:{$port}", $this->timeout, $this->context)->await(),
-                'wss' => IO::Socket()->streamSocketClientSSL("ssl://{$host}:{$port}", $this->timeout, $this->context)->await(),
-                default => throw new Exception('Unsupported scheme')
+                'ws'    => IO::Socket()->streamSocketClient("tcp://{$host}:{$port}", $this->timeout, $this->context)->await(),
+                'wss'   => IO::Socket()->streamSocketClientSSL("ssl://{$host}:{$port}", $this->timeout, $this->context)->await(),
+                default => throw new Exception('Unsupported scheme'),
             };
 
             $this->stream->setBlocking(false);
 
             $key     = base64_encode(random_bytes(16));
             $context = "GET {$path} HTTP/1.1\r\n";
-            $context .= "Host: {$hostPort}\r\n";
+            $context .= "Host: {$host}:{$port}\r\n";
             $context .= "Upgrade: websocket\r\n";
             $context .= "Connection: Upgrade\r\n";
             $context .= "Sec-WebSocket-Key: {$key}\r\n";

@@ -43,14 +43,11 @@ use Psc\Kernel;
 use Symfony\Component\HttpFoundation\Request;
 use Throwable;
 
-use function count;
-use function explode;
+use function parse_url;
 
 use const SO_KEEPALIVE;
-use const SO_RCVBUF;
 use const SO_REUSEADDR;
 use const SO_REUSEPORT;
-use const SO_SNDBUF;
 use const SOL_SOCKET;
 use const SOL_TCP;
 use const TCP_NODELAY;
@@ -74,17 +71,13 @@ class Server
     /*** @var Closure */
     private Closure $onRequest;
 
-    /**
-     * @var SocketStream
-     */
+    /*** @var SocketStream */
     private SocketStream $server;
 
     /*** @var Options */
     private Options $options;
 
-    /**
-     * @var Connection[]
-     */
+    /*** @var Connection[] */
     private array $client2connection = array();
 
     /**
@@ -97,30 +90,29 @@ class Server
     public function __construct(string $address, mixed $context = null, Options|null $options = null)
     {
         $this->options = $options ?: new Options();
+        $addressInfo   = parse_url($address);
 
-        $addressExploded = explode('://', $address);
-        if (count($addressExploded) !== 2) {
-            throw new RuntimeException('Address format error');
+        if (!$addressInfo['scheme'] ?? null) {
+            throw new RuntimeException('The address must contain a scheme');
         }
 
-        $scheme             = $addressExploded[0];
-        $tcpAddress         = $addressExploded[1];
-        $tcpAddressExploded = explode(':', $tcpAddress);
-        $host               = $tcpAddressExploded[0];
-        $port               = $tcpAddressExploded[1] ?? 80;
+        if (!$host = $addressInfo['host'] ?? null) {
+            throw new RuntimeException('The address must contain a host');
+        }
+
+        if (!$port = $addressInfo['port'] ?? null) {
+            throw new RuntimeException('The address must contain a port');
+        }
 
         $this->server = IO::Socket()->streamSocketServer("tcp://{$host}:{$port}", $context);
 
+        $this->server->setOption(SOL_SOCKET, SO_KEEPALIVE, 1);
         $this->server->setOption(SOL_SOCKET, SO_REUSEADDR, 1);
-
-        /**
-         * @compatible:Windows
-         */
+        /*** @compatible:Windows */
         if (Kernel::getInstance()->supportProcessControl()) {
             $this->server->setOption(SOL_SOCKET, SO_REUSEPORT, 1);
         }
 
-        $this->server->setOption(SOL_SOCKET, SO_KEEPALIVE, 1);
         $this->server->setBlocking(false);
     }
 
@@ -134,8 +126,8 @@ class Server
                 $client = $stream->accept();
 
                 $client->setBlocking(false);
-                $client->setOption(SOL_SOCKET, SO_RCVBUF, 256000);
-                $client->setOption(SOL_SOCKET, SO_SNDBUF, 256000);
+
+                $client->setOption(SOL_TCP, SO_KEEPALIVE, 1);
                 $client->setOption(SOL_TCP, TCP_NODELAY, 1);
                 $connection = $this->client2connection[$stream->id] = new Connection($client, $this);
 

@@ -59,9 +59,7 @@ final class Output
      */
     public static function exception(Throwable $exception): void
     {
-        /**
-         * @compatible:Windows
-         */
+        /*** @compatible:Windows */
         if (Kernel::getInstance()->supportProcessControl()) {
             fwrite(STDOUT, "\033[1;31mProcess: " . posix_getpid() . '=>' . posix_getppid() . "\033[0m\n");
         }

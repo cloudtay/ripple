@@ -44,11 +44,10 @@ use Psc\Kernel;
 use Throwable;
 
 use function call_user_func_array;
-use function count;
-use function explode;
+use function parse_url;
 use function str_contains;
 use function strlen;
-use function strtolower;
+use function strtoupper;
 
 use const SO_KEEPALIVE;
 use const SO_REUSEADDR;
@@ -65,8 +64,13 @@ class Server
      *
      * @var Closure
      */
-    public Closure       $onRequest;
+    public Closure $onRequest;
+
+    /*** @var \Psc\Core\Socket\SocketStream */
     private SocketStream $server;
+
+    /*** @var \Psc\Core\Http\Server\RequestFactoryInterface */
+    private RequestFactoryInterface $requestFactory;
 
     /**
      * @param string     $address
@@ -76,77 +80,38 @@ class Server
      */
     public function __construct(string $address, mixed $context = null)
     {
-        $addressExploded = explode('://', $address);
+        $addressInfo = parse_url($address);
 
-        if (count($addressExploded) !== 2) {
+        if (!$scheme = $addressInfo['scheme'] ?? null) {
             throw new RuntimeException('Address format error');
         }
 
-        $scheme             = $addressExploded[0];
-        $tcpAddress         = $addressExploded[1];
-        $tcpAddressExploded = explode(':', $tcpAddress);
-        $host               = $tcpAddressExploded[0];
-        $port               = $tcpAddressExploded[1] ?? match ($scheme) {
+        if (!$host = $addressInfo['host']) {
+            throw new RuntimeException('Address format error');
+        }
+
+        $port = $addressInfo['port'] ?? match ($scheme) {
             'http'  => 80,
             'https' => 443,
             default => throw new RuntimeException('Address format error')
         };
 
-        /**
-         * @var SocketStream $server
-         */
+        /*** @var SocketStream $server */
         $this->server = match ($scheme) {
             'http', 'https' => IO::Socket()->streamSocketServer("tcp://{$host}:{$port}", $context),
             default         => throw new RuntimeException('Address format error')
         };
 
+        $this->server->setOption(SOL_SOCKET, SO_KEEPALIVE, 1);
         $this->server->setOption(SOL_SOCKET, SO_REUSEADDR, 1);
-
-        /**
-         * @compatible:Windows
-         */
+        /*** @compatible:Windows */
         if (Kernel::getInstance()->supportProcessControl()) {
             $this->server->setOption(SOL_SOCKET, SO_REUSEPORT, 1);
         }
 
-        $this->server->setOption(SOL_SOCKET, SO_KEEPALIVE, 1);
         $this->server->setBlocking(false);
+
         $this->setRequestFactory(new RequestFactory());
-    }
-
-    /**
-     * @return void
-     */
-    public function listen(): void
-    {
-        $this->server->onReadable(function (SocketStream $stream) {
-            try {
-                $client = $stream->accept();
-            } catch (Throwable) {
-                return;
-            }
-
-            $client->setBlocking(false);
-
-            /*** Debug: 低水位 & 缓冲区*/
-            //            $lowWaterMarkRecv = socket_get_option($clientSocket, SOL_SOCKET, SO_RCVLOWAT);
-            //            $lowWaterMarkSend = socket_get_option($clientSocket, SOL_SOCKET, SO_SNDLOWAT);
-            //            $recvBuffer       = socket_get_option($clientSocket, SOL_SOCKET, SO_RCVBUF);
-            //            $sendBuffer       = socket_get_option($clientSocket, SOL_SOCKET, SO_SNDBUF);
-            //            var_dump($lowWaterMarkRecv, $lowWaterMarkSend, $recvBuffer, $sendBuffer);
-
-            /*** 优化缓冲区: 256kb标准速率帧*/
-            //            $client->setOption(SOL_SOCKET, SO_RCVBUF, 256000);
-            //            $client->setOption(SOL_SOCKET, SO_SNDBUF, 256000);
-            //            $client->setOption(SOL_TCP, TCP_NODELAY, 1);
-
-            /*** 设置发送低水位防止充盈内存 @deprecated 兼容未覆盖 */
-            //$client->setOption(SOL_SOCKET, SO_SNDLOWAT, 1024);
-
-            /*** CPU亲密度 @deprecated 兼容未覆盖 */
-            //socket_set_option($clientSocket, SOL_SOCKET, SO_INCOMING_CPU, 1);
-            $this->listenSocket($client);
-        });
     }
 
     /**
@@ -158,7 +123,7 @@ class Server
     {
         $connection = new Connection($stream);
         $connection->listen(function (array $requestInfo) use ($stream) {
-            $symfonyRequest = $this->buildRequest(
+            $customRequest = $this->buildRequest(
                 $requestInfo['query'],
                 $requestInfo['request'],
                 $requestInfo['attributes'],
@@ -169,8 +134,8 @@ class Server
             );
 
             $keepAlive = false;
-            if ($headerConnection = $requestInfo['header']['Connection'] ?? null) {
-                if (str_contains(strtolower($headerConnection), 'keep-alive')) {
+            if ($headerConnection = $requestInfo['header']['CONNECTION'] ?? null) {
+                if (str_contains(strtoupper($headerConnection), 'KEEP-ALIVE')) {
                     $keepAlive = true;
                 }
             }
@@ -183,12 +148,13 @@ class Server
 
             try {
                 if (isset($this->onRequest)) {
-                    call_user_func_array($this->onRequest, [$symfonyRequest, $symfonyResponse]);
+                    call_user_func_array($this->onRequest, [$customRequest, $symfonyResponse]);
                 }
             } catch (FormatException) {
-                /**
+                /***
                  * 报文格式非法
                  */
+
                 try {
                     $stream->write("HTTP/1.1 400 Bad Request\r\n\r\n");
                 } catch (Throwable) {
@@ -215,9 +181,6 @@ class Server
             }
         });
     }
-
-    /*** @var \Psc\Core\Http\Server\RequestFactoryInterface */
-    private RequestFactoryInterface $requestFactory;
 
     /**
      * @param array $query
@@ -261,5 +224,40 @@ class Server
     public function setRequestFactory(RequestFactoryInterface $factory): void
     {
         $this->requestFactory = $factory;
+    }
+
+    /**
+     * @return void
+     */
+    public function listen(): void
+    {
+        $this->server->onReadable(function (SocketStream $stream) {
+            try {
+                $client = $stream->accept();
+            } catch (Throwable) {
+                return;
+            }
+
+            $client->setBlocking(false);
+
+            /*** Debug: 低水位 & 缓冲区*/
+            //            $lowWaterMarkRecv = socket_get_option($clientSocket, SOL_SOCKET, SO_RCVLOWAT);
+            //            $lowWaterMarkSend = socket_get_option($clientSocket, SOL_SOCKET, SO_SNDLOWAT);
+            //            $recvBuffer       = socket_get_option($clientSocket, SOL_SOCKET, SO_RCVBUF);
+            //            $sendBuffer       = socket_get_option($clientSocket, SOL_SOCKET, SO_SNDBUF);
+            //            var_dump($lowWaterMarkRecv, $lowWaterMarkSend, $recvBuffer, $sendBuffer);
+
+            /*** 优化缓冲区: 256kb标准速率帧*/
+            //            $client->setOption(SOL_SOCKET, SO_RCVBUF, 256000);
+            //            $client->setOption(SOL_SOCKET, SO_SNDBUF, 256000);
+            //            $client->setOption(SOL_TCP, TCP_NODELAY, 1);
+
+            /*** 设置发送低水位防止充盈内存 @deprecated 兼容未覆盖 */
+            //$client->setOption(SOL_SOCKET, SO_SNDLOWAT, 1024);
+
+            /*** CPU亲密度 @deprecated 兼容未覆盖 */
+            //socket_set_option($clientSocket, SOL_SOCKET, SO_INCOMING_CPU, 1);
+            $this->listenSocket($client);
+        });
     }
 }

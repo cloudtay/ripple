@@ -32,41 +32,11 @@
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-namespace Psc\Core\WebSocket;
-
-use function extension_loaded;
+namespace Psc\Core\Http\Server;
 
 /**
- * @Author lidongyooo
- * @Date   2024/8/25 23:07
+ * Http服务类
  */
-class Options
+class HttpServer extends Server
 {
-    /*** @var bool */
-    private readonly bool $deflate;
-
-    public function __construct(private readonly bool $pingPong = true, bool $deflate = false)
-    {
-        $this->deflate = $deflate && extension_loaded('zlib');
-    }
-
-    /**
-     * @Author lidongyooo
-     * @Date   2024/8/25 23:07
-     * @return bool
-     */
-    public function getPingPong(): bool
-    {
-        return $this->pingPong;
-    }
-
-    /**
-     * @Author lidongyooo
-     * @Date   2024/8/30 23:07
-     * @return bool
-     */
-    public function getDeflate(): bool
-    {
-        return $this->deflate;
-    }
 }

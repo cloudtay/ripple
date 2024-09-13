@@ -68,9 +68,7 @@ class Runtime
      */
     public function stop(bool $force = false): void
     {
-        /**
-         * @compatible:Windows
-         */
+        /*** @compatible:Windows */
         if (!Kernel::getInstance()->supportProcessControl()) {
             exit(0);
         }
@@ -83,9 +81,7 @@ class Runtime
     /*** @return void */
     public function kill(): void
     {
-        /**
-         * @compatible:Windows
-         */
+        /*** @compatible:Windows */
         if (!Kernel::getInstance()->supportProcessControl()) {
             exit(0);
         }
@@ -101,9 +97,7 @@ class Runtime
      */
     public function signal(int $signal): void
     {
-        /**
-         * @compatible:Windows
-         */
+        /*** @compatible:Windows */
         if (!Kernel::getInstance()->supportProcessControl()) {
             return;
         }
@@ -114,9 +108,7 @@ class Runtime
     /*** @return int */
     public function getProcessId(): int
     {
-        /**
-         * @compatible:Windows
-         */
+        /*** @compatible:Windows */
         if (!Kernel::getInstance()->supportProcessControl()) {
             return getmypid();
         }

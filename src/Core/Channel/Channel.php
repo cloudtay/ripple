@@ -86,6 +86,7 @@ class Channel
 
     /*** @var string */
     private string $path;
+
     /*** @var bool */
     private bool $closed = false;
 
@@ -95,10 +96,8 @@ class Channel
      *
      * @throws ChannelException
      */
-    public function __construct(
-        private readonly string $name,
-        private bool            $owner = false
-    ) {
+    public function __construct(private readonly string $name, private bool $owner = false)
+    {
         $this->path      = Channel::generateFilePathByChannelName($name);
         $this->readLock  = IO::Lock()->access("{$this->name}.read");
         $this->writeLock = IO::Lock()->access("{$this->name}.write");
@@ -108,9 +107,7 @@ class Channel
                 throw new ChannelException('Channel does not exist.');
             }
 
-            /**
-             * @compatible:Windows
-             */
+            /*** @compatible:Windows */
             if (!Kernel::getInstance()->supportProcessControl()) {
                 touch($this->path);
             } elseif (!posix_mkfifo($this->path, 0600)) {
@@ -224,8 +221,6 @@ class Channel
     {
         $this->blocking = $blocking;
     }
-
-    /****/
 
     /**
      * @return mixed
