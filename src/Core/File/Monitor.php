@@ -39,18 +39,18 @@ use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
 use SplFileInfo;
 
+use function Co\cancel;
+use function Co\repeat;
 use function file_exists;
 use function in_array;
 use function is_dir;
 use function is_file;
-use function Co\cancel;
-use function Co\repeat;
 use function realpath;
 use function scandir;
 
 class Monitor
 {
-    public const TOUCH = 'touch';
+    public const TOUCH  = 'touch';
     public const MODIFY = 'modify';
 
     /*** @var Closure */
@@ -70,6 +70,10 @@ class Monitor
 
     /*** @var string */
     private string $timer2;
+    /**
+     * @var array
+     */
+    private array $list = [];
 
     /**
      * Monitor constructor.
@@ -79,20 +83,17 @@ class Monitor
     }
 
     /**
-     * @var array
-     */
-    private array $list = [];
-
-    /**
      * @Author cclilshy
      * @Date   2024/8/26 21:27
+     *
      * @param string     $path
      * @param array|null $ext
+     *
      * @return void
      */
     public function add(string $path, array|null $ext = null): void
     {
-        $path = realpath($path);
+        $path              = realpath($path);
         $this->list[$path] = $ext;
 
         if (is_file($path)) {
@@ -101,11 +102,11 @@ class Monitor
 
         if (is_dir($path)) {
             $directory = new RecursiveDirectoryIterator($path);
-            $iterator = new RecursiveIteratorIterator($directory);
+            $iterator  = new RecursiveIteratorIterator($directory);
 
             if ($ext === null) {
                 $this->cache[$path] = (new SplFileInfo($path))->getMTime();
-                $scan = scandir($path);
+                $scan               = scandir($path);
                 foreach ($scan as $item) {
                     if ($item === '.' || $item === '..') {
                         continue;
@@ -134,6 +135,17 @@ class Monitor
 
     /**
      * @Author cclilshy
+     * @Date   2024/8/26 21:51
+     * @return void
+     */
+    public function run(): void
+    {
+        $this->timer1 = repeat(fn () => $this->tick(), 1);
+        $this->timer2 = repeat(fn () => $this->inspector(), 1);
+    }
+
+    /**
+     * @Author cclilshy
      * @Date   2024/8/26 21:29
      * @return void
      */
@@ -157,7 +169,7 @@ class Monitor
                     }
                 } else {
                     $directory = new RecursiveDirectoryIterator($path);
-                    $iterator = new RecursiveIteratorIterator($directory);
+                    $iterator  = new RecursiveIteratorIterator($directory);
                     /**
                      * @var SplFileInfo $item
                      */
@@ -180,30 +192,11 @@ class Monitor
 
     /**
      * @Author cclilshy
-     * @Date   2024/8/26 21:52
-     * @return void
-     */
-    private function inspector(): void
-    {
-        foreach ($this->cache as $path => $time) {
-            if (!file_exists($path)) {
-                if (isset($this->onRemove)) {
-                    ($this->onRemove)($path);
-                    unset($this->cache[$path]);
-                }
-
-                if (isset($this->list[$path])) {
-                    unset($this->list[$path]);
-                }
-            }
-        }
-    }
-
-    /**
-     * @Author cclilshy
      * @Date   2024/8/26 21:45
+     *
      * @param SplFileInfo $fileInfo
      * @param string      $event
+     *
      * @return void
      */
     private function onEvent(SplFileInfo $fileInfo, string $event): void
@@ -227,13 +220,23 @@ class Monitor
 
     /**
      * @Author cclilshy
-     * @Date   2024/8/26 21:51
+     * @Date   2024/8/26 21:52
      * @return void
      */
-    public function run(): void
+    private function inspector(): void
     {
-        $this->timer1 = repeat(fn () => $this->tick(), 1);
-        $this->timer2 = repeat(fn () => $this->inspector(), 1);
+        foreach ($this->cache as $path => $time) {
+            if (!file_exists($path)) {
+                if (isset($this->onRemove)) {
+                    ($this->onRemove)($path);
+                    unset($this->cache[$path]);
+                }
+
+                if (isset($this->list[$path])) {
+                    unset($this->list[$path]);
+                }
+            }
+        }
     }
 
     /**

@@ -74,6 +74,7 @@ class StreamBase implements StreamInterface
 
     /**
      * Stream constructor.
+     *
      * @param resource $resource
      */
     public function __construct(mixed $resource)
@@ -96,6 +97,7 @@ class StreamBase implements StreamInterface
 
     /**
      * @param int|null $length
+     *
      * @return string
      * @throws ConnectionException
      */
@@ -110,6 +112,7 @@ class StreamBase implements StreamInterface
 
     /**
      * @param string $string
+     *
      * @return int
      * @throws ConnectionException
      */
@@ -132,8 +135,10 @@ class StreamBase implements StreamInterface
 
     /**
      * 移动指定位置指针
+     *
      * @param int $offset
      * @param int $whence
+     *
      * @return void
      */
     public function seek(int $offset, int $whence = SEEK_SET): void
@@ -214,6 +219,7 @@ class StreamBase implements StreamInterface
 
     /**
      * @param string|null $key
+     *
      * @return mixed
      */
     public function getMetadata(string|null $key = null): mixed

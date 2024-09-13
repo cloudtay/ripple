@@ -36,8 +36,8 @@ namespace P;
 
 /**
  * @Description 请使用 Co\System 代替
- * @Author cclilshy
- * @Date   2024/8/31 11:39
+ * @Author      cclilshy
+ * @Date        2024/8/31 11:39
  */
 class System extends \Co\System
 {

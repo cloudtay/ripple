@@ -38,7 +38,7 @@ use GuzzleHttp\Exception\GuzzleException;
 use GuzzleHttp\Exception\TransferException;
 use GuzzleHttp\Promise\Promise;
 use GuzzleHttp\Promise\PromiseInterface;
-use Psc\Core\Http\Client\HttpClient;
+use Psc\Core\Http\Client\Client;
 use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\ResponseInterface;
 use Throwable;
@@ -48,13 +48,14 @@ class PHandler
     /**
      * 构造函数
      */
-    public function __construct(private readonly HttpClient $httpClient)
+    public function __construct(private readonly Client $httpClient)
     {
     }
 
     /**
      * @param RequestInterface $request
      * @param array            $options
+     *
      * @return PromiseInterface
      */
     public function __invoke(RequestInterface $request, array $options): PromiseInterface
@@ -79,9 +80,9 @@ class PHandler
     /**
      * @Author cclilshy
      * @Date   2024/8/31 14:31
-     * @return HttpClient
+     * @return Client
      */
-    public function getHttpClient(): HttpClient
+    public function getHttpClient(): Client
     {
         return $this->httpClient;
     }

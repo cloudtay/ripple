@@ -35,7 +35,10 @@
 namespace Psc\Core\Stream;
 
 use Closure;
+use Exception;
+use Psc\Core\Coroutine\Promise;
 use Psc\Core\Stream\Exception\ConnectionException;
+use Psc\Kernel;
 use Psc\Utils\Output;
 use Revolt\EventLoop;
 use Throwable;
@@ -68,11 +71,22 @@ class Stream extends StreamBase
     private array $onCloseCallbacks = array();
 
     /**
+     * @var int
+     */
+    private int $index = 0;
+
+    /**
+     * @var Transaction
+     */
+    private Transaction $transaction;
+
+    /**
      * @param mixed $resource
      */
     public function __construct(mixed $resource)
     {
         parent::__construct($resource);
+
         $this->onClose(function () {
             if (isset($this->onReadable)) {
                 cancel($this->onReadable);
@@ -86,15 +100,28 @@ class Stream extends StreamBase
 
     /**
      * @param Closure $closure
+     *
+     * @return string
+     */
+    public function onClose(Closure $closure): string
+    {
+        $this->onCloseCallbacks[$key = Kernel::int2string($this->index++)] = $closure;
+        return $key;
+    }
+
+    /**
+     * @param string $key
+     *
      * @return void
      */
-    public function onClose(Closure $closure): void
+    public function cancelOnClose(string $key): void
     {
-        $this->onCloseCallbacks[] = $closure;
+        unset($this->onCloseCallbacks[$key]);
     }
 
     /**
      * @param Closure $closure
+     *
      * @return string
      */
     public function onReadable(Closure $closure): string
@@ -120,10 +147,29 @@ class Stream extends StreamBase
         });
     }
 
+    /**
+     * @return void
+     */
+    public function close(): void
+    {
+        if (is_resource($this->stream) === false) {
+            return;
+        }
 
+        parent::close();
+
+        foreach ($this->onCloseCallbacks as $callback) {
+            try {
+                call_user_func($callback);
+            } catch (Throwable $e) {
+                Output::error($e->getMessage());
+            }
+        }
+    }
 
     /**
      * @param Closure $closure
+     *
      * @return string
      */
     public function onWritable(Closure $closure): string
@@ -143,15 +189,16 @@ class Stream extends StreamBase
                 ]);
             } catch (ConnectionException $e) {
                 $this->close();
-                Output::error($e->getMessage());
             } catch (Throwable $e) {
                 Output::error($e->getMessage());
             }
         });
     }
 
+
     /**
      * @param bool $bool
+     *
      * @return bool
      */
     public function setBlocking(bool $bool): bool
@@ -160,22 +207,54 @@ class Stream extends StreamBase
     }
 
     /**
+     * @param Transaction $transaction
+     *
      * @return void
      */
-    public function close(): void
+    private function setTransaction(Transaction $transaction): void
     {
-        if (is_resource($this->stream) === false) {
-            return;
+        if (isset($this->transaction)) {
+            $this->doneTransaction();
+            unset($this->transaction);
         }
 
-        parent::close();
+        $this->transaction = $transaction;
+    }
 
-        foreach ($this->onCloseCallbacks as $callback) {
-            try {
-                call_user_func($callback);
-            } catch (Throwable $e) {
-                Output::error($e->getMessage());
-            }
+    /**
+     * @param Closure $closure
+     *
+     * @return void
+     * @throws Throwable
+     */
+    public function transaction(Closure $closure): void
+    {
+        if (isset($this->transaction) && $this->transaction->getPromise()->getStatus() === Promise::PENDING) {
+            throw new Exception('Transaction has been completed');
+        }
+
+        $this->setTransaction(new Transaction($this));
+        call_user_func_array($closure, [$this->getTransaction()]);
+    }
+
+    /**
+     * @return \Psc\Core\Stream\Transaction|null
+     */
+    public function getTransaction(): Transaction|null
+    {
+        if (isset($this->transaction)) {
+            return $this->transaction;
+        }
+        return null;
+    }
+
+    /**
+     * @return void
+     */
+    public function doneTransaction(): void
+    {
+        if (isset($this->transaction)) {
+            $this->transaction->complete();
         }
     }
 }

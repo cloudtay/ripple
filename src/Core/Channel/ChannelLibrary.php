@@ -46,6 +46,7 @@ class ChannelLibrary extends LibraryAbstract
 
     /**
      * @param string $name
+     *
      * @return Channel
      * @throws ChannelException
      */
@@ -56,6 +57,7 @@ class ChannelLibrary extends LibraryAbstract
 
     /**
      * @param string $name
+     *
      * @return Channel
      * @throws ChannelException
      */

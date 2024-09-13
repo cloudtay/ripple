@@ -42,11 +42,10 @@ use Psc\Core\Stream\Stream;
 use Throwable;
 
 use function basename;
+use function Co\promise;
 use function filesize;
 use function is_resource;
 use function is_string;
-use function P\promise;
-use function sprintf;
 use function strlen;
 use function strval;
 
@@ -71,6 +70,7 @@ class Response extends \Symfony\Component\HttpFoundation\Response
     /**
      * @param mixed       $content
      * @param string|null $contentType
+     *
      * @return $this
      */
     #[Override] public function setContent(mixed $content, string|null $contentType = null): static
@@ -111,7 +111,24 @@ class Response extends \Symfony\Component\HttpFoundation\Response
     }
 
     /**
+     * @return void
+     * @throws ConnectionException|Throwable
+     */
+    public function respond(): void
+    {
+        $this->sendHeaders();
+        $this->sendContent();
+        $this->stream->doneTransaction();
+
+        $keepAlive = $this->headers->get('Connection') === 'keep-alive';
+        if (!$keepAlive) {
+            $this->stream->close();
+        }
+    }
+
+    /**
      * @param int|null $statusCode
+     *
      * @return static
      * @throws ConnectionException
      */
@@ -143,8 +160,9 @@ class Response extends \Symfony\Component\HttpFoundation\Response
      */
     #[Override] public function sendContent(): static
     {
-        promise(function ($resolve) {
-            $this->stream->onClose(function () use ($resolve) {
+        promise(function ($resolve, $reject) {
+            // An exception occurs during transfer with the HTTP client and the currently open file stream should be closed.
+            $this->stream->getTransaction()->onClose(function () use ($resolve, $reject) {
                 if (isset($this->body) && $this->body instanceof Stream) {
                     $this->body->close();
                 }
@@ -155,13 +173,19 @@ class Response extends \Symfony\Component\HttpFoundation\Response
                 $this->stream->write($this->body);
                 $resolve();
             } elseif ($this->body instanceof Stream) {
-                $this->body->onReadable(function () use ($resolve) {
+                $this->body->onReadable(function () use ($resolve, $reject) {
                     $content = '';
                     while ($buffer = $this->body->read(8192)) {
                         $content .= $buffer;
                     }
 
-                    $this->stream->write($content);
+                    try {
+                        $this->stream->write($content);
+                    } catch (Throwable $exception) {
+                        $reject($exception);
+                        return;
+                    }
+
                     if ($this->body->eof()) {
                         $resolve();
                     }
@@ -183,34 +207,7 @@ class Response extends \Symfony\Component\HttpFoundation\Response
                 $resolve();
             }
         })->await();
-
         return $this;
-    }
-
-    /**
-     * @return void
-     * @throws ConnectionException|Throwable
-     */
-    public function respond(): void
-    {
-        $this->sendHeaders();
-        $this->sendContent();
-        $keepAlive = $this->headers->get('Connection') === 'keep-alive';
-        if (!$keepAlive) {
-            $this->stream->close();
-        }
-    }
-
-    /**
-     * @Author cclilshy
-     * @Date   2024/9/1 14:16
-     * @param string $content
-     * @return void
-     * @throws ConnectionException
-     */
-    public function chunk(string $content): void
-    {
-        $this->stream->write(sprintf("%x\r\n%s\r\n", strlen($content), $content));
     }
 
     /**

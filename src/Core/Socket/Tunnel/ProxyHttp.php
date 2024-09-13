@@ -52,14 +52,14 @@ use function substr;
  */
 class ProxyHttp extends Base
 {
-    private int $step = 0;
+    private int    $step   = 0;
     private string $readEventId;
     private string $buffer = '';
 
     /**
      * @return Promise
      */
-    protected function handshake(): Promise
+    public function handshake(): Promise
     {
         return \Co\promise(function (Closure $resolve, Closure $reject) {
             $this->sendConnectRequest();
@@ -92,8 +92,8 @@ class ProxyHttp extends Base
      */
     private function sendConnectRequest(): void
     {
-        $host = $this->payload['host'];
-        $port = $this->payload['port'];
+        $host    = $this->payload['host'];
+        $port    = $this->payload['port'];
         $request = "CONNECT {$host}:{$port} HTTP/1.1\r\n" .
                    "Host: {$host}:{$port}\r\n" .
                    "Proxy-Connection: Keep-Alive\r\n\r\n";
@@ -107,6 +107,7 @@ class ProxyHttp extends Base
      *
      * @param Closure $resolve
      * @param Closure $reject
+     *
      * @return void
      */
     private function processBuffer(Closure $resolve, Closure $reject): void
@@ -124,6 +125,7 @@ class ProxyHttp extends Base
     /**
      * @param Closure $resolve
      * @param Closure $reject
+     *
      * @return void
      */
     private function handleConnectResponse(Closure $resolve, Closure $reject): void
@@ -133,7 +135,7 @@ class ProxyHttp extends Base
             return;
         }
 
-        $response = substr($this->buffer, 0, strpos($this->buffer, "\r\n\r\n") + 4);
+        $response     = substr($this->buffer, 0, strpos($this->buffer, "\r\n\r\n") + 4);
         $this->buffer = substr($this->buffer, strlen($response));
 
         // 检查200响应是否成功

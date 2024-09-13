@@ -46,8 +46,8 @@ class Thread
     private Context $context;
 
     /**
-     * @param Closure  $handler
-     * @param string   $name
+     * @param Closure $handler
+     * @param string  $name
      */
     public function __construct(
         private readonly Closure $handler,
@@ -55,15 +55,6 @@ class Thread
     ) {
         $this->runtime = new Runtime(Parallel::$autoload);
         $this->context = new Context();
-    }
-
-    /**
-     * @param  ...$argv
-     * @return Future
-     */
-    public function run(...$argv): Future
-    {
-        return Parallel::getInstance()->run($this, ... $argv);
     }
 
     /**
@@ -84,6 +75,7 @@ class Thread
 
     /**
      * @param mixed ...$argv
+     *
      * @return Future
      */
     public function __invoke(mixed ...$argv): Future
@@ -102,5 +94,15 @@ class Thread
             $this->handler,
             $this->context,
         ]));
+    }
+
+    /**
+     * @param  ...$argv
+     *
+     * @return Future
+     */
+    public function run(...$argv): Future
+    {
+        return Parallel::getInstance()->run($this, ... $argv);
     }
 }

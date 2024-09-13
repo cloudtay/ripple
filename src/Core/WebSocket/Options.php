@@ -34,14 +34,20 @@
 
 namespace Psc\Core\WebSocket;
 
+use function extension_loaded;
+
 /**
  * @Author lidongyooo
  * @Date   2024/8/25 23:07
  */
 class Options
 {
-    public function __construct(private readonly bool $pingPong = true, private readonly bool $deflate = false)
+    /*** @var bool */
+    private readonly bool $deflate;
+
+    public function __construct(private readonly bool $pingPong = true, bool $deflate = false)
     {
+        $this->deflate = $deflate && extension_loaded('zlib');
     }
 
     /**

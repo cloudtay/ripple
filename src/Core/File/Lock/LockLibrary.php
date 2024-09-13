@@ -45,6 +45,7 @@ class LockLibrary extends LibraryAbstract
 
     /**
      * @param string $name
+     *
      * @return Lock
      */
     public function access(string $name = 'default'): Lock

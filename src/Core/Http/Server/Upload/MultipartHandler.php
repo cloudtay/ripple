@@ -75,6 +75,7 @@ class MultipartHandler
 
     /**
      * 上传文件构造
+     *
      * @param string $boundary
      */
     public function __construct(private readonly string $boundary)
@@ -83,14 +84,16 @@ class MultipartHandler
 
     /**
      * 上下文推入
+     *
      * @param string $content
+     *
      * @return array
      * @throws FormatException
      */
     public function tick(string $content): array
     {
         $this->buffer .= $content;
-        $result = array();
+        $result       = array();
         while (!empty($this->buffer)) {
             if ($this->status === MultipartHandler::STATUS_WAIT) {
                 if (!$info = $this->parseFileInfo()) {
@@ -100,13 +103,13 @@ class MultipartHandler
                 $this->status = MultipartHandler::STATUS_TRAN;
 
                 if (!empty($info['fileName'])) {
-                    $info['path'] = sys_get_temp_dir() . '/' . uniqid();
+                    $info['path']   = sys_get_temp_dir() . '/' . uniqid();
                     $info['stream'] = fopen($info['path'], 'wb+');
-                    $this->task = $info;
+                    $this->task     = $info;
                 } else {
                     // If it's not a file, handle text data
                     $this->status = MultipartHandler::STATUS_WAIT;
-                    $textContent = $this->parseTextContent();
+                    $textContent  = $this->parseTextContent();
                     if ($textContent !== false) {
                         $result[$info['name']] = $textContent;
                     }
@@ -117,7 +120,7 @@ class MultipartHandler
                 if (!$this->processTransmitting()) {
                     break;
                 }
-                $this->status = MultipartHandler::STATUS_WAIT;
+                $this->status                  = MultipartHandler::STATUS_WAIT;
                 $result[$this->task['name']][] = new UploadedFile(
                     $this->task['path'],
                     $this->task['fileName'],
@@ -140,7 +143,7 @@ class MultipartHandler
             return false;
         }
 
-        $header = substr($this->buffer, 0, $headerEndPosition);
+        $header       = substr($this->buffer, 0, $headerEndPosition);
         $this->buffer = substr($this->buffer, $headerEndPosition + 4);
 
         $headerLines = explode("\r\n", $header);
@@ -150,8 +153,8 @@ class MultipartHandler
             throw new FormatException('Boundary is invalid');
         }
 
-        $name = '';
-        $fileName = '';
+        $name        = '';
+        $fileName    = '';
         $contentType = '';
 
         while ($line = array_pop($headerLines)) {
@@ -183,6 +186,7 @@ class MultipartHandler
 
     /**
      * 解析文本内容
+     *
      * @return string|false
      */
     private function parseTextContent(): string|false
@@ -192,20 +196,21 @@ class MultipartHandler
             return false;
         }
 
-        $textContent = substr($this->buffer, 0, $boundaryPosition);
+        $textContent  = substr($this->buffer, 0, $boundaryPosition);
         $this->buffer = substr($this->buffer, $boundaryPosition + 2);
         return $textContent;
     }
 
     /**
      * 处理传输中
+     *
      * @return bool
      */
     private function processTransmitting(): bool
     {
         $mode = "\r\n--{$this->boundary}\r\n";
 
-        $fileContent = $this->buffer;
+        $fileContent      = $this->buffer;
         $boundaryPosition = strpos($fileContent, $mode);
 
         if ($boundaryPosition === false) {
@@ -213,7 +218,7 @@ class MultipartHandler
         }
 
         if ($boundaryPosition !== false) {
-            $fileContent = substr($fileContent, 0, $boundaryPosition);
+            $fileContent  = substr($fileContent, 0, $boundaryPosition);
             $this->buffer = substr($this->buffer, $boundaryPosition + 2);
             fwrite($this->task['stream'], $fileContent);
             return true;

@@ -47,7 +47,6 @@ use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\ResponseInterface;
 use Throwable;
 
-use function Co\await;
 use function Co\cancel;
 use function Co\delay;
 use function Co\repeat;
@@ -60,7 +59,7 @@ use function parse_url;
 use function str_contains;
 use function strtolower;
 
-class HttpClient
+class Client
 {
     /*** @var ConnectionPool */
     private ConnectionPool $connectionPool;
@@ -71,7 +70,7 @@ class HttpClient
     /*** @param array $config */
     public function __construct(private readonly array $config = [])
     {
-        $pool = $this->config['pool'] ?? 'off';
+        $pool       = $this->config['pool'] ?? 'off';
         $this->pool = in_array($pool, [true, 1, 'on'], true);
 
         if ($this->pool) {
@@ -82,6 +81,7 @@ class HttpClient
     /**
      * @param RequestInterface $request
      * @param array            $option
+     *
      * @return Promise<ResponseInterface>
      */
     public function request(RequestInterface $request, array $option = []): Promise
@@ -227,8 +227,6 @@ class HttpClient
                         }
                         $r($response);
                     }
-
-
                 } catch (Throwable $exception) {
                     $socketStream->close();
                     $d($exception);
@@ -244,6 +242,7 @@ class HttpClient
      * @param bool        $ssl
      * @param int         $timeout
      * @param string|null $tunnel
+     *
      * @return Connection
      * @throws ConnectionException
      * @throws Throwable
@@ -271,26 +270,26 @@ class HttpClient
                     case 'socks':
                     case 'socks5':
                         $tunnelSocket = ProxySocks5::connect("tcp://{$parse['host']}:{$parse['port']}", $payload)->getSocketStream();
-                        $ssl && await(IO::Socket()->streamEnableCrypto($tunnelSocket));
+                        $ssl && IO::Socket()->streamEnableCrypto($tunnelSocket)->await();
                         $connection = new Connection($tunnelSocket);
                         break;
                     case 'http':
                         $tunnelSocket = ProxyHttp::connect("tcp://{$parse['host']}:{$parse['port']}", $payload)->getSocketStream();
-                        $ssl && await(IO::Socket()->streamEnableCrypto($tunnelSocket));
+                        $ssl && IO::Socket()->streamEnableCrypto($tunnelSocket)->await();
                         $connection = new Connection($tunnelSocket);
                         break;
                     case 'https':
                         $tunnelSocket = ProxyHttp::connect("tcp://{$parse['host']}:{$parse['port']}", $payload, true)->getSocketStream();
-                        $ssl && await(IO::Socket()->streamEnableCrypto($tunnelSocket));
+                        $ssl && IO::Socket()->streamEnableCrypto($tunnelSocket)->await();
                         $connection = new Connection($tunnelSocket);
                         break;
                     default:
                         throw new ConnectionException('Unsupported proxy protocol');
                 }
             } else {
-                $connection =  $ssl
-                    ? new Connection(await(IO::Socket()->streamSocketClientSSL("ssl://{$host}:{$port}", $timeout)))
-                    : new Connection(await(IO::Socket()->streamSocketClient("tcp://{$host}:{$port}", $timeout)));
+                $connection = $ssl
+                    ? new Connection(IO::Socket()->streamSocketClientSSL("ssl://{$host}:{$port}", $timeout)->await())
+                    : new Connection(IO::Socket()->streamSocketClient("tcp://{$host}:{$port}", $timeout)->await());
             }
         }
 
@@ -301,6 +300,7 @@ class HttpClient
     /**
      * @param Connection $connection
      * @param string     $key
+     *
      * @return void
      */
     private function pushConnection(Connection $connection, string $key): void

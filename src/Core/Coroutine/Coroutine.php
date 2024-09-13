@@ -66,6 +66,10 @@ class Coroutine extends LibraryAbstract
      * @var LibraryAbstract
      */
     protected static LibraryAbstract $instance;
+    /**
+     * @var array $fiber2promise
+     */
+    private array $fiber2callback = array();
 
     public function __construct()
     {
@@ -73,7 +77,67 @@ class Coroutine extends LibraryAbstract
     }
 
     /**
+     * @return void
+     */
+    private function registerOnFork(): void
+    {
+        registerForkHandler(function () {
+            $this->fiber2callback = array();
+            $this->registerOnFork();
+        });
+    }
+
+    /**
+     * @Author cclilshy
+     * @Date   2024/8/28 10:25
+     * @return bool
+     */
+    public static function isCoroutine(): bool
+    {
+        return Coroutine::getInstance()->hasCallback();
+    }
+
+    /**
+     * @return bool
+     */
+    public function hasCallback(): bool
+    {
+        if (!$fiber = Fiber::getCurrent()) {
+            return false;
+        }
+
+        if (!isset($this->fiber2callback[spl_object_hash($fiber)])) {
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * @Author cclilshy
+     * @Date   2024/8/28 10:24
+     * @return array|null
+     */
+    public static function getCurrent(): array|null
+    {
+        return Coroutine::getInstance()->getCoroutine();
+    }
+
+    /**
+     * @return array|null
+     */
+    public function getCoroutine(): array|null
+    {
+        if (!$fiber = Fiber::getCurrent()) {
+            return null;
+        }
+
+        return $this->fiber2callback[spl_object_hash($fiber)] ?? null;
+    }
+
+    /**
      * @param Promise $promise
+     *
      * @return mixed
      * @throws Throwable
      */
@@ -156,7 +220,6 @@ class Coroutine extends LibraryAbstract
                     ? $fiber->throw($e)
                     : $fiber->throw(new Exception('An exception occurred in the awaited Promise'));
 
-
                 // Fiber has been terminated
                 if ($fiber->isTerminated()) {
                     try {
@@ -186,12 +249,26 @@ class Coroutine extends LibraryAbstract
     }
 
     /**
-     * @var array $fiber2promise
+     * @param EscapeException $exception
+     *
+     * @return void
+     * @throws EscapeException
+     * @throws Throwable
      */
-    private array $fiber2callback = array();
+    public function handleEscapeException(EscapeException $exception): void
+    {
+        if (!Fiber::getCurrent() || !$this->hasCallback()) {
+            $this->fiber2callback = array();
+            tick();
+            exit(0);
+        } else {
+            throw $exception;
+        }
+    }
 
     /**
      * @param Closure $closure
+     *
      * @return Promise
      */
     public function async(Closure $closure): Promise
@@ -231,18 +308,8 @@ class Coroutine extends LibraryAbstract
     }
 
     /**
-     * @return void
-     */
-    private function registerOnFork(): void
-    {
-        registerForkHandler(function () {
-            $this->fiber2callback = array();
-            $this->registerOnFork();
-        });
-    }
-
-    /**
      * @param float|int $second
+     *
      * @return void
      */
     public function sleep(float|int $second): void
@@ -292,70 +359,5 @@ class Coroutine extends LibraryAbstract
                 Output::exception($e);
             }
         }
-    }
-
-    /**
-     * @return bool
-     */
-    public function hasCallback(): bool
-    {
-        if (!$fiber = Fiber::getCurrent()) {
-            return false;
-        }
-
-        if (!isset($this->fiber2callback[spl_object_hash($fiber)])) {
-            return false;
-        }
-
-        return true;
-    }
-
-    /**
-     * @return array|null
-     */
-    public function getCoroutine(): array|null
-    {
-        if (!$fiber = Fiber::getCurrent()) {
-            return null;
-        }
-
-        return $this->fiber2callback[spl_object_hash($fiber)] ?? null;
-    }
-
-    /**
-     * @param EscapeException $exception
-     * @return void
-     * @throws EscapeException
-     * @throws Throwable
-     */
-    public function handleEscapeException(EscapeException $exception): void
-    {
-        if (!Fiber::getCurrent() || !$this->hasCallback()) {
-            $this->fiber2callback = array();
-            tick();
-            exit(0);
-        } else {
-            throw $exception;
-        }
-    }
-
-    /**
-     * @Author cclilshy
-     * @Date   2024/8/28 10:24
-     * @return array|null
-     */
-    public static function getCurrent(): array|null
-    {
-        return Coroutine::getInstance()->getCoroutine();
-    }
-
-    /**
-     * @Author cclilshy
-     * @Date   2024/8/28 10:25
-     * @return bool
-     */
-    public static function isCoroutine(): bool
-    {
-        return Coroutine::getInstance()->hasCallback();
     }
 }

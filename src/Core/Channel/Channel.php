@@ -79,7 +79,7 @@ class Channel
     private Stream $stream;
 
     /*** @var Lock */
-    private Lock   $readLock;
+    private Lock $readLock;
 
     /*** @var Lock */
     private Lock $writeLock;
@@ -87,17 +87,19 @@ class Channel
     /*** @var string */
     private string $path;
 
+    /*** @var bool */
+    private bool $closed = false;
+
     /**
      * @param string $name
      * @param bool   $owner
+     *
      * @throws ChannelException
      */
-    public function __construct(
-        private readonly string $name,
-        private bool            $owner = false
-    ) {
-        $this->path = Channel::generateFilePathByChannelName($name);
-        $this->readLock = IO::Lock()->access("{$this->name}.read");
+    public function __construct(private readonly string $name, private bool $owner = false)
+    {
+        $this->path      = Channel::generateFilePathByChannelName($name);
+        $this->readLock  = IO::Lock()->access("{$this->name}.read");
         $this->writeLock = IO::Lock()->access("{$this->name}.write");
 
         if (!file_exists($this->path)) {
@@ -105,9 +107,7 @@ class Channel
                 throw new ChannelException('Channel does not exist.');
             }
 
-            /**
-             * @compatible:Windows
-             */
+            /*** @compatible:Windows */
             if (!Kernel::getInstance()->supportProcessControl()) {
                 touch($this->path);
             } elseif (!posix_mkfifo($this->path, 0600)) {
@@ -129,7 +129,67 @@ class Channel
     }
 
     /**
+     * @param string $name
+     *
+     * @return string
+     */
+    private static function generateFilePathByChannelName(string $name): string
+    {
+        $name = md5($name);
+        return sys_get_temp_dir() . '/' . $name . '.channel';
+    }
+
+    /*** @return void */
+    public function close(): void
+    {
+        if ($this->closed) {
+            return;
+        }
+
+        $this->stream->close();
+        $this->readLock->close();
+        $this->writeLock->close();
+
+        if ($this->owner) {
+            file_exists($this->path) && unlink($this->path);
+        }
+
+        $this->closed = true;
+
+        cancelForkHandler($this->forkHandlerId);
+    }
+
+    /**
+     * @param string $name
+     *
+     * @return Channel
+     * @throws ChannelException
+     */
+    public static function make(string $name): Channel
+    {
+        return new self($name, true);
+    }
+
+    /**
+     * @param string $name
+     *
+     * @return Channel
+     * @throws ChannelException
+     */
+    public static function open(string $name): Channel
+    {
+        $path = Channel::generateFilePathByChannelName($name);
+
+        if (!file_exists($path)) {
+            throw new ChannelException('Channel does not exist.');
+        }
+
+        return new self($name);
+    }
+
+    /**
      * @param mixed $data
+     *
      * @return bool
      * @throws ChannelException
      */
@@ -150,6 +210,16 @@ class Channel
             $this->writeLock->unlock();
         }
         return true;
+    }
+
+    /**
+     * @param bool $blocking
+     *
+     * @return void
+     */
+    public function setBlocking(bool $blocking): void
+    {
+        $this->blocking = $blocking;
     }
 
     /**
@@ -218,77 +288,8 @@ class Channel
         return $this->path;
     }
 
-    /**
-     * @param bool $blocking
-     * @return void
-     */
-    public function setBlocking(bool $blocking): void
-    {
-        $this->blocking = $blocking;
-    }
-
-    /*** @var bool */
-    private bool $closed = false;
-
-    /*** @return void */
-    public function close(): void
-    {
-        if ($this->closed) {
-            return;
-        }
-
-        $this->stream->close();
-        $this->readLock->close();
-        $this->writeLock->close();
-
-        if ($this->owner) {
-            file_exists($this->path) && unlink($this->path);
-        }
-
-        $this->closed = true;
-
-        cancelForkHandler($this->forkHandlerId);
-    }
-
-    /****/
     public function __destruct()
     {
         $this->close();
-    }
-
-    /**
-     * @param string $name
-     * @return string
-     */
-    private static function generateFilePathByChannelName(string $name): string
-    {
-        $name = md5($name);
-        return sys_get_temp_dir() . '/' . $name . '.channel';
-    }
-
-    /**
-     * @param string $name
-     * @return Channel
-     * @throws ChannelException
-     */
-    public static function make(string $name): Channel
-    {
-        return new self($name, true);
-    }
-
-    /**
-     * @param string $name
-     * @return Channel
-     * @throws ChannelException
-     */
-    public static function open(string $name): Channel
-    {
-        $path = Channel::generateFilePathByChannelName($name);
-
-        if (!file_exists($path)) {
-            throw new ChannelException('Channel does not exist.');
-        }
-
-        return new self($name);
     }
 }
