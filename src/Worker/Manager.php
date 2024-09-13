@@ -239,9 +239,7 @@ class Manager
      */
     public function run(): bool
     {
-        /**
-         * @compatible:Windows
-         */
+        /*** @compatible:Windows */
         if (!Kernel::getInstance()->supportProcessControl()) {
             $this->processId = getmypid();
         } else {

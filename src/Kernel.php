@@ -51,6 +51,9 @@ use function intval;
 use function ord;
 use function pow;
 use function strlen;
+use function define;
+use function defined;
+use function fopen;
 
 /**
  * @Author cclilshy
@@ -76,6 +79,13 @@ class Kernel
 
     public function __construct()
     {
+        if (!defined('STDIN')) {
+            define('STDIN', fopen('php://stdin', 'r'));
+        }
+        if (!defined('STDOUT')) {
+            define('STDOUT', fopen('php://stdout', 'w'));
+        }
+
         $this->mainSuspension = EventLoop::getSuspension();
         $this->parallel       = extension_loaded('parallel');
         $this->processControl = extension_loaded('pcntl') && extension_loaded('posix');

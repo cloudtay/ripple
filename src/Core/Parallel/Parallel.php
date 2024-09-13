@@ -182,9 +182,7 @@ class Parallel extends LibraryAbstract
         $this->counterRuntime = new Runtime(Parallel::$autoload);
         $this->counterFuture  = $this->counterRuntime->run(static function ($channel, $eventScalar) {
             $eventScalar(fn () => $eventScalar->wait());
-            /**
-             * @compatible:Windows
-             */
+            /*** @compatible:Windows */
             if (!Kernel::getInstance()->supportProcessControl()) {
                 $processId = getmypid();
             } else {
@@ -309,9 +307,7 @@ class Parallel extends LibraryAbstract
      */
     public static function getInstance(): static
     {
-        /**
-         * @compatible:Windows
-         */
+        /*** @compatible:Windows */
         if (!Kernel::getInstance()->supportProcessControl()) {
             throw new RuntimeException('Parallel is not supported on Windows');
         }

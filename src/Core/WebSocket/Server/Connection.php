@@ -91,9 +91,7 @@ class Connection
     /*** @var bool */
     private bool $isDeflate = false;
 
-    /**
-     * @var string
-     */
+    /*** @var string */
     private string $buffer = '';
 
     /**
@@ -578,6 +576,11 @@ class Connection
         return $frame;
     }
 
+    /**
+     * @param $payload
+     *
+     * @return string
+     */
     protected function deflate($payload): string
     {
         if (!isset($this->deflator)) {
