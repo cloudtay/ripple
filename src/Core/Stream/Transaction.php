@@ -82,7 +82,7 @@ final class Transaction
         $this->promise = promise(function ($resolve, $reject) {
             $this->resolve = $resolve;
             $this->reject  = $reject;
-        });
+        })->finally(fn () => $this->cancelAll());
     }
 
     /**
@@ -102,6 +102,33 @@ final class Transaction
     }
 
     /**
+     * @param Closure $closure
+     *
+     * @return string
+     */
+    public function onWriteable(Closure $closure): string
+    {
+        return $this->onWriteableId = $this->stream->onWritable(function (Stream $stream, Closure $cancel) use ($closure) {
+            try {
+                call_user_func_array($closure, [$stream, $cancel]);
+            } catch (Throwable $exception) {
+                $this->fail($exception);
+            }
+        });
+    }
+
+    /**
+     * @return void
+     */
+    public function complete(): void
+    {
+        if ($this->promise->getStatus() !== Promise::PENDING) {
+            return;
+        }
+        ($this->resolve)();
+    }
+
+    /**
      * @param Throwable $exception
      *
      * @return void
@@ -111,8 +138,6 @@ final class Transaction
         if ($this->promise->getStatus() !== Promise::PENDING) {
             return;
         }
-
-        $this->cancelAll();
         ($this->reject)($exception);
     }
 
@@ -141,22 +166,6 @@ final class Transaction
      *
      * @return string
      */
-    public function onWriteable(Closure $closure): string
-    {
-        return $this->onWriteableId = $this->stream->onWritable(function (Stream $stream, Closure $cancel) use ($closure) {
-            try {
-                call_user_func_array($closure, [$stream, $cancel]);
-            } catch (Throwable $exception) {
-                $this->fail($exception);
-            }
-        });
-    }
-
-    /**
-     * @param Closure $closure
-     *
-     * @return string
-     */
     public function onClose(Closure $closure): string
     {
         $id                 = $this->stream->onClose($closure);
@@ -178,17 +187,5 @@ final class Transaction
     public function getStream(): Stream
     {
         return $this->stream;
-    }
-
-    /**
-     * @return void
-     */
-    public function complete(): void
-    {
-        if ($this->promise->getStatus() !== Promise::PENDING) {
-            return;
-        }
-        $this->cancelAll();
-        ($this->resolve)();
     }
 }
