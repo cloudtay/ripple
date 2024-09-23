@@ -1,6 +1,6 @@
 <?php declare(strict_types=1);
 
-use function Co\tick;
+use function Co\wait;
 
 include __DIR__ . '/../vendor/autoload.php';
 
@@ -9,4 +9,4 @@ $connection->onOpen(function () use ($connection) {
     echo "WebSocket connected\n";
 });
 
-tick();
+wait();

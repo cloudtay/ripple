@@ -32,11 +32,10 @@
  * 无论是合同诉讼、侵权行为还是其他方面，作者或版权持有人均不对
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
+include __DIR__ . '/../vendor/autoload.php';
 
 use GuzzleHttp\Exception\GuzzleException;
 use Psc\Utils\Output;
-
-include __DIR__ . '/../vendor/autoload.php';
 
 $client = Co\Plugin::Guzzle()->newClient();
 try {

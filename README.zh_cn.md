@@ -8,15 +8,190 @@
 <a href="https://packagist.org/packages/cclilshy/p-ripple-core"><img src="https://img.shields.io/packagist/l/cclilshy/p-ripple-core" alt="License"></a>
 </p>
 <p>
-PRipple是一个现代化的、高性能的原生PHP协程引擎, 旨在解决PHP在高并发、复杂网络通信和数据操作方面的挑战。
+Ripple是一个现代化的、高性能的原生PHP协程引擎, 旨在解决PHP在高并发、复杂网络通信和数据操作方面的挑战。
 该引擎采用创新的架构和高效的编程模型, 为现代 Web 和 Web 应用程序提供强大而灵活的后端支持。
-通过使用 PRipple, 你将体验到从系统全局视图管理任务并高效处理网络流量和数据的优势。 </p>
+通过使用 Ripple, 你将体验到从系统全局视图管理任务并高效处理网络流量和数据的优势。 </p>
 
 ## 设计哲学
 
-> `Go`语言的协程模型是PRipple的设计灵感来源, 随着`PHP8`引入更轻量级的`Fiber`取代了`Generator`的协程模型,
-> 我们的设计理念得以通过PHP自举的方式实现, 实现了一个高性能的协程引擎。同时我们使用了`revolt`作为PRipple的底层驱动库,
-> 使得PRipple完美兼容原有的PHP生态
+极致的性能不是我们的主导方向
+
+是`Event`机制赋予了PHP火箭般的性能, 我们则为`Event`提供了最佳实践规范
+
+随着`PHP8`引入更轻量级的`Fiber`取代了`Generator`的协程模型,
+
+我们的设计理念得以通过PHP自举的方式实现,同时我们使用了`revolt`作为Ripple的底层驱动库, 使得Ripple完美兼容原有的PHP生态
+
+彻底解放PHPer的双手, 无缝拥抱全新的PHP协程时代
+
+## 安装
+
+````bash
+composer require cclilshy/p-ripple-core
+````
+
+## 基础用法
+
+Ripple严格遵循最新强类型的编程规范, 对IDE非常友好  
+下述的复现过程在任何IDE中都能得到完美的支持和解释
+
+### 最新文档
+
+你可以访问Ripple的[文档](https://p-ripple.cloudtay.com/)开始阅读
+
+我们建议你从[手动安装](https://p-ripple.cloudtay.com/docs/install/professional)开始, 便于更好地理解Ripple的工作流程
+
+如果你想快速部署并使用Ripple的服务, 你可以直接访问[快速部署](https://p-ripple.cloudtay.com/docs/install/server)
+
+### 协程
+
+> 通过`Co`类的`async`方法创建协程, 通过`Co`类的`sleep`方法模拟IO操作
+
+```php
+\Co\async(static function (){
+    \Co\sleep(1);
+    
+    echo 'Coroutine 1' , PHP_EOL;
+});
+
+\Co\async(static function (){
+    \Co\sleep(1);
+    
+    echo 'Coroutine 2' , PHP_EOL;
+});
+
+\Co\async(static function (){
+    \Co\sleep(1);
+    
+    echo 'Coroutine 3' , PHP_EOL;
+});
+
+\Co\sleep(2); // 等待所有协程执行完毕
+```
+
+### HTTP客户端
+
+> 通过`Guzzle`创建HTTP协程客户端, 已完美支持代理、重定向、超时、上传下载等功能
+
+```php
+use GuzzleHttp\Exception\GuzzleException;
+use Psc\Utils\Output;
+
+$client = Co\Plugin::Guzzle()->newClient();
+
+for ($i = 0; $i < 10; $i++) {
+    \Co\async(static function (){
+        try {
+            $response = $client->get('https://www.google.com/');
+            echo $response->getStatusCode(), \PHP_EOL;
+        } catch (GuzzleException $e) {
+            Output::exception($e);
+        }
+    });
+}
+
+\Co\wait();
+```
+
+### HTTP客户端 - 使用SSE进行AI开发
+
+> 以阿里云百炼为例, 通过SSE获取AI生成的文本, 一切如此简单
+
+```php
+use GuzzleHttp\Exception\GuzzleException;
+use Psc\Core\Http\Client\Capture\ServerSentEvents;
+
+if (!$key = $argv[1] ?? null) {
+    echo 'Please enter the key' . \PHP_EOL;
+    exit(1);
+}
+
+// Create interceptor
+$sse = new ServerSentEvents();
+$sse->onEvent(function ($event) {
+    \var_dump($event);
+});
+
+// Refer to the documentation and ask questions
+$client                  = Co\Plugin::Guzzle()->newClient();
+$header                  = [];
+$header['Content-Type']  = 'application/json';
+$header['Accept']        = 'text/event-stream';
+$header['Authorization'] = 'Bearer ' . $key;
+$body                    = [
+    'model' => 'qwen-max',
+    'input' => [
+        'messages' => [
+            ['role' => 'system', 'content' => 'Your name is ripple knowledge base'],
+            ['role' => 'user', 'content' => 'Who are you?'],
+        ],
+    ],
+];
+
+try {
+    $response = $client->post('https://dashscope.aliyuncs.com/api/v1/services/aigc/text-generation/generation', [
+        'headers' => $header,
+        'body'    => \json_encode($body, \JSON_UNESCAPED_UNICODE),
+
+        'timeout'       => 10,
+
+        // Injection interceptor
+        'capture_write' => $sse->getWriteCapture(),
+        'capture_read'  => $sse->getReadCapture(),
+    ]);
+} catch (GuzzleException $e) {
+    echo $e->getMessage();
+}
+```
+
+### HTTP服务端
+
+> 通过`Co\Net`创建HTTP协程服务端, 通过`Co\Net`的`onRequest`方法处理请求
+
+```php
+use Psc\Core\Http\Server\Chunk;
+use Psc\Core\Http\Server\Request;
+use Psc\Core\Http\Server\Response;
+
+$server = Co\Net::Http()->server('http://127.0.0.1:8008', \stream_context_create([
+    'socket' => [
+        'so_reuseport' => true,
+        'so_reuseaddr' => true,
+    ]
+]));
+
+$server->onRequest(static function (Request $request, Response $response) {
+    switch (\trim($request->getRequestUri(), '/')) {
+        case 'sse':
+            $response->headers->set('Transfer-Encoding', 'chunked');
+            $generator = static function () {
+                foreach (\range(1, 10) as $i) {
+                    Co\sleep(0.1);
+                    yield Chunk::event('message', \json_encode(['id' => $i, 'content' => 'content']));
+                }
+                yield '';
+            };
+            $response->setContent($generator());
+            $response->respond();
+            break;
+        default:
+            $response->setContent('Hello, World!')->respond();
+            break;
+    }
+});
+
+$server->listen();
+
+Co\wait();
+```
+
+### 更多
+
+> 想了解WebSocket服务端与客户端、TCP服务端与客户端、UDP服务端与客户端、Unix服务端与客户端等等...
+
+你可以访问Ripple的[文档](https://p-ripple.cloudtay.com/)开始阅读
+
+## 附录
 
 ### 适用组件库
 
@@ -31,38 +206,22 @@ PHP应用最为广泛的HTTP客户端
 **🟢 [PDrive](https://github.com/cloudtay/p-ripple-drive)**  
 官方提供的高性能驱动库，无缝接入你的传统应用
 
-**🟢 [PRipple](https://github.com/cloudtay/p-ripple-core)**  
+**🟢 [Ripple](https://github.com/cloudtay/p-ripple-core)**  
 提供标准的协程架构与工具用于迅速开发或封装传统应用
-
-**More** 🌗
 
 ### 事件库指南
 
 |  扩展类型   | 推荐使用 | 兼容性 |              说明               |
 |:-------:|:----:|:---:|:-----------------------------:|
-| `libev` |  🟢  | 🟢️ | `Ev`是更加高效的事件扩展,在各系统中表现一致,推荐使用 |
+| `libev` | 🏅️  | 🟢️ | `Ev`是更加高效的事件扩展,在各系统中表现一致,推荐使用 |
 |  `原生`   |  ️   | 🟢  |       支持PHP内置select机制使用       |
 | `event` |      | 🌗  |     在不同系统下的事件特性不统一,不推荐使用      |
-
-## 安装
-
-````bash
-composer require cclilshy/p-ripple-core
-````
 
 ### Ev扩展安装
 
 ```bash
 pecl install ev
 ```
-
-### 开始学习
-
-你可以访问PRipple的[文档](https://p-ripple.cloudtay.com/)开始阅读
-
-我们建议你从[手动安装](https://p-ripple.cloudtay.com/docs/install/professional)开始, 便于更好地理解PRipple的工作流程
-
-如果你想快速部署并使用PRipple的服务, 你可以直接访问[快速部署](https://p-ripple.cloudtay.com/docs/install/server)
 
 ## 特别致谢
 

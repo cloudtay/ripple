@@ -32,15 +32,11 @@
  * 无论是合同诉讼、侵权行为还是其他方面，作者或版权持有人均不对
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
+include __DIR__ . '/../vendor/autoload.php';
 
 use Psc\Core\Http\Server\Chunk;
 use Psc\Core\Http\Server\Request;
 use Psc\Core\Http\Server\Response;
-
-use function Co\wait;
-
-include __DIR__ . '/../vendor/autoload.php';
-
 
 $server = Co\Net::Http()->server('http://127.0.0.1:8008', \stream_context_create([
     'socket' => [
@@ -49,8 +45,6 @@ $server = Co\Net::Http()->server('http://127.0.0.1:8008', \stream_context_create
     ]
 ]));
 
-$queue = [];
-
 $server->onRequest(static function (Request $request, Response $response) {
     switch (\trim($request->getRequestUri(), '/')) {
         case 'sse':
@@ -58,14 +52,12 @@ $server->onRequest(static function (Request $request, Response $response) {
             $generator = static function () {
                 foreach (\range(1, 10) as $i) {
                     Co\sleep(0.1);
-                    yield Chunk::chunk(Chunk::event('message', \json_encode(['id' => $i, 'content' => 'Hello, World!'])));
+                    yield Chunk::event('message', \json_encode(['id' => $i, 'content' => 'content']));
                 }
-                yield Chunk::chunk('');
+                yield '';
             };
             $response->setContent($generator());
             $response->respond();
-            break;
-        case 'websocket':
             break;
         default:
             $response->setContent('Hello, World!')->respond();
@@ -74,9 +66,5 @@ $server->onRequest(static function (Request $request, Response $response) {
 });
 
 $server->listen();
-\Co\repeat(static function () {
-    \gc_collect_cycles();
 
-    echo 'Memory: ', \memory_get_usage(true) , ' bytes', \PHP_EOL;
-}, 1);
-wait();
+Co\wait();
