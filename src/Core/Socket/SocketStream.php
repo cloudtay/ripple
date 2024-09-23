@@ -185,7 +185,7 @@ class SocketStream extends Stream
     public function write(string $string): int
     {
         try {
-            return $this->writeInternal($string)->await();
+            return $this->writeInternal($string);
         } catch (Throwable $e) {
             throw new ConnectionException($e->getMessage(), ConnectionException::CONNECTION_WRITE_FAIL);
         }
@@ -194,17 +194,17 @@ class SocketStream extends Stream
     /**
      * @param string $string
      *
-     * @return Promise<int>
-     * @throws \Psc\Core\Stream\Exception\ConnectionException
+     * @return int
+     * @throws \Psc\Core\Stream\Exception\ConnectionException|Throwable
      */
-    private function writeInternal(string $string): Promise
+    private function writeInternal(string $string): int
     {
         if ($this->storageCacheWrite) {
             $this->storageCacheWrite->write($string);
-            return $this->writePromise;
+            return $this->writePromise->await();
         }
 
-        return $this->writePromise = \Co\promise(function ($resolve, $reject) use ($string) {
+        $this->writePromise = \Co\promise(function ($resolve, $reject) use ($string) {
             try {
                 if ($this->blocking) {
                     $this->prepareBlockingMode($reject);
@@ -215,7 +215,7 @@ class SocketStream extends Stream
 
                     if ($remainingString !== '') {
                         $this->blocking = true;
-                        $this->writeInternal($remainingString)->await();
+                        $this->writeInternal($remainingString);
                     }
 
                     $resolve($length);
@@ -224,6 +224,8 @@ class SocketStream extends Stream
                 $reject($e);
             }
         });
+
+        return $this->writePromise->await();
     }
 
     /**

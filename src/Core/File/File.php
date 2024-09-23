@@ -35,10 +35,10 @@
 namespace Psc\Core\File;
 
 use Closure;
-use Psc\Core\Coroutine\Promise;
 use Psc\Core\LibraryAbstract;
 use Psc\Core\Stream\Exception\Exception;
 use Psc\Core\Stream\Stream;
+use Throwable;
 
 use function array_shift;
 use function Co\promise;
@@ -81,9 +81,10 @@ class File extends LibraryAbstract
     /**
      * @param string $path
      *
-     * @return Promise
+     * @return string
+     * @throws Throwable
      */
-    public function getContents(string $path): Promise
+    public function getContents(string $path): string
     {
         return promise(static function (Closure $r, Closure $d) use ($path) {
             if (!$resource = fopen($path, 'r')) {
@@ -116,7 +117,7 @@ class File extends LibraryAbstract
                     $r($content);
                 }
             });
-        });
+        })->await();
     }
 
     /**

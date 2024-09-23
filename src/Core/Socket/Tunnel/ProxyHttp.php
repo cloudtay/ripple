@@ -36,10 +36,11 @@ namespace Psc\Core\Socket\Tunnel;
 
 use Closure;
 use Exception;
-use Psc\Core\Coroutine\Promise;
 use Psc\Core\Stream\Exception\ConnectionException;
+use Throwable;
 
 use function Co\cancel;
+use function Co\promise;
 use function preg_match;
 use function str_contains;
 use function strlen;
@@ -57,14 +58,15 @@ class ProxyHttp extends Base
     private string $buffer = '';
 
     /**
-     * @return Promise
+     * @return void
+     * @throws Throwable
      */
-    public function handshake(): Promise
+    public function handshake(): void
     {
-        return \Co\promise(function (Closure $resolve, Closure $reject) {
+        promise(function (Closure $resolve, Closure $reject) {
             $this->sendConnectRequest();
 
-            // 等待握手响应
+            // Wait for handshake response
             $this->readEventId = $this->proxy->onReadable(function () use ($resolve, $reject) {
                 try {
                     $this->buffer .= $this->proxy->readContinuously(1024);
@@ -78,7 +80,7 @@ class ProxyHttp extends Base
                 cancel($this->readEventId);
                 unset($this->readEventId);
             }
-        });
+        })->await();
     }
 
     /**

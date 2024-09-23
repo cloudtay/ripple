@@ -46,6 +46,7 @@ use Revolt\EventLoop;
 use Throwable;
 
 use function Co\delay;
+use function Co\promise;
 use function Co\registerForkHandler;
 use function Co\tick;
 use function spl_object_hash;
@@ -271,7 +272,7 @@ class Coroutine extends LibraryAbstract
      */
     public function async(Closure $closure): Promise
     {
-        return new Promise(function (Closure $r, Closure $d, Promise $promise) use ($closure) {
+        return promise(function (Closure $r, Closure $d, Promise $promise) use ($closure) {
             $fiber = new Fiber($closure);
             $hash  = spl_object_hash($fiber);
 

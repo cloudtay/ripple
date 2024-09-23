@@ -191,5 +191,4 @@ final class Transaction
         $this->cancelAll();
         ($this->resolve)();
     }
-
 }

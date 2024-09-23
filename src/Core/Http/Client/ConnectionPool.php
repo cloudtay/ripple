@@ -188,12 +188,12 @@ class ConnectionPool
                 $payload['password'] = $parse['pass'];
             }
             $proxySocketStream = $this->createProxySocketStream($parse, $payload);
-            $ssl && IO::Socket()->streamEnableCrypto($proxySocketStream)->await();
+            $ssl && IO::Socket()->streamEnableCrypto($proxySocketStream);
             return new Connection($proxySocketStream);
         }
 
-        $stream = IO::Socket()->streamSocketClient("tcp://{$host}:{$port}", $timeout)->await();
-        $ssl && IO::Socket()->streamEnableCrypto($stream)->await();
+        $stream = IO::Socket()->streamSocketClient("tcp://{$host}:{$port}", $timeout);
+        $ssl && IO::Socket()->streamEnableCrypto($stream);
         return new Connection($stream);
     }
 

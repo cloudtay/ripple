@@ -97,10 +97,7 @@ class UnixTest extends TestCase
      */
     private function call(string $path): void
     {
-        /**
-         * @var SocketStream $client
-         */
-        $client = IO::Socket()->streamSocketClient('unix://' . $path)->await();
+        $client = IO::Socket()->streamSocketClient('unix://' . $path);
         $client->setBlocking(false);
 
         $client->write('hello');

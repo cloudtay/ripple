@@ -35,7 +35,6 @@
 namespace Psc\Core\Socket\Tunnel;
 
 use Co\IO;
-use Psc\Core\Coroutine\Promise;
 use Psc\Core\Socket\SocketStream;
 use Throwable;
 
@@ -80,23 +79,23 @@ abstract class Base
             stream_context_set_option($context, 'ssl', 'verify_peer', false);
             stream_context_set_option($context, 'ssl', 'verify_peer_name', false);
             if ($ssl) {
-                $target = IO::Socket()->streamSocketClientSSL($target, 10, $context)->await();
+                $target = IO::Socket()->streamSocketClientSSL($target, 10, $context);
             } else {
-                $target = IO::Socket()->streamSocketClient($target, 10, $context)->await();
+                $target = IO::Socket()->streamSocketClient($target, 10, $context);
             }
         }
 
         $tunnel = new static($target, $payload);
-        $wait && $tunnel->handshake()->await();
+        $wait && $tunnel->handshake();
         return $tunnel;
     }
 
     /**
      * @Author cclilshy
      * @Date   2024/8/29 11:34
-     * @return Promise<bool>
+     * @return void
      */
-    abstract public function handshake(): Promise;
+    abstract public function handshake(): void;
 
     /**
      * @Author cclilshy

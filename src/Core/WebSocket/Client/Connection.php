@@ -37,7 +37,6 @@ namespace Psc\Core\WebSocket\Client;
 use Closure;
 use Co\IO;
 use Exception;
-use Psc\Core\Coroutine\Promise;
 use Psc\Core\Socket\SocketStream;
 use Psc\Core\Stream\Exception\ConnectionException;
 use Psc\Core\Stream\Stream;
@@ -113,7 +112,7 @@ class Connection
     ) {
         async(function () {
             try {
-                $this->handshake()->await();
+                $this->handshake();
                 $this->open();
                 $this->tick();
             } catch (Throwable $e) {
@@ -139,11 +138,12 @@ class Connection
     /**
      * @Author cclilshy
      * @Date   2024/8/15 14:48
-     * @return Promise
+     * @return void
+     * @throws Throwable
      */
-    private function handshake(): Promise
+    private function handshake(): void
     {
-        return \Co\promise(function ($r) {
+        \Co\promise(function ($r) {
             $parsedUrl = parse_url($this->address);
             if (!$parsedUrl || !isset($parsedUrl['scheme'], $parsedUrl['host'])) {
                 throw new Exception('Invalid address');
@@ -160,8 +160,8 @@ class Connection
             $path         = $parsedUrl['path'] ?? '';
             $path         = $path !== '' ? $path : '/';
             $this->stream = match ($scheme) {
-                'ws'    => IO::Socket()->streamSocketClient("tcp://{$host}:{$port}", $this->timeout, $this->context)->await(),
-                'wss'   => IO::Socket()->streamSocketClientSSL("ssl://{$host}:{$port}", $this->timeout, $this->context)->await(),
+                'ws'    => IO::Socket()->streamSocketClient("tcp://{$host}:{$port}", $this->timeout, $this->context),
+                'wss'   => IO::Socket()->streamSocketClientSSL("ssl://{$host}:{$port}", $this->timeout, $this->context),
                 default => throw new Exception('Unsupported scheme'),
             };
 
@@ -231,7 +231,7 @@ class Connection
                     $r();
                 }
             });
-        });
+        })->await();
     }
 
     /**

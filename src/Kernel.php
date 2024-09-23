@@ -281,16 +281,6 @@ class Kernel
      *
      * @return bool
      */
-    public function tick(Closure|null $result = null): bool
-    {
-        return $this->wait($result);
-    }
-
-    /**
-     * @param Closure|null $result
-     *
-     * @return bool
-     */
     public function wait(Closure|null $result = null): bool
     {
         if (!isset($this->mainSuspension)) {

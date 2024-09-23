@@ -157,11 +157,7 @@ class Promise
 
         $this->status = Promise::REJECTED;
         $this->result = $reason;
-        if ($reason instanceof Throwable) {
-            if (empty($this->onRejected)) {
-                Output::warning($reason->getMessage());
-            }
-        }
+
         foreach (array_reverse($this->onRejected) as $onRejected) {
             try {
                 call_user_func($onRejected, $reason);

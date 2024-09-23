@@ -36,12 +36,13 @@ namespace Psc\Core\Socket\Tunnel;
 
 use Closure;
 use Exception;
-use Psc\Core\Coroutine\Promise;
 use Psc\Core\Stream\Exception\ConnectionException;
+use Throwable;
 
 use function bin2hex;
 use function chr;
 use function Co\cancel;
+use function Co\promise;
 use function pack;
 use function strlen;
 use function substr;
@@ -57,11 +58,12 @@ class ProxySocks5 extends Base
     private string $buffer = '';
 
     /**
-     * @return Promise
+     * @return void
+     * @throws Throwable
      */
-    public function handshake(): Promise
+    public function handshake(): void
     {
-        return \Co\promise(function (Closure $resolve, Closure $reject) {
+        promise(function (Closure $resolve, Closure $reject) {
             $this->sendInitialHandshake();
 
             // Wait for handshake response
@@ -78,7 +80,7 @@ class ProxySocks5 extends Base
                 cancel($this->readEventId);
                 unset($this->readEventId);
             }
-        });
+        })->await();
     }
 
     /**

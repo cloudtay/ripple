@@ -37,7 +37,7 @@ use Psc\Core\Http\Server\Chunk;
 use Psc\Core\Http\Server\Request;
 use Psc\Core\Http\Server\Response;
 
-use function Co\tick;
+use function Co\wait;
 
 include __DIR__ . '/../vendor/autoload.php';
 
@@ -74,4 +74,9 @@ $server->onRequest(static function (Request $request, Response $response) {
 });
 
 $server->listen();
-tick();
+\Co\repeat(static function () {
+    \gc_collect_cycles();
+
+    echo 'Memory: ', \memory_get_usage(true) , ' bytes', \PHP_EOL;
+}, 1);
+wait();

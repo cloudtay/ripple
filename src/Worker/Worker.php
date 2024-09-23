@@ -36,13 +36,13 @@ namespace Psc\Worker;
 
 use Closure;
 use Co\System;
-use Psc\Core\Coroutine\Promise;
 use Psc\Core\Process\Runtime;
 use Psc\Core\Socket\SocketStream;
 use Psc\Core\Stream\Exception\ConnectionException;
 use Psc\Kernel;
 use Psc\Utils\Output;
 use Psc\Utils\Serialization\Zx7e;
+use Throwable;
 
 use function Co\delay;
 use function Co\promise;
@@ -160,20 +160,24 @@ abstract class Worker
     /**
      * @Author cclilshy
      * @Date   2024/8/17 17:32
-     * @return Promise
+     * @return int|false
      */
-    public function syncId(): Promise
+    public function syncId(): int|false
     {
-        return promise(function (Closure $resolve, Closure $reject) {
-            $id      = spl_object_hash($resolve);
-            $command = Command::make(Worker::COMMAND_SYNC_ID, ['id' => $id]);
-            $this->command($command);
+        try {
+            return promise(function (Closure $resolve, Closure $reject) {
+                $id      = spl_object_hash($resolve);
+                $command = Command::make(Worker::COMMAND_SYNC_ID, ['id' => $id]);
+                $this->command($command);
 
-            $this->queue[$id] = [
-                'resolve' => $resolve,
-                'reject'  => $reject
-            ];
-        });
+                $this->queue[$id] = [
+                    'resolve' => $resolve,
+                    'reject'  => $reject
+                ];
+            })->await();
+        } catch (Throwable) {
+            return false;
+        }
     }
 
     /**
