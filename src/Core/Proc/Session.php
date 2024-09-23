@@ -53,13 +53,26 @@ use function proc_get_status;
  */
 class Session
 {
-    public Closure     $onClose;
-    public Closure     $onErrorMessage;
-    public Closure     $onMessage;
+    /*** @var \Closure */
+    public Closure $onClose;
+
+    /*** @var \Closure */
+    public Closure $onErrorMessage;
+
+    /*** @var \Closure */
+    public Closure $onMessage;
+
+    /*** @var \Psc\Core\Proc\ProcStream */
     private ProcStream $streamStdInput;
+
+    /*** @var \Psc\Core\Proc\ProcStream */
     private ProcStream $streamStdOutput;
+
+    /*** @var \Psc\Core\Proc\ProcStream */
     private ProcStream $streamStdError;
-    private array      $status;
+
+    /*** @var array */
+    private array $status;
 
     /**
      * @param mixed $proc

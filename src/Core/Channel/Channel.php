@@ -118,7 +118,7 @@ class Channel
         $this->stream = new Stream(fopen($this->path, 'r+'));
         $this->zx7e   = new Zx7e();
 
-        // 注册进程fork后重新打开流资源
+        // Re-open the stream resource after registering the process fork
         $this->forkHandlerId = registerForkHandler(function () {
             $this->owner = false;
             $this->stream->close();

@@ -88,20 +88,17 @@ class HttpTest extends TestCase
                 $hash = $request->request->get('hash');
                 $this->assertEquals($hash, md5_file($file->getRealPath()));
                 $response->setContent(fopen($file->getRealPath(), 'r'))->respond();
-
                 return;
             }
 
             if ($request->isMethod('get')) {
                 $response->setContent($request->query->get('query'))->respond();
-
                 return;
             }
 
             if ($request->isMethod('post')) {
                 $response->setContent($request->request->get('query'))->respond();
 
-                return;
             }
         });
 
@@ -219,7 +216,7 @@ class HttpTest extends TestCase
     private function httpFile(): void
     {
         $client = Plugin::Guzzle()->newClient();
-        $path = tempnam(sys_get_temp_dir(), 'test');
+        $path   = tempnam(sys_get_temp_dir(), 'test');
         file_put_contents($path, str_repeat('a', 81920));
         $hash = md5_file($path);
         $client->post('http://127.0.0.1:8008/upload', [
@@ -230,12 +227,12 @@ class HttpTest extends TestCase
                     'filename' => 'test.txt',
                 ],
                 [
-                    'name' => 'hash',
+                    'name'     => 'hash',
                     'contents' => $hash
                 ]
             ],
-            'timeout'  => 10,
-            'sink'     => $path . '.bak'
+            'timeout'   => 10,
+            'sink'      => $path . '.bak'
         ]);
         $this->assertEquals($hash, md5_file($path . '.bak'));
     }

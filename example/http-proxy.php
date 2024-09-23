@@ -1,4 +1,5 @@
 <?php declare(strict_types=1);
+
 /*
  * Copyright (c) 2023-2024.
  *
@@ -32,21 +33,14 @@
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-namespace Co;
+use GuzzleHttp\Exception\GuzzleException;
 
-use Psc\Core\Coroutine\Coroutine as CoroutineLibrary;
+include __DIR__ . '/../vendor/autoload.php';
 
-/**
- * @Author cclilshy
- * @Date   2024/8/16 09:34
- */
-class Coroutine
-{
-    /**
-     * @return CoroutineLibrary
-     */
-    public static function Coroutine(): CoroutineLibrary
-    {
-        return CoroutineLibrary::getInstance();
-    }
+
+try {
+    $response = Co\Plugin::Guzzle()->newClient()->get('https://www.youtube.com/', ['proxy' => 'http://127.0.0.1:1080']);
+    echo $response->getStatusCode() , \PHP_EOL;
+} catch (GuzzleException $e) {
+    echo $e->getMessage();
 }

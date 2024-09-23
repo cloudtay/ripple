@@ -5,12 +5,10 @@
   "autoload": {
     "psr-4": {
       "Psc\\": "src/",
-      "P\\": "src/Supports/",
-      "Co\\": "src/SupportsCo/"
+      "Co\\": "src/Supports/"
     },
     "files": [
-      "src/functions.php",
-      "src/functions-co.php"
+      "src/functions.php"
     ]
   },
   "autoload-dev": {

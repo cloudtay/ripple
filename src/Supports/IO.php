@@ -32,13 +32,48 @@
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-namespace P;
+namespace Co;
+
+use Psc\Core\Channel\ChannelLibrary;
+use Psc\Core\File\File;
+use Psc\Core\File\Lock\LockLibrary;
+use Psc\Core\Socket\Socket;
 
 /**
- * @Description 请使用 Co\IO 代替
- * @Author      cclilshy
- * @Date        2024/8/16 09:35
+ * @Author cclilshy
+ * @Date   2024/8/16 09:35
  */
-class IO extends \Co\IO
+class IO
 {
+    /**
+     * @return File
+     */
+    public static function File(): File
+    {
+        return File::getInstance();
+    }
+
+    /**
+     * @return Socket
+     */
+    public static function Socket(): Socket
+    {
+        return Socket::getInstance();
+    }
+
+    /**
+     * @return ChannelLibrary
+     */
+    public static function Channel(): ChannelLibrary
+    {
+        return ChannelLibrary::getInstance();
+    }
+
+    /**
+     * @return LockLibrary
+     */
+    public static function Lock(): LockLibrary
+    {
+        return LockLibrary::getInstance();
+    }
 }

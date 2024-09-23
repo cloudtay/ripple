@@ -37,7 +37,6 @@ namespace Psc\Core\Http\Server;
 use Closure;
 use Psc\Core\Http\Server\Upload\MultipartHandler;
 use Psc\Core\Socket\SocketStream;
-use Psc\Core\Stream\Exception\ConnectionException;
 use Psc\Core\Stream\Exception\RuntimeException;
 use Psc\Core\Stream\Transaction;
 use Psc\Utils\Output;
@@ -131,6 +130,48 @@ class Connection
     }
 
     /**
+     * @param Closure $builder
+     *
+     * @return void
+     */
+    public function listen(Closure $builder): void
+    {
+        $this->stream->onReadable(function (SocketStream $stream) use ($builder) {
+            $content = $stream->readContinuously(1024);
+
+            if ($content === '') {
+                if ($stream->eof()) {
+                    $stream->close();
+                }
+                return;
+            }
+
+            try {
+                if (!$requestInfo = $this->tick($content)) {
+                    return;
+                }
+                $builder($requestInfo);
+            } catch (Throwable $exception) {
+                Output::warning($exception->getMessage());
+
+                $stream->close();
+                return;
+            }
+        });
+
+        while (1) {
+            try {
+                $this->stream->transaction(function (Transaction $transaction) {
+                    $transaction->getPromise()->await();
+                });
+            } catch (Throwable) {
+                $this->stream->close();
+                break;
+            }
+        }
+    }
+
+    /**
      * @param string $content
      *
      * @return array|null
@@ -185,6 +226,16 @@ class Connection
 
             $this->handleRequestBody($base[0], $body);
         }
+    }
+
+    /**
+     * @return string
+     */
+    private function freeBuffer(): string
+    {
+        $buffer       = $this->buffer;
+        $this->buffer = '';
+        return $buffer;
     }
 
     /**
@@ -298,7 +349,12 @@ class Connection
 
         $this->step             = 3;
         $this->multipartHandler = new MultipartHandler($matches[1]);
-        $this->stream->getTransaction()->onClose(fn () => $this->multipartHandler?->cancel());
+
+        if ($transaction = $this->stream->getTransaction()) {
+            $transaction->onClose(fn () => $this->multipartHandler?->cancel());
+        } else {
+            $this->stream->onClose(fn () => $this->multipartHandler?->cancel());
+        }
 
         foreach ($this->multipartHandler->tick($body) as $name => $multipartResult) {
             if (is_string($multipartResult)) {
@@ -436,61 +492,6 @@ class Connection
 
         if ($xForwardedProto = $this->server['HTTP_X_FORWARDED_PROTO'] ?? null) {
             $this->server['HTTPS'] = $xForwardedProto === 'https' ? 'on' : 'off';
-        }
-    }
-
-    /**
-     * @return string
-     */
-    private function freeBuffer(): string
-    {
-        $buffer       = $this->buffer;
-        $this->buffer = '';
-        return $buffer;
-    }
-
-    /**
-     * @param Closure $builder
-     *
-     * @return void
-     */
-    public function listen(Closure $builder): void
-    {
-        $this->stream->onReadable(function (SocketStream $stream) use ($builder) {
-            $content = '';
-            while ($buffer = $stream->read(1024)) {
-                $content .= $buffer;
-            }
-
-            if ($content === '') {
-                if ($stream->eof()) {
-                    $stream->close();
-                }
-                return;
-            }
-
-            try {
-                if (!$requestInfo = $this->tick($content)) {
-                    return;
-                }
-                $builder($requestInfo);
-            } catch (Throwable $exception) {
-                Output::warning($exception->getMessage());
-                $stream->close();
-                return;
-            }
-        });
-
-        while (1) {
-            try {
-                $this->stream->transaction(function (Transaction $transaction) {
-                    // Transaction process closure stream should be treated as request interruption
-                    $transaction->onClose(static fn () => $transaction->fail(new ConnectionException('Connection closed')));
-                    $transaction->getPromise()->await();
-                });
-            } catch (Throwable) {
-                break;
-            }
         }
     }
 }

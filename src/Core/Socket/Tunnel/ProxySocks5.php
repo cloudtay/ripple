@@ -64,13 +64,10 @@ class ProxySocks5 extends Base
         return \Co\promise(function (Closure $resolve, Closure $reject) {
             $this->sendInitialHandshake();
 
-            // 等待握手响应
+            // Wait for handshake response
             $this->readEventId = $this->proxy->onReadable(function () use ($resolve, $reject) {
                 try {
-                    while ($buffer = $this->proxy->read(1024)) {
-                        $this->buffer .= $buffer;
-                    }
-
+                    $this->buffer .= $this->proxy->readContinuously(1024);
                     $this->processBuffer($resolve, $reject);
                 } catch (Exception $e) {
                     $reject($e);
@@ -137,7 +134,7 @@ class ProxySocks5 extends Base
         $this->buffer = substr($this->buffer, 2);
 
         if ($response === "\x05\x00") {
-            // 无需身份验证，转到绑定步骤
+            // No authentication required, go to binding step
             $this->sendBindRequest($this->payload['host'], $this->payload['port']);
             $this->step = 2;
         } elseif ($response === "\x05\x02") {

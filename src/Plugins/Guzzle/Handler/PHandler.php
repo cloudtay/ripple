@@ -40,14 +40,10 @@ use GuzzleHttp\Promise\Promise;
 use GuzzleHttp\Promise\PromiseInterface;
 use Psc\Core\Http\Client\Client;
 use Psr\Http\Message\RequestInterface;
-use Psr\Http\Message\ResponseInterface;
 use Throwable;
 
 class PHandler
 {
-    /**
-     * 构造函数
-     */
     public function __construct(private readonly Client $httpClient)
     {
     }
@@ -60,14 +56,10 @@ class PHandler
      */
     public function __invoke(RequestInterface $request, array $options): PromiseInterface
     {
-        $async   = $this->httpClient->request($request, $options);
-        $promise = new Promise(static function () use ($request, $async, &$promise) {
+        $promise = new Promise(function () use ($request, $options, &$promise) {
             try {
-                $result = $async->await();
-                if (!$result instanceof ResponseInterface) {
-                    throw new TransferException('Invalid response');
-                }
-                $promise->resolve($result);
+                $response = $this->httpClient->request($request, $options);
+                $promise->resolve($response);
             } catch (GuzzleException $exception) {
                 $promise->reject($exception);
             } catch (Throwable $exception) {

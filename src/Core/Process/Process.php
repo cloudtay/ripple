@@ -64,7 +64,7 @@ use const WUNTRACED;
 
 /**
  * @compatible:Windows
- * 20240830对Windows支持进行了调整
+ * 2024/08/30 Adjustments made to Windows support
  *
  * @Author    cclilshy
  * @Date      2024/8/16 09:36
@@ -97,10 +97,7 @@ class Process extends LibraryAbstract
 
     public function __construct()
     {
-        /**
-         * @compatible:Windows
-         * Windows 不支持pcntl扩展
-         */
+        /*** @compatible:Windows */
         if (!Kernel::getInstance()->supportProcessControl()) {
             $this->rootProcessId = getmypid();
             $this->processId     = getmypid();
@@ -158,11 +155,11 @@ class Process extends LibraryAbstract
             /**
              * @compatible:Windows
              *
-             * Windows允许使用Process模块模拟一个Runtime
-             * 但Runtime并非真正的子进程
+             * Windows allows the use of the Process module to simulate a Runtime
+             * But Runtime is not a real child process
              *
-             * 由于__destruct与Fiber生命周期的原因
-             * Windows下的Runtime一旦被销毁,会导致整个进程退出, 并且不会触发任何promise回调
+             * Due to the life cycle of __destruct and Fiber
+             * Once the Runtime under Windows is destroyed, it will cause the entire process to exit and no promise callback will be triggered.
              */
             if (!Kernel::getInstance()->supportProcessControl()) {
                 call_user_func($closure, ...$args);
@@ -276,10 +273,7 @@ class Process extends LibraryAbstract
      */
     private function registerSignalHandler(): void
     {
-        /**
-         * @compatible:Windows
-         * Windows 不注册信号处理器
-         */
+        /*** @compatible:Windows */
         if (!Kernel::getInstance()->supportProcessControl()) {
             return;
         }

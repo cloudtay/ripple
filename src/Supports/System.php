@@ -32,13 +32,42 @@
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-namespace P;
+namespace Co;
+
+use Psc\Core\Parallel\Parallel;
+use Psc\Core\Proc\Proc;
+use Psc\Core\Process\Process;
+use RuntimeException;
 
 /**
- * @Description 请使用 Co\System 代替
- * @Author      cclilshy
- * @Date        2024/8/31 11:39
+ * @Author cclilshy
+ * @Date   2024/8/16 09:35
  */
-class System extends \Co\System
+class System
 {
+    /**
+     * @return Process
+     */
+    public static function Process(): Process
+    {
+        return Process::getInstance();
+    }
+
+    /**
+     * @return Proc
+     */
+    public static function Proc(): Proc
+    {
+        return Proc::getInstance();
+    }
+
+    /**
+     * @Description failed test
+     * @return Parallel
+     * @throws RuntimeException
+     */
+    public static function Parallel(): Parallel
+    {
+        return Parallel::getInstance();
+    }
 }

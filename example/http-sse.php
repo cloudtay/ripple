@@ -1,4 +1,5 @@
 <?php declare(strict_types=1);
+
 /*
  * Copyright (c) 2023-2024.
  *
@@ -32,42 +33,49 @@
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-namespace Co;
+use GuzzleHttp\Exception\GuzzleException;
+use Psc\Core\Http\Client\Capture\ServerSentEvents;
 
-use Psc\Core\Parallel\Parallel;
-use Psc\Core\Proc\Proc;
-use Psc\Core\Process\Process;
-use RuntimeException;
+include __DIR__ . '/../vendor/autoload.php';
 
-/**
- * @Author cclilshy
- * @Date   2024/8/16 09:35
- */
-class System
-{
-    /**
-     * @return Process
-     */
-    public static function Process(): Process
-    {
-        return Process::getInstance();
-    }
+if (!$key = $argv[1] ?? null) {
+    echo 'Please enter the key' . \PHP_EOL;
+    exit(1);
+}
 
-    /**
-     * @return Proc
-     */
-    public static function Proc(): Proc
-    {
-        return Proc::getInstance();
-    }
+// Create interceptor
+$sse = new ServerSentEvents();
+$sse->onEvent(function ($event) {
+    \var_dump($event);
+});
 
-    /**
-     * @Description 未通过测试
-     * @return Parallel
-     * @throws RuntimeException
-     */
-    public static function Parallel(): Parallel
-    {
-        return Parallel::getInstance();
-    }
+// Refer to the documentation and ask questions
+$client                  = Co\Plugin::Guzzle()->newClient();
+$header                  = [];
+$header['Content-Type']  = 'application/json';
+$header['Accept']        = 'text/event-stream';
+$header['Authorization'] = 'Bearer ' . $key;
+$body                    = [
+    'model' => 'qwen-max',
+    'input' => [
+        'messages' => [
+            ['role' => 'system', 'content' => 'Your name is ripple knowledge base'],
+            ['role' => 'user', 'content' => 'Who are you?'],
+        ],
+    ],
+];
+
+try {
+    $response = $client->post('https://dashscope.aliyuncs.com/api/v1/services/aigc/text-generation/generation', [
+        'headers' => $header,
+        'body'    => \json_encode($body, \JSON_UNESCAPED_UNICODE),
+
+        'timeout'       => 10,
+
+        // Injection interceptor
+        'capture_write' => $sse->getWriteCapture(),
+        'capture_read'  => $sse->getReadCapture(),
+    ]);
+} catch (GuzzleException $e) {
+    echo $e->getMessage();
 }

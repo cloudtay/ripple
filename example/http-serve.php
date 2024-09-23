@@ -1,4 +1,5 @@
 <?php declare(strict_types=1);
+
 /*
  * Copyright (c) 2023-2024.
  *
@@ -32,30 +33,45 @@
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-namespace Co;
+use Psc\Core\Http\Server\Chunk;
+use Psc\Core\Http\Server\Request;
+use Psc\Core\Http\Server\Response;
 
-use Psc\Core\Http\Http;
-use Psc\Core\WebSocket\WebSocket;
+use function Co\tick;
 
-/**
- * @Author cclilshy
- * @Date   2024/8/16 09:35
- */
-class Net
-{
-    /**
-     * @return Http
-     */
-    public static function Http(): Http
-    {
-        return Http::getInstance();
+include __DIR__ . '/../vendor/autoload.php';
+
+
+$server = Co\Net::Http()->server('http://127.0.0.1:8008', \stream_context_create([
+    'socket' => [
+        'so_reuseport' => true,
+        'so_reuseaddr' => true,
+    ]
+]));
+
+$queue = [];
+
+$server->onRequest(static function (Request $request, Response $response) {
+    switch (\trim($request->getRequestUri(), '/')) {
+        case 'sse':
+            $response->headers->set('Transfer-Encoding', 'chunked');
+            $generator = static function () {
+                foreach (\range(1, 10) as $i) {
+                    Co\sleep(0.1);
+                    yield Chunk::chunk(Chunk::event('message', \json_encode(['id' => $i, 'content' => 'Hello, World!'])));
+                }
+                yield Chunk::chunk('');
+            };
+            $response->setContent($generator());
+            $response->respond();
+            break;
+        case 'websocket':
+            break;
+        default:
+            $response->setContent('Hello, World!')->respond();
+            break;
     }
+});
 
-    /**
-     * @return WebSocket
-     */
-    public static function WebSocket(): WebSocket
-    {
-        return WebSocket::getInstance();
-    }
-}
+$server->listen();
+tick();

@@ -37,14 +37,15 @@ namespace Psc\Core\Http\Client;
 use Closure;
 use Co\IO;
 use GuzzleHttp\Psr7\MultipartStream;
+use GuzzleHttp\Psr7\Response;
 use InvalidArgumentException;
 use Psc\Core\Coroutine\Promise;
 use Psc\Core\Socket\SocketStream;
 use Psc\Core\Socket\Tunnel\ProxyHttp;
 use Psc\Core\Socket\Tunnel\ProxySocks5;
 use Psc\Core\Stream\Exception\ConnectionException;
+use Psc\Utils\Output;
 use Psr\Http\Message\RequestInterface;
-use Psr\Http\Message\ResponseInterface;
 use Throwable;
 
 use function Co\cancel;
@@ -58,6 +59,7 @@ use function is_resource;
 use function parse_url;
 use function str_contains;
 use function strtolower;
+use function getenv;
 
 class Client
 {
@@ -79,16 +81,16 @@ class Client
     }
 
     /**
-     * @param RequestInterface $request
-     * @param array            $option
+     * @param \Psr\Http\Message\RequestInterface $request
+     * @param array                              $option
      *
-     * @return Promise<ResponseInterface>
+     * @return \GuzzleHttp\Psr7\Response
+     * @throws Throwable
      */
-    public function request(RequestInterface $request, array $option = []): Promise
+    public function request(RequestInterface $request, array $option = []): Response
     {
         return \Co\promise(function (Closure $r, Closure $d, Promise $promise) use ($request, $option) {
-            $uri = $request->getUri();
-
+            $uri    = $request->getUri();
             $method = $request->getMethod();
             $scheme = $uri->getScheme();
             $host   = $uri->getHost();
@@ -96,6 +98,14 @@ class Client
             $path   = $uri->getPath() ?: '/';
             $query  = $uri->getQuery();
             $query  = $query ? "?{$query}" : '';
+
+            if (!isset($option['proxy'])) {
+                if ($scheme === 'http' && $httpProxy = getenv('http_proxy')) {
+                    $option['proxy'] = $httpProxy;
+                } elseif ($scheme === 'https' && $httpsProxy = getenv('https_proxy')) {
+                    $option['proxy'] = $httpsProxy;
+                }
+            }
 
             $connection = $this->pullConnection(
                 $host,
@@ -121,7 +131,6 @@ class Client
                 $header .= "{$name}: " . implode(', ', $values) . "\r\n";
             }
 
-            //写入初始化头
             $writeHandler($header);
             if ($bodyStream = $request->getBody()) {
                 if (!$request->getHeader('Content-Length')) {
@@ -166,12 +175,13 @@ class Client
             }
 
             if ($timeout = $option['timeout'] ?? null) {
-                $delay = delay(static function () use ($connection, $d) {
+                $delayEventID = delay(static function () use ($connection, $d) {
                     $connection->stream->close();
-                    $d(new InvalidArgumentException('Request timeout'));
+                    $d(new ConnectionException('Request timeout', ConnectionException::CONNECTION_TIMEOUT));
                 }, $timeout);
-                $promise->finally(static function () use ($delay) {
-                    cancel($delay);
+
+                $promise->finally(static function () use ($delayEventID) {
+                    cancel($delayEventID);
                 });
             }
 
@@ -184,9 +194,7 @@ class Client
                 });
             }
 
-            /**
-             * 解析响应过程
-             */
+            /*** Parse response process*/
             $connection->stream->onReadable(function (SocketStream $socketStream, Closure $cancel) use (
                 $host,
                 $port,
@@ -197,10 +205,7 @@ class Client
                 $tickHandler
             ) {
                 try {
-                    $content = '';
-                    while ($buffer = $socketStream->read(8192)) {
-                        $content .= $buffer;
-                    }
+                    $content = $socketStream->readContinuously(8192);
 
                     if ($content === '') {
                         if (!$socketStream->eof()) {
@@ -214,9 +219,7 @@ class Client
                     if ($response) {
                         $k = implode(', ', $response->getHeader('Connection'));
                         if (str_contains(strtolower($k), 'keep-alive') && $this->pool) {
-                            /**
-                             * 推入连接池
-                             */
+                            /*** Push into connection pool*/
                             $this->pushConnection(
                                 $connection,
                                 ConnectionPool::generateConnectionKey($host, $port)
@@ -227,13 +230,14 @@ class Client
                         }
                         $r($response);
                     }
-                } catch (Throwable $exception) {
+                } catch (ConnectionException $exception) {
                     $socketStream->close();
                     $d($exception);
-                    return;
+                } catch (Throwable $exception) {
+                    Output::warning($exception->getMessage());
                 }
             });
-        });
+        })->await();
     }
 
     /**
@@ -255,7 +259,7 @@ class Client
             if ($tunnel) {
                 $parse = parse_url($tunnel);
                 if (!isset($parse['host'], $parse['port'])) {
-                    throw new ConnectionException('Invalid proxy address');
+                    throw new ConnectionException('Invalid proxy address', ConnectionException::CONNECTION_ERROR);
                 }
                 $payload = [
                     'host' => $host,
@@ -284,7 +288,7 @@ class Client
                         $connection = new Connection($tunnelSocket);
                         break;
                     default:
-                        throw new ConnectionException('Unsupported proxy protocol');
+                        throw new ConnectionException('Unsupported proxy protocol', ConnectionException::CONNECTION_ERROR);
                 }
             } else {
                 $connection = $ssl

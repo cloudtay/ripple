@@ -32,13 +32,23 @@
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-namespace P;
+namespace Co;
+
+use Psc\Plugins\Guzzle\Guzzle;
 
 /**
- * @Description 请使用 Co\Plugin 代替
- * @Author      cclilshy
- * @Date        2024/8/31 11:39
+ * @Author cclilshy
+ * @Date   2024/8/31 11:42
  */
-class Plugin extends \Co\Plugin
+class Plugin
 {
+    /**
+     * @Author cclilshy
+     * @Date   2024/8/31 11:41
+     * @return Guzzle
+     */
+    public static function Guzzle(): Guzzle
+    {
+        return Guzzle::getInstance();
+    }
 }

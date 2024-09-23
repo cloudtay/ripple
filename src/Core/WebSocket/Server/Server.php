@@ -53,9 +53,9 @@ use const SOL_TCP;
 use const TCP_NODELAY;
 
 /**
- * [协议相关]
- * 白皮书: https://datatracker.ietf.org/doc/html/rfc6455
- * 最新规范: https://websockets.spec.whatwg.org/
+ * [Protocol related]
+ * Book: https://datatracker.ietf.org/doc/html/rfc6455
+ * Latest specifications: https://websockets.spec.whatwg.org/
  */
 class Server
 {

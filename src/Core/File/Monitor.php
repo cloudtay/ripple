@@ -70,9 +70,8 @@ class Monitor
 
     /*** @var string */
     private string $timer2;
-    /**
-     * @var array
-     */
+
+    /*** @var array */
     private array $list = [];
 
     /**

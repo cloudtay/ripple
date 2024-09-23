@@ -38,6 +38,7 @@ use Closure;
 use Co\IO;
 use Exception;
 use Psc\Core\Coroutine\Promise;
+use Psc\Core\Socket\SocketStream;
 use Psc\Core\Stream\Exception\ConnectionException;
 use Psc\Core\Stream\Stream;
 use Psc\Utils\Output;
@@ -64,9 +65,9 @@ use function unpack;
 
 /**
  * @Author cclilshy
- * @Date   下午2:28
- * 白皮书: https://datatracker.ietf.org/doc/html/rfc6455
- * 最新规范: https://websockets.spec.whatwg.org/
+ * @Date   2:28 pm
+ * White paper: https://datatracker.ietf.org/doc/html/rfc6455
+ * Latest specification: https://websockets.spec.whatwg.org/
  */
 class Connection
 {
@@ -91,9 +92,9 @@ class Connection
     private Closure $onError;
 
     /**
-     * @var Stream
+     * @var \Psc\Core\Socket\SocketStream
      */
-    private Stream $stream;
+    private SocketStream $stream;
 
     /**
      * @var string
@@ -124,9 +125,7 @@ class Connection
             }
             $this->stream->onReadable(function () {
                 try {
-                    while ($buffer = $this->stream->read(8192)) {
-                        $this->buffer .= $buffer;
-                    }
+                    $this->buffer .= $this->stream->readContinuously(8192);
                     $this->tick();
                 } catch (Throwable $e) {
                     $this->close();
@@ -186,12 +185,10 @@ class Connection
                 &$buffer,
             ) {
                 $response = '';
-                while ($buffer = $this->stream->read(8192)) {
-                    $response .= $buffer;
-                }
+                $response .= $this->stream->readContinuously(8192);
                 if ($response === '') {
                     if ($this->stream->eof()) {
-                        throw new ConnectionException('Connection closed by peer');
+                        throw new ConnectionException('Connection closed by peer', ConnectionException::CONNECTION_CLOSED);
                     }
                     return;
                 }
@@ -207,7 +204,7 @@ class Connection
                         strtolower($header),
                         strtolower("HTTP/1.1 101 Switching Protocols")
                     )) {
-                        throw new ConnectionException('Invalid response');
+                        throw new ConnectionException('Invalid response', ConnectionException::CONNECTION_HANDSHAKE_FAIL);
                     }
 
                     $headers  = array();
@@ -327,15 +324,15 @@ class Connection
             }
 
             switch ($opcode) {
-                case 0x1: // 文本
+                case 0x1: // text
                     break;
-                case 0x2: // 二进制
+                case 0x2: // binary
                     break;
-                case 0x8: // 关闭
+                case 0x8: // close
                     $this->close();
                     return;
                 case 0x9: // ping
-                    // 发送pong响应
+                    // Send pong response
                     $pongFrame = chr(0x8A) . chr(0x00);
                     $this->stream->write($pongFrame);
                     return;

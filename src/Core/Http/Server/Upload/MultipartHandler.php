@@ -51,7 +51,7 @@ use function trim;
 use function uniqid;
 
 /**
- * Http上传解析器
+ * Http upload parser
  */
 class MultipartHandler
 {
@@ -74,7 +74,7 @@ class MultipartHandler
     private string $buffer = '';
 
     /**
-     * 上传文件构造
+     * Upload file structure
      *
      * @param string $boundary
      */
@@ -83,7 +83,7 @@ class MultipartHandler
     }
 
     /**
-     * 上下文推入
+     * CONTEXT PUSH
      *
      * @param string $content
      *
@@ -185,7 +185,7 @@ class MultipartHandler
 
 
     /**
-     * 解析文本内容
+     * Parse text content
      *
      * @return string|false
      */
@@ -202,7 +202,7 @@ class MultipartHandler
     }
 
     /**
-     * 处理传输中
+     * Processing transfer
      *
      * @return bool
      */

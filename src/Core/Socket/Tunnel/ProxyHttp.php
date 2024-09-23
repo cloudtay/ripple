@@ -67,10 +67,7 @@ class ProxyHttp extends Base
             // 等待握手响应
             $this->readEventId = $this->proxy->onReadable(function () use ($resolve, $reject) {
                 try {
-                    while ($buffer = $this->proxy->read(1024)) {
-                        $this->buffer .= $buffer;
-                    }
-
+                    $this->buffer .= $this->proxy->readContinuously(1024);
                     $this->processBuffer($resolve, $reject);
                 } catch (Exception $e) {
                     $reject($e);
@@ -85,7 +82,7 @@ class ProxyHttp extends Base
     }
 
     /**
-     * 将初始CONNECT请求发送到代理服务器
+     * Send initial CONNECT request to proxy server
      *
      * @return void
      * @throws ConnectionException
@@ -103,7 +100,7 @@ class ProxyHttp extends Base
     }
 
     /**
-     * 处理接收到的数据并处理不同的握手步骤
+     * Process the received data and handle the different handshake steps
      *
      * @param Closure $resolve
      * @param Closure $reject
@@ -130,7 +127,6 @@ class ProxyHttp extends Base
      */
     private function handleConnectResponse(Closure $resolve, Closure $reject): void
     {
-        // 检查响应是否包含状态行结尾
         if (!str_contains($this->buffer, "\r\n\r\n")) {
             return;
         }
@@ -138,7 +134,6 @@ class ProxyHttp extends Base
         $response     = substr($this->buffer, 0, strpos($this->buffer, "\r\n\r\n") + 4);
         $this->buffer = substr($this->buffer, strlen($response));
 
-        // 检查200响应是否成功
         if (preg_match('/^HTTP\/\d\.\d 200/', $response)) {
             $resolve();
         } else {

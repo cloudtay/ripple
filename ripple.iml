@@ -4,8 +4,7 @@
     <exclude-output />
     <content url="file://$MODULE_DIR$">
       <sourceFolder url="file://$MODULE_DIR$/src" isTestSource="false" packagePrefix="Psc\" />
-      <sourceFolder url="file://$MODULE_DIR$/src/Supports" isTestSource="false" packagePrefix="P\" />
-      <sourceFolder url="file://$MODULE_DIR$/src/SupportsCo" isTestSource="false" packagePrefix="Co\" />
+      <sourceFolder url="file://$MODULE_DIR$/src/Supports" isTestSource="false" packagePrefix="Co\" />
       <sourceFolder url="file://$MODULE_DIR$/tests" isTestSource="true" packagePrefix="Tests\" />
     </content>
     <orderEntry type="sourceFolder" forTests="false" />

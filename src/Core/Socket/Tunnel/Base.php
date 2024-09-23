@@ -44,8 +44,8 @@ use function stream_context_create;
 use function stream_context_set_option;
 
 /**
- * 该标准适用于透传模式的所有代理,通过该方法创建的套接字可以直接作为目标套接字访问
- * 需要注意getMeta的url部分不能表示为目标地址,使用者应手动做映射
+ * This standard applies to all proxies in transparent transmission mode. The socket created by this method can be directly accessed as the target socket.
+ * It should be noted that the url part of getMeta cannot be expressed as a target address, and users should do the mapping manually.
  *
  * @Author cclilshy
  * @Date   2024/8/29 11:28
@@ -59,16 +59,6 @@ abstract class Base
     public function __construct(protected SocketStream $proxy, protected array $payload)
     {
         $this->proxy->setBlocking(false);
-    }
-
-    /**
-     * @Author cclilshy
-     * @Date   2024/8/29 12:33
-     * @return SocketStream
-     */
-    public function getSocketStream(): SocketStream
-    {
-        return $this->proxy;
     }
 
     /**
@@ -107,4 +97,14 @@ abstract class Base
      * @return Promise<bool>
      */
     abstract public function handshake(): Promise;
+
+    /**
+     * @Author cclilshy
+     * @Date   2024/8/29 12:33
+     * @return SocketStream
+     */
+    public function getSocketStream(): SocketStream
+    {
+        return $this->proxy;
+    }
 }

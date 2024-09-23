@@ -48,7 +48,7 @@ use const PHP_EOL;
 use const STDOUT;
 
 /**
- * @class Output 输出辅助类
+ * @class Output Output helper class
  */
 final class Output
 {

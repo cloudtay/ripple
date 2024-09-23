@@ -39,9 +39,9 @@ use PHPUnit\Framework\TestCase;
 use RuntimeException;
 use Throwable;
 
-use function is_string;
 use function Co\async;
 use function Co\tick;
+use function is_string;
 use function str_contains;
 
 class CoroutineTest extends TestCase

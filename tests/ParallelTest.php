@@ -39,8 +39,8 @@ use PHPUnit\Framework\Attributes\RunClassInSeparateProcess;
 use PHPUnit\Framework\TestCase;
 use Throwable;
 
-use function mt_rand;
 use function Co\thread;
+use function mt_rand;
 use function sleep;
 
 #[RunClassInSeparateProcess]

@@ -40,27 +40,25 @@ use Psc\Core\Http\Server\Exception\FormatException;
 use Psc\Core\Socket\SocketStream;
 use Psc\Core\Stream\Exception\ConnectionException;
 use Psc\Core\Stream\Exception\RuntimeException;
-use Psc\Kernel;
+use Psc\Utils\Output;
 use Throwable;
 
 use function call_user_func_array;
 use function parse_url;
 use function str_contains;
 use function strlen;
-use function strtoupper;
+use function strtolower;
 
 use const SO_KEEPALIVE;
-use const SO_REUSEADDR;
-use const SO_REUSEPORT;
 use const SOL_SOCKET;
 
 /**
- * Http服务类
+ * Http service class
  */
 class Server
 {
     /**
-     * 请求处理器
+     * request handler
      *
      * @var Closure
      */
@@ -101,17 +99,64 @@ class Server
             'http', 'https' => IO::Socket()->streamSocketServer("tcp://{$host}:{$port}", $context),
             default         => throw new RuntimeException('Address format error')
         };
-
         $this->server->setOption(SOL_SOCKET, SO_KEEPALIVE, 1);
-        $this->server->setOption(SOL_SOCKET, SO_REUSEADDR, 1);
-        /*** @compatible:Windows */
-        if (Kernel::getInstance()->supportProcessControl()) {
-            $this->server->setOption(SOL_SOCKET, SO_REUSEPORT, 1);
-        }
-
         $this->server->setBlocking(false);
-
         $this->setRequestFactory(new RequestFactory());
+    }
+
+    /**
+     * @return void
+     */
+    public function listen(): void
+    {
+        $this->server->onReadable(function (SocketStream $stream) {
+            try {
+                $client = $stream->accept();
+            } catch (Throwable) {
+                return;
+            }
+
+            $client->setBlocking(false);
+
+            /*** Debug: Low Water Level & Buffer*/
+            //            $lowWaterMarkRecv = socket_get_option($clientSocket, SOL_SOCKET, SO_RCVLOWAT);
+            //            $lowWaterMarkSend = socket_get_option($clientSocket, SOL_SOCKET, SO_SNDLOWAT);
+            //            $recvBuffer       = socket_get_option($clientSocket, SOL_SOCKET, SO_RCVBUF);
+            //            $sendBuffer       = socket_get_option($clientSocket, SOL_SOCKET, SO_SNDBUF);
+            //            var_dump($lowWaterMarkRecv, $lowWaterMarkSend, $recvBuffer, $sendBuffer);
+
+            /*** Optimized buffer: 256kb standard rate frame*/
+            //            $client->setOption(SOL_SOCKET, SO_RCVBUF, 256000);
+            //            $client->setOption(SOL_SOCKET, SO_SNDBUF, 256000);
+            //            $client->setOption(SOL_TCP, TCP_NODELAY, 1);
+
+            /*** Set sending low water level to prevent filling memory @deprecated compatible without coverage */
+            //            $client->setOption(SOL_SOCKET, SO_SNDLOWAT, 1024);
+
+            /*** CPU intimacy @deprecated compatible not covered */
+            //            socket_set_option($clientSocket, SOL_SOCKET, SO_INCOMING_CPU, 1);
+            $this->listenSocket($client);
+        });
+    }
+
+    /**
+     * @param \Psc\Core\Http\Server\RequestFactoryInterface $factory
+     *
+     * @return void
+     */
+    public function setRequestFactory(RequestFactoryInterface $factory): void
+    {
+        $this->requestFactory = $factory;
+    }
+
+    /**
+     * @param Closure $onRequest
+     *
+     * @return void
+     */
+    public function onRequest(Closure $onRequest): void
+    {
+        $this->onRequest = $onRequest;
     }
 
     /**
@@ -133,15 +178,16 @@ class Server
                 $requestInfo['content']
             );
 
+            $symfonyResponse = new Response($stream);
+            $symfonyResponse->headers->set('Server', 'PServer');
+
             $keepAlive = false;
-            if ($headerConnection = $requestInfo['header']['CONNECTION'] ?? null) {
-                if (str_contains(strtoupper($headerConnection), 'KEEP-ALIVE')) {
+            if ($headerConnection = $requestInfo['server']['HTTP_CONNECTION'] ?? null) {
+                if (str_contains(strtolower($headerConnection), 'keep-alive')) {
                     $keepAlive = true;
                 }
             }
 
-            $symfonyResponse = new Response($stream);
-            $symfonyResponse->headers->set('Server', 'PServer');
             if ($keepAlive) {
                 $symfonyResponse->headers->set('Connection', 'keep-alive');
             }
@@ -150,34 +196,21 @@ class Server
                 if (isset($this->onRequest)) {
                     call_user_func_array($this->onRequest, [$customRequest, $symfonyResponse]);
                 }
-            } catch (FormatException) {
-                /***
-                 * 报文格式非法
-                 */
-
-                try {
-                    $stream->write("HTTP/1.1 400 Bad Request\r\n\r\n");
-                } catch (Throwable) {
-                }
-                $stream->close();
             } catch (ConnectionException) {
                 $stream->close();
+            } catch (FormatException) {
+                /**** The message format is illegal*/
+                $stream->write("HTTP/1.1 400 Bad Request\r\n\r\n");
             } catch (Throwable $e) {
-                /**
-                 * 服务内部逻辑错误
-                 */
+                Output::exception($e);
                 $contentLength = strlen($message = $e->getMessage());
-                try {
-                    $stream->write(
-                        "HTTP/1.1 500 Internal Server Error\r\n" .
-                        "Content-Type: text/plain\r\n" .
-                        "Content-Length: {$contentLength}\r\n" .
-                        "\r\n" .
-                        $message
-                    );
-                } catch (Throwable) {
-                }
-                $stream->close();
+                $stream->write(
+                    "HTTP/1.1 500 Internal Server Error\r\n" .
+                    "Content-Type: text/plain\r\n" .
+                    "Content-Length: {$contentLength}\r\n" .
+                    "\r\n" .
+                    $message
+                );
             }
         });
     }
@@ -204,60 +237,5 @@ class Server
             $server,
             $content
         );
-    }
-
-    /**
-     * @param Closure $onRequest
-     *
-     * @return void
-     */
-    public function onRequest(Closure $onRequest): void
-    {
-        $this->onRequest = $onRequest;
-    }
-
-    /**
-     * @param \Psc\Core\Http\Server\RequestFactoryInterface $factory
-     *
-     * @return void
-     */
-    public function setRequestFactory(RequestFactoryInterface $factory): void
-    {
-        $this->requestFactory = $factory;
-    }
-
-    /**
-     * @return void
-     */
-    public function listen(): void
-    {
-        $this->server->onReadable(function (SocketStream $stream) {
-            try {
-                $client = $stream->accept();
-            } catch (Throwable) {
-                return;
-            }
-
-            $client->setBlocking(false);
-
-            /*** Debug: 低水位 & 缓冲区*/
-            //            $lowWaterMarkRecv = socket_get_option($clientSocket, SOL_SOCKET, SO_RCVLOWAT);
-            //            $lowWaterMarkSend = socket_get_option($clientSocket, SOL_SOCKET, SO_SNDLOWAT);
-            //            $recvBuffer       = socket_get_option($clientSocket, SOL_SOCKET, SO_RCVBUF);
-            //            $sendBuffer       = socket_get_option($clientSocket, SOL_SOCKET, SO_SNDBUF);
-            //            var_dump($lowWaterMarkRecv, $lowWaterMarkSend, $recvBuffer, $sendBuffer);
-
-            /*** 优化缓冲区: 256kb标准速率帧*/
-            //            $client->setOption(SOL_SOCKET, SO_RCVBUF, 256000);
-            //            $client->setOption(SOL_SOCKET, SO_SNDBUF, 256000);
-            //            $client->setOption(SOL_TCP, TCP_NODELAY, 1);
-
-            /*** 设置发送低水位防止充盈内存 @deprecated 兼容未覆盖 */
-            //$client->setOption(SOL_SOCKET, SO_SNDLOWAT, 1024);
-
-            /*** CPU亲密度 @deprecated 兼容未覆盖 */
-            //socket_set_option($clientSocket, SOL_SOCKET, SO_INCOMING_CPU, 1);
-            $this->listenSocket($client);
-        });
     }
 }

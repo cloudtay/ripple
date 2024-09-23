@@ -65,10 +65,10 @@ use const SIGUSR2;
 
 /**
  * 2024-08-07
- * 0x00 允许保留USR2信号，以便在主线程中执行并行代码
- * 0x01 用独立线程监听计数指令向主进程发送信号,原子性保留主进程events::poll的堵塞机制
+ * 0x00 Allows the USR2 signal to be retained for parallel code execution in the main thread
+ * 0x01 Use an independent thread to listen and count instructions to send signals to the main process, retaining the blocking mechanism of events::poll of the main process atomically.
  *
- * PHP版本:8.3.0-8.3.8存在内存泄漏
+ * PHP version 8.3.0-8.3.8 has memory leak
  */
 class Parallel extends LibraryAbstract
 {
@@ -88,35 +88,33 @@ class Parallel extends LibraryAbstract
     private array $futures = [];
 
     /**
-     * 索引
-     *
      * @var int
      */
     private int $index;
 
     /**
-     * 事件分发线程
+     * Event dispatch thread
      *
      * @var Runtime
      */
     private Runtime $counterRuntime;
 
     /**
-     * 事件分发线程Future
+     * Event dispatch thread Future
      *
      * @var \parallel\Future
      */
     private \parallel\Future $counterFuture;
 
     /**
-     * 事件计数通道
+     * Event count channel
      *
      * @var Channel
      */
     private Channel $counterChannel;
 
     /**
-     * 事件计数标量
+     * Event count scalar
      *
      * @var Sync
      */
@@ -138,12 +136,12 @@ class Parallel extends LibraryAbstract
      */
     private function initialize(): void
     {
-        // 初始化自动加载地址
+        // Initialize autoloading address
         $reflector          = new ReflectionClass(ClassLoader::class);
         $vendorDir          = dirname($reflector->getFileName(), 2);
         Parallel::$autoload = "{$vendorDir}/autoload.php";
 
-        // 获取CPU核心数
+        // get the number of cpu cores
         Parallel::$cpuCount = intval(
             // if
             file_exists('/usr/bin/nproc')
@@ -159,7 +157,7 @@ class Parallel extends LibraryAbstract
                 )
         );
 
-        // 初始化事件处理器
+        // initialize event handler
         $this->index = 0;
         $this->initializeCounter();
     }
@@ -176,7 +174,6 @@ class Parallel extends LibraryAbstract
         $this->events = new Events();
         $this->events->setBlocking(true);
 
-        // 初始化标量同步器
         $this->counterChannel = $this->makeChannel('counter');
         $this->eventScalar    = new Sync(0);
         $this->counterRuntime = new Runtime(Parallel::$autoload);
@@ -213,7 +210,9 @@ class Parallel extends LibraryAbstract
         } catch (EventLoop\UnsupportedFeatureException) {
         }
 
-        //不可在信号处理器未注册前解锁
+        /**
+         * The signal processor cannot be unlocked before it is registered.
+         */
         defer(function () {
             $this->eventScalar->notify();
         });

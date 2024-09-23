@@ -105,7 +105,7 @@ class StreamBase implements StreamInterface
     {
         $content = @fread($this->stream, $length);
         if ($content === false) {
-            throw new ConnectionException('Unable to read from stream');
+            throw new ConnectionException('Unable to read from stream', ConnectionException::CONNECTION_READ_FAIL);
         }
         return $content;
     }
@@ -120,7 +120,7 @@ class StreamBase implements StreamInterface
     {
         $result = @fwrite($this->stream, $string);
         if ($result === false) {
-            throw new ConnectionException('Unable to write to stream');
+            throw new ConnectionException('Unable to write to stream', ConnectionException::CONNECTION_WRITE_FAIL);
         }
         return $result;
     }
@@ -134,7 +134,7 @@ class StreamBase implements StreamInterface
     }
 
     /**
-     * 移动指定位置指针
+     * Move the pointer at the specified position
      *
      * @param int $offset
      * @param int $whence

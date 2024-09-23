@@ -43,12 +43,12 @@ use Psc\Core\WebSocket\Server\Connection;
 use Psc\Utils\Output;
 use Throwable;
 
-use function gc_collect_cycles;
-use function md5;
-use function memory_get_usage;
 use function Co\cancelAll;
 use function Co\defer;
 use function Co\tick;
+use function gc_collect_cycles;
+use function md5;
+use function memory_get_usage;
 use function stream_context_create;
 use function uniqid;
 

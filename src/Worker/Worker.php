@@ -99,7 +99,7 @@ abstract class Worker
     private array $queue = [];
 
     /**
-     * 发送指令到指定Worker
+     * Send instructions to the specified Worker
      *
      * @Context  worker
      * @Author   cclilshy
@@ -232,11 +232,7 @@ abstract class Worker
         $zx7e                  = new Zx7e();
         $this->streams[$index] = $streamA;
         $this->streams[$index]->onReadable(function (SocketStream $socketStream) use ($streamA, $index, $zx7e, $manager) {
-            $content = '';
-            while ($buffer = $socketStream->read(1024)) {
-                $content .= $buffer;
-            }
-
+            $content = $socketStream->readContinuously(1024);
             foreach ($zx7e->decodeStream($content) as $string) {
                 $manager->onCommand(Command::fromString($string), $this->getName(), $index);
             }
@@ -249,11 +245,7 @@ abstract class Worker
 
             $this->zx7e = new Zx7e();
             $this->parentSocket->onReadable(function (SocketStream $socketStream) {
-                $content = '';
-                while ($buffer = $socketStream->read(1024)) {
-                    $content .= $buffer;
-                }
-
+                $content = $socketStream->readContinuously(1024);
                 foreach ($this->zx7e->decodeStream($content) as $string) {
                     $this->_onCommand(Command::fromString($string));
                 }
@@ -278,7 +270,7 @@ abstract class Worker
     }
 
     /**
-     * 收到指令时触发
+     * Triggered when command is received
      *
      * @Context  worker
      * @Author   cclilshy
@@ -336,7 +328,7 @@ abstract class Worker
     }
 
     /**
-     * 热重启时触发,被通知的进程应遵循热重启规则释放资源后退出
+     * Triggered during hot restart. The notified process should follow the hot restart rules to release resources and then exit.
      *
      * @Context  worker
      * @Author   cclilshy

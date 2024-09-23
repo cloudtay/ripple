@@ -1,4 +1,5 @@
 <?php declare(strict_types=1);
+
 /*
  * Copyright (c) 2023-2024.
  *
@@ -32,11 +33,16 @@
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-namespace Psc\Core\Http\Server;
+use GuzzleHttp\Exception\GuzzleException;
+use Psc\Utils\Output;
 
-/**
- * Http服务类
- */
-class HttpServer extends Server
-{
+include __DIR__ . '/../vendor/autoload.php';
+
+$client = Co\Plugin::Guzzle()->newClient();
+try {
+    $response = $client->get('https://www.google.com/');
+    echo $response->getStatusCode(), \PHP_EOL;
+    exit;
+} catch (GuzzleException $e) {
+    Output::exception($e);
 }

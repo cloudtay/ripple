@@ -46,14 +46,14 @@ use Throwable;
 
 use function call_user_func;
 use function chr;
+use function define;
+use function defined;
 use function extension_loaded;
+use function fopen;
 use function intval;
 use function ord;
 use function pow;
 use function strlen;
-use function define;
-use function defined;
-use function fopen;
 
 /**
  * @Author cclilshy
@@ -72,9 +72,8 @@ class Kernel
 
     /*** @var bool */
     private bool $processControl;
-    /**
-     * @var bool
-     */
+
+    /*** @var bool */
     private bool $running = true;
 
     public function __construct()
@@ -103,6 +102,42 @@ class Kernel
     }
 
     /**
+     * @Author cclilshy
+     * @Date   2024/8/27 21:57
+     *
+     * @param string $string
+     *
+     * @return int
+     */
+    public static function string2int(string $string): int
+    {
+        $len = strlen($string);
+        $sum = 0;
+        for ($i = 0; $i < $len; $i++) {
+            $sum += (ord($string[$i]) - 96) * pow(26, $len - $i - 1);
+        }
+        return $sum;
+    }
+
+    /**
+     * @Author cclilshy
+     * @Date   2024/8/27 21:57
+     *
+     * @param int $int
+     *
+     * @return string
+     */
+    public static function int2string(int $int): string
+    {
+        $string = '';
+        while ($int > 0) {
+            $string = chr(($int - 1) % 26 + 97) . $string;
+            $int    = intval(($int - 1) / 26);
+        }
+        return $string;
+    }
+
+    /**
      * @param Promise $promise
      *
      * @return mixed
@@ -114,7 +149,8 @@ class Kernel
     }
 
     /**
-     * async闭包中抛出的异常落地位置可能为调用上下文/挂起恢复处,因此对异常的管理要谨慎
+     * The location of the exception thrown in the async closure may be the calling context/suspension recovery location,
+     * so exceptions must be managed carefully.
      *
      * @param Closure $closure
      *
@@ -251,6 +287,44 @@ class Kernel
     }
 
     /**
+     * @param Closure|null $result
+     *
+     * @return bool
+     */
+    public function wait(Closure|null $result = null): bool
+    {
+        if (!isset($this->mainSuspension)) {
+            $this->mainSuspension = EventLoop::getSuspension();
+        }
+
+        if (!$this->running) {
+            $this->mainSuspension->resume($result);
+            try {
+                Fiber::suspend();
+            } catch (Throwable) {
+                exit(1);
+            }
+        }
+
+        try {
+            $this->running = false;
+            $result        = $this->mainSuspension->suspend();
+            $this->running = true;
+            if ($result instanceof Closure) {
+                $result();
+            }
+
+            /**
+             * The Event object may be reset during the running of $result, so mainSuspension needs to be reacquired.
+             */
+            $this->mainSuspension = EventLoop::getSuspension();
+            return $this->wait();
+        } catch (Throwable) {
+            return false;
+        }
+    }
+
+    /**
      * @return void
      */
     public function stop(): void
@@ -282,79 +356,5 @@ class Kernel
     public function supportProcessControl(): bool
     {
         return $this->processControl;
-    }
-
-    /**
-     * @param Closure|null $result
-     *
-     * @return bool
-     */
-    public function wait(Closure|null $result = null): bool
-    {
-        if (!isset($this->mainSuspension)) {
-            $this->mainSuspension = EventLoop::getSuspension();
-        }
-
-        if (!$this->running) {
-            $this->mainSuspension->resume($result);
-            try {
-                Fiber::suspend();
-            } catch (Throwable) {
-                exit(1);
-            }
-        }
-
-        try {
-            $this->running = false;
-            $result        = $this->mainSuspension->suspend();
-            $this->running = true;
-            if ($result instanceof Closure) {
-                $result();
-            }
-
-            /**
-             * 在$result运行过程中可能会重置Event对象因此需要重新获取mainSuspension
-             */
-            $this->mainSuspension = EventLoop::getSuspension();
-            return $this->wait();
-        } catch (Throwable) {
-            return false;
-        }
-    }
-
-    /**
-     * @Author cclilshy
-     * @Date   2024/8/27 21:57
-     *
-     * @param string $string
-     *
-     * @return int
-     */
-    public static function string2int(string $string): int
-    {
-        $len = strlen($string);
-        $sum = 0;
-        for ($i = 0; $i < $len; $i++) {
-            $sum += (ord($string[$i]) - 96) * pow(26, $len - $i - 1);
-        }
-        return $sum;
-    }
-
-    /**
-     * @Author cclilshy
-     * @Date   2024/8/27 21:57
-     *
-     * @param int $int
-     *
-     * @return string
-     */
-    public static function int2string(int $int): string
-    {
-        $string = '';
-        while ($int > 0) {
-            $string = chr(($int - 1) % 26 + 97) . $string;
-            $int    = intval(($int - 1) / 26);
-        }
-        return $string;
     }
 }

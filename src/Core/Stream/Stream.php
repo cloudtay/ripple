@@ -50,6 +50,25 @@ use function is_resource;
 use function stream_set_blocking;
 
 /**
+ * 2024/09/21
+ *
+ * After production testing and the design architecture of the current framework, the following decisions can meet the needs of the existing design,
+ * so the following decisions are made:
+ *
+ * 1. This class only focuses on the reliability of events and does not guarantee data integrity issues caused by write and buffer size.
+ * It is positioned as a Stream in the application layer.
+ *
+ * 2. Standards that are as safe and easy to use as possible should be followed, allowing some performance to be lost. For more
+ * fine-grained control, please use the StreamBase class.
+ *
+ * 3. Provide onReadable/onWriteable methods for monitoring readable and writable events, and any uncaught ConnectionException
+ * that occurs in the event will cause the Stream to close
+ *
+ * 4. Both the onReadable and onWritable methods will automatically cancel the previous monitoring.
+ *
+ * 5. The closed stream will automatically log out all monitored events. If there is a transaction, it will automatically
+ * mark the transaction as failed.
+ *
  * @Author cclilshy
  * @Date   2024/8/16 09:37
  */
@@ -120,23 +139,21 @@ class Stream extends StreamBase
     }
 
     /**
+     *
      * @param Closure $closure
      *
      * @return string
      */
     public function onReadable(Closure $closure): string
     {
-        if (isset($this->onReadable)) {
-            cancel($this->onReadable);
-            unset($this->onReadable);
-        }
-
+        $this->cancelReadable();
         return $this->onReadable = EventLoop::onReadable($this->stream, function (string $cancelId) use ($closure) {
             try {
                 call_user_func_array($closure, [
                     $this,
                     function () use ($cancelId) {
                         cancel($cancelId);
+                        unset($this->onReadable);
                     }
                 ]);
             } catch (ConnectionException) {
@@ -150,6 +167,17 @@ class Stream extends StreamBase
     /**
      * @return void
      */
+    public function cancelReadable(): void
+    {
+        if (isset($this->onReadable)) {
+            cancel($this->onReadable);
+            unset($this->onReadable);
+        }
+    }
+
+    /**
+     * @return void
+     */
     public function close(): void
     {
         if (is_resource($this->stream) === false) {
@@ -157,6 +185,13 @@ class Stream extends StreamBase
         }
 
         parent::close();
+
+        $this->cancelReadable();
+        $this->cancelWritable();
+
+        if (isset($this->transaction)) {
+            $this->failTransaction(new ConnectionException('Stream has been closed', ConnectionException::CONNECTION_CLOSED));
+        }
 
         foreach ($this->onCloseCallbacks as $callback) {
             try {
@@ -168,33 +203,52 @@ class Stream extends StreamBase
     }
 
     /**
+     * @return void
+     */
+    public function cancelWritable(): void
+    {
+        if (isset($this->onWritable)) {
+            cancel($this->onWritable);
+            unset($this->onWritable);
+        }
+    }
+
+    /**
+     * @param Throwable $exception
+     *
+     * @return void
+     */
+    public function failTransaction(Throwable $exception): void
+    {
+        if (isset($this->transaction)) {
+            $this->transaction->fail($exception);
+        }
+    }
+
+    /**
      * @param Closure $closure
      *
      * @return string
      */
     public function onWritable(Closure $closure): string
     {
-        if (isset($this->onWritable)) {
-            cancel($this->onWritable);
-            unset($this->onWritable);
-        }
-
+        $this->cancelWritable();
         return $this->onWritable = EventLoop::onWritable($this->stream, function (string $cancelId) use ($closure) {
             try {
                 call_user_func_array($closure, [
                     $this,
                     function () use ($cancelId) {
                         cancel($cancelId);
+                        unset($this->onWritable);
                     }
                 ]);
-            } catch (ConnectionException $e) {
+            } catch (ConnectionException) {
                 $this->close();
             } catch (Throwable $e) {
                 Output::error($e->getMessage());
             }
         });
     }
-
 
     /**
      * @param bool $bool
@@ -204,21 +258,6 @@ class Stream extends StreamBase
     public function setBlocking(bool $bool): bool
     {
         return stream_set_blocking($this->stream, $bool);
-    }
-
-    /**
-     * @param Transaction $transaction
-     *
-     * @return void
-     */
-    private function setTransaction(Transaction $transaction): void
-    {
-        if (isset($this->transaction)) {
-            $this->doneTransaction();
-            unset($this->transaction);
-        }
-
-        $this->transaction = $transaction;
     }
 
     /**
@@ -238,6 +277,30 @@ class Stream extends StreamBase
     }
 
     /**
+     * @param Transaction $transaction
+     *
+     * @return void
+     */
+    private function setTransaction(Transaction $transaction): void
+    {
+        if (isset($this->transaction)) {
+            $this->completeTransaction();
+            unset($this->transaction);
+        }
+        $this->transaction = $transaction;
+    }
+
+    /**
+     * @return void
+     */
+    public function completeTransaction(): void
+    {
+        if (isset($this->transaction)) {
+            $this->transaction->complete();
+        }
+    }
+
+    /**
      * @return \Psc\Core\Stream\Transaction|null
      */
     public function getTransaction(): Transaction|null
@@ -246,15 +309,5 @@ class Stream extends StreamBase
             return $this->transaction;
         }
         return null;
-    }
-
-    /**
-     * @return void
-     */
-    public function doneTransaction(): void
-    {
-        if (isset($this->transaction)) {
-            $this->transaction->complete();
-        }
     }
 }

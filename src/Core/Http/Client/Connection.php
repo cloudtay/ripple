@@ -133,33 +133,6 @@ class Connection
     }
 
     /**
-     * @return string
-     */
-    private function freeBuffer(): string
-    {
-        $buffer       = $this->buffer;
-        $this->buffer = '';
-        return $buffer;
-    }
-
-    /**
-     * @Author cclilshy
-     * @Date   2024/8/27 21:47
-     *
-     * @param string $content
-     *
-     * @return void
-     */
-    private function output(string $content): void
-    {
-        if ($this->output) {
-            fwrite($this->output, $content);
-        } else {
-            $this->content .= $content;
-        }
-    }
-
-    /**
      * @param string|false $content
      *
      * @return ResponseInterface|null
@@ -183,7 +156,7 @@ class Connection
                 $buffer = $this->freeBuffer();
 
                 /**
-                 * 切割解析head与body部分
+                 * Cut and parse the head and body parts
                  */
                 $this->step = 1;
                 $header     = substr($buffer, 0, $headerEnd);
@@ -198,7 +171,7 @@ class Connection
                 $this->statusMessage = $base[2];
 
                 /**
-                 * 解析header
+                 * Parse header
                  */
                 while ($line = strtok("\r\n")) {
                     $lineParam = explode(': ', $line, 2);
@@ -287,6 +260,33 @@ class Connection
             return $response;
         }
         return null;
+    }
+
+    /**
+     * @return string
+     */
+    private function freeBuffer(): string
+    {
+        $buffer       = $this->buffer;
+        $this->buffer = '';
+        return $buffer;
+    }
+
+    /**
+     * @Author cclilshy
+     * @Date   2024/8/27 21:47
+     *
+     * @param string $content
+     *
+     * @return void
+     */
+    private function output(string $content): void
+    {
+        if ($this->output) {
+            fwrite($this->output, $content);
+        } else {
+            $this->content .= $content;
+        }
     }
 
     /**

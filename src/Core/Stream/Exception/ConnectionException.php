@@ -40,4 +40,11 @@ namespace Psc\Core\Stream\Exception;
  */
 class ConnectionException extends Exception
 {
+    public const    CONNECTION_ERROR          = 1;
+    public const    CONNECTION_CLOSED         = 2;
+    public const    CONNECTION_TIMEOUT        = 4;
+    public const    CONNECTION_WRITE_FAIL     = 8;
+    public const    CONNECTION_READ_FAIL      = 16;
+    public const    CONNECTION_HANDSHAKE_FAIL = 32;
+    public const    CONNECTION_ACCEPT_FAIL    = 64;
 }

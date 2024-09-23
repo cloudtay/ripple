@@ -95,7 +95,7 @@ class Connection
     private string $buffer = '';
 
     /**
-     * @Description 已使用Request装载
+     * @Description Loaded using Request
      * @var string
      */
     private string $headerContent = '';
@@ -145,7 +145,7 @@ class Connection
             }
             if ($data === '') {
                 if ($stream->eof()) {
-                    throw new ConnectionException('Connection closed by peer');
+                    throw new ConnectionException('Connection closed by peer', ConnectionException::CONNECTION_CLOSED);
                 }
                 return;
             }
@@ -177,7 +177,7 @@ class Connection
             if ($handshake === null) {
                 return;
             } elseif ($handshake === false) {
-                throw new ConnectionException('Handshake failed');
+                throw new ConnectionException('Handshake failed', ConnectionException::CONNECTION_HANDSHAKE_FAIL);
             } else {
                 $this->step = 1;
                 if ($this->onConnect !== null) {
@@ -202,7 +202,10 @@ class Connection
     /**
      * @Author cclilshy
      * @Date   2024/8/15 14:49
-     * @return bool|null 返回null表示未完成握手, 返回false表示握手失败, 返回true表示握手成功
+     * @return bool|null
+     * Return null to indicate that the handshake is not completed,
+     * return false to indicate that the handshake failed,
+     * and return true to indicate that the handshake was successful.
      * @throws ConnectionException
      */
     private function accept(): bool|null
@@ -250,7 +253,7 @@ class Connection
                 return false;
             } else {
                 $this->buffer = substr($this->buffer, $index + 4);
-                // 到此处表示Request完毕可以触发onRequest事件
+                // Going here means that the onRequest event can be triggered after the Request is completed.
 
                 # query
                 $query       = [];
@@ -412,20 +415,20 @@ class Connection
             $mask          = ($byte & 0x80) != 0;
             $payloadLength = $byte & 0x7F;
 
-            // 处理 2 or 8 字节的长度字段
+            // Handles 2 or 8 byte length fields
             if ($payloadLength > 125) {
                 if ($payloadLength == 126) {
-                    // 验证足够的数据来读取 2 字节的长度字段
+                    // Verify that there is enough data to read the 2-byte length field
                     if ($dataLength < $index + 2) {
-                        // 等待更多数据...
+                        // Waiting for more data...
                         break;
                     }
                     $payloadLength = unpack('n', substr($context, $index, 2))[1];
                     $index         += 2;
                 } else {
-                    // 验证足够的数据来读取 8 字节的长度字段
+                    // Verify there is enough data to read the 8-byte length field
                     if ($dataLength < $index + 8) {
-                        // 等待更多数据...
+                        // Waiting for more data...
                         break;
                     }
                     $payloadLength = unpack('J', substr($context, $index, 8))[1];
@@ -433,24 +436,24 @@ class Connection
                 }
             }
 
-            // 处理掩码密钥
+            // Handle mask keys
             if ($mask) {
-                // 验证足够的数据来读取掩码密钥
+                // Verify there is enough data to read the mask key
                 if ($dataLength < $index + 4) {
-                    // 等待更多数据...
+                    // Waiting for more data...
                     break;
                 }
                 $maskingKey = substr($context, $index, 4);
                 $index      += 4;
             }
 
-            // 验证足够的数据来读取负载数据
+            // Verify sufficient data to read payload data
             if ($dataLength < $index + $payloadLength) {
-                // 等待更多数据...
+                // Waiting for more data...
                 break;
             }
 
-            // 处理负载数据
+            // Process load data
             $payload = substr($context, $index, $payloadLength);
             if ($mask) {
                 for ($i = 0; $i < strlen($payload); $i++) {
@@ -525,7 +528,7 @@ class Connection
     {
         try {
             if (!$this->isHandshake()) {
-                throw new ConnectionException('Connection is not established yet');
+                throw new ConnectionException('Connection is not established yet', ConnectionException::CONNECTION_HANDSHAKE_FAIL);
             }
             $this->stream->write($this->build($context, $opcode, $fin));
         } catch (ConnectionException) {
@@ -656,7 +659,7 @@ class Connection
     }
 
     /**
-     * @Description 已使用Request对象装载请求信息
+     * @Description Request information has been loaded using the Request object
      * @Author      cclilshy
      * @Date        2024/8/15 14:45
      * @return string
@@ -678,7 +681,7 @@ class Connection
     {
         try {
             if (!$this->isHandshake()) {
-                throw new ConnectionException('Connection is not established yet');
+                throw new ConnectionException('Connection is not established yet', ConnectionException::CONNECTION_HANDSHAKE_FAIL);
             }
             $this->stream->write($this->build($message));
         } catch (ConnectionException) {

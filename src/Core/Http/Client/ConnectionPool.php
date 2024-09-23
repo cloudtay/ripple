@@ -180,7 +180,7 @@ class ConnectionPool
         if ($proxy) {
             $parse = parse_url($proxy);
             if (!isset($parse['host'], $parse['port'])) {
-                throw new ConnectionException('Invalid proxy address');
+                throw new ConnectionException('Invalid proxy address', ConnectionException::CONNECTION_ERROR);
             }
             $payload = ['host' => $host, 'port' => $port];
             if (isset($parse['user'], $parse['pass'])) {
@@ -219,7 +219,7 @@ class ConnectionPool
                 $secure = $parse['scheme'] === 'https';
                 return ProxyHttp::connect("tcp://{$parse['host']}:{$parse['port']}", $payload, $secure)->getSocketStream();
             default:
-                throw new ConnectionException('Unsupported proxy protocol');
+                throw new ConnectionException('Unsupported proxy protocol', ConnectionException::CONNECTION_ERROR);
         }
     }
 
@@ -243,11 +243,11 @@ class ConnectionPool
         $this->listenEventMap[$streamId]        = $connection->stream->onReadable(function (SocketStream $stream) use ($key, $connection) {
             try {
                 if ($stream->read(1) === '' && $stream->eof()) {
-                    throw new ConnectionException('Connection closed by peer');
+                    throw new ConnectionException('Connection closed by peer', ConnectionException::CONNECTION_CLOSED);
                 }
             } catch (Throwable) {
-                $this->removeConnection($key, $connection);
                 $stream->close();
+                $this->removeConnection($key, $connection);
             }
         });
     }

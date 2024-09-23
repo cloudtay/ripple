@@ -55,9 +55,7 @@ use function spl_object_hash;
  *
  * async is a single-line Fiber independent of EventLoop. Operations on Fiber must take into account the coroutine space of EventLoop.
  * Any suspend/resume should be responsible for the Fiber of the current operation, including the return processing of the results
- */
-
-/**
+ *
  * 2024-07-13 Compatible with Process module
  */
 class Coroutine extends LibraryAbstract
@@ -329,13 +327,13 @@ class Coroutine extends LibraryAbstract
         } else {
             delay(function () use ($fiber, $callback) {
                 try {
-                    // 尝试恢复Fiber运行
+                    // Try to resume Fiber operation
                     $fiber->resume();
                 } catch (EscapeException $exception) {
-                    // 恢复运行过程发生逃逸异常
+                    // An escape exception occurs during recovery operation
                     $this->handleEscapeException($exception);
                 } catch (Throwable $e) {
-                    // 恢复运行过程发生意料之外的异常
+                    // Unexpected exception occurred during recovery operation
 
                     $callback['reject']($e);
                     return;

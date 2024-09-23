@@ -48,14 +48,14 @@ use function Co\await;
  * @Author cclilshy
  * @Date   2024/8/16 09:35
  *
- * 严格遵循ES6-Promise/A+的设计哲学
+ * Strictly follow the design philosophy of ES6-Promise/A+
  * @see    https://promisesaplus.com/
  */
 class Promise
 {
-    public const PENDING   = 'pending';   // 待定
-    public const FULFILLED = 'fulfilled'; // 已完成
-    public const REJECTED  = 'rejected';  // 已拒绝
+    public const PENDING   = 'pending';
+    public const FULFILLED = 'fulfilled';
+    public const REJECTED  = 'rejected';
 
     /*** @var mixed */
     public mixed $result;
@@ -73,7 +73,7 @@ class Promise
 
     /**
      *
-     * 创建的Promise实例将立即执行传入的闭包,而非推入到队列的下一步
+     * The created Promise instance will immediately execute the passed closure instead of pushing it to the next step in the queue.
      *
      * @param Closure $closure
      */
@@ -83,7 +83,7 @@ class Promise
     }
 
     /**
-     * 执行闭包
+     * execute closure
      *
      * @param Closure $closure
      *
@@ -107,8 +107,8 @@ class Promise
     }
 
     /**
-     * 将承诺状态更改为已完成,并将结果传递给后续行为,
-     * 无法更改已完成的状态,第二次调用将被忽略
+     * Change the promise status to completed and pass the result to subsequent actions,
+     * The completed status cannot be changed, the second call will be ignored
      *
      * @param mixed $value
      *
@@ -139,12 +139,11 @@ class Promise
                 Output::error($exception->getMessage());
             }
         }
-        return;
     }
 
     /**
-     * 将承诺状态更改为已拒绝,并将原因传递给后续行为,
-     * 无法更改已拒绝的状态,第二次调用将被忽略
+     * Change the promise status to rejected and pass the reason to subsequent actions,
+     * Unable to change rejected status, second call will be ignored
      *
      * @param Throwable $reason
      *
@@ -173,8 +172,8 @@ class Promise
     }
 
     /**
-     * 定义后续行为,当Promise状态改变时,会按照then方法的顺序调用
-     * 若Promise已经完成,则立即执行
+     * Define subsequent behavior. When the Promise state changes, it will be called in the order of the then method.
+     * If the Promise has been completed, execute it immediately
      *
      * @param Closure|null $onFulfilled
      * @param Closure|null $onRejected
@@ -203,8 +202,8 @@ class Promise
     }
 
     /**
-     * 定义拒绝后的行为,当Promise状态改变时,会按照except方法的顺序调用
-     * 若Promise已经拒绝,则立即执行
+     * Define the behavior after rejection. When the Promise state changes, it will be called in the order of the except method.
+     * If the Promise has been rejected, execute it immediately
      *
      * @param Closure $onRejected
      *
@@ -226,7 +225,7 @@ class Promise
     }
 
     /**
-     * 定义后续行为,当Promise状态改变时,会按照then方法的顺序调用
+     * Define subsequent behavior. When the Promise state changes, it will be called in the order of the then method.
      *
      * @param Closure $onFinally
      *
@@ -250,13 +249,13 @@ class Promise
     }
 
     /**
-     * 定义拒绝后的行为,当Promise状态改变时,会按照catch方法的顺序调用
-     * 若Promise已经拒绝,则立即执行
+     * Define the behavior after rejection. When the Promise state changes, it will be called in the order of the catch method.
+     * If the Promise has been rejected, execute it immediately
      *
      * @param Closure $onRejected
      *
      * @return $this
-     * @deprecated 你应该使用except方法,因为该方法是一个保留关键字
+     * @deprecated You should use the except method because this method is a reserved keyword
      */
     public function catch(Closure $onRejected): Promise
     {

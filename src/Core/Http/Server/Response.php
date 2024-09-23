@@ -46,11 +46,13 @@ use function Co\promise;
 use function filesize;
 use function is_resource;
 use function is_string;
+use function str_contains;
 use function strlen;
+use function strtolower;
 use function strval;
 
 /**
- * 响应实体
+ * response entity
  */
 class Response extends \Symfony\Component\HttpFoundation\Response
 {
@@ -112,15 +114,24 @@ class Response extends \Symfony\Component\HttpFoundation\Response
 
     /**
      * @return void
-     * @throws ConnectionException|Throwable
      */
     public function respond(): void
     {
-        $this->sendHeaders();
-        $this->sendContent();
-        $this->stream->doneTransaction();
+        try {
+            $this->sendHeaders();
+            $this->sendContent();
+        } catch (Throwable) {
+            $this->stream->close();
+            return;
+        }
 
-        $keepAlive = $this->headers->get('Connection') === 'keep-alive';
+        $this->stream->completeTransaction();
+        $keepAlive = false;
+
+        if ($headerConnection = $this->headers->get('Connection')) {
+            $keepAlive = str_contains(strtolower($headerConnection), 'keep-alive');
+        }
+
         if (!$keepAlive) {
             $this->stream->close();
         }
@@ -134,9 +145,6 @@ class Response extends \Symfony\Component\HttpFoundation\Response
      */
     #[Override] public function sendHeaders(int|null $statusCode = null): static
     {
-        /**
-         *
-         */
         $this->stream->write("HTTP/1.1 {$this->getStatusCode()} {$this->statusText}\r\n");
         foreach ($this->headers->allPreserveCaseWithoutCookies() as $name => $values) {
             foreach ($values as $value) {
@@ -162,12 +170,21 @@ class Response extends \Symfony\Component\HttpFoundation\Response
     {
         promise(function ($resolve, $reject) {
             // An exception occurs during transfer with the HTTP client and the currently open file stream should be closed.
-            $this->stream->getTransaction()->onClose(function () use ($resolve, $reject) {
-                if (isset($this->body) && $this->body instanceof Stream) {
-                    $this->body->close();
-                }
-                $resolve();
-            });
+            if ($transaction = $this->stream->getTransaction()) {
+                $transaction->onClose(function () use ($resolve, $reject) {
+                    if (isset($this->body) && $this->body instanceof Stream) {
+                        $this->body->close();
+                    }
+                    $resolve();
+                });
+            } else {
+                $this->stream->onClose(function () use ($resolve, $reject) {
+                    if (isset($this->body) && $this->body instanceof Stream) {
+                        $this->body->close();
+                    }
+                    $resolve();
+                });
+            }
 
             if (is_string($this->body)) {
                 $this->stream->write($this->body);
@@ -178,29 +195,18 @@ class Response extends \Symfony\Component\HttpFoundation\Response
                     while ($buffer = $this->body->read(8192)) {
                         $content .= $buffer;
                     }
-
-                    try {
-                        $this->stream->write($content);
-                    } catch (Throwable $exception) {
-                        $reject($exception);
-                        return;
-                    }
-
+                    $this->stream->write($content);
                     if ($this->body->eof()) {
                         $resolve();
                     }
                 });
             } elseif ($this->body instanceof Generator) {
-                try {
-                    foreach ($this->body as $content) {
-                        if ($content === '') {
-                            $this->stream->close();
-                            break;
-                        }
-                        $this->stream->write($content);
+                foreach ($this->body as $content) {
+                    if ($content === '') {
+                        $this->stream->close();
+                        break;
                     }
-                } catch (Throwable) {
-                    $this->stream->close();
+                    $this->stream->write($content);
                 }
                 $resolve();
             } else {

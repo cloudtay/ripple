@@ -44,18 +44,21 @@ class Future
 {
     /*** @var Closure */
     private Closure $onError;
-    private mixed   $result;
-    /**
-     * @var Closure
-     */
+
+    /*** @var mixed */
+    private mixed $result;
+
+    /*** @var Closure */
     private Closure $onValue;
+
     /**
-     * @deprecated 用户的主动行为是否应该回调？
+     * @deprecated Should the user's active behavior be called back?？
      * @var Closure
      */
     private Closure $onCancelled;
+
     /**
-     * @deprecated 用户的主动行为是否应该回调？
+     * @deprecated Should the user's active behavior be called back?？
      * @var Closure
      */
     private Closure $onKilled;
@@ -170,7 +173,7 @@ class Future
      * @param Closure $onKilled
      *
      * @return Future
-     * @deprecated 用户的主动行为是否应该回调？
+     * @deprecated Should the user's active behavior be called back?？
      */
     public function onKilled(Closure $onKilled): Future
     {
@@ -182,7 +185,7 @@ class Future
      * @param Closure $onCancelled
      *
      * @return Future
-     * @deprecated 用户的主动行为是否应该回调？
+     * @deprecated Should the user's active behavior be called back?？
      */
     public function onCancelled(Closure $onCancelled): Future
     {

@@ -37,7 +37,7 @@ namespace Psc\Core\Http\Server;
 use Symfony\Component\HttpFoundation\Request as SymfonyRequest;
 
 /**
- * 请求实体
+ * requesting entity
  */
 class Request extends SymfonyRequest
 {

@@ -37,7 +37,7 @@ namespace Psc\Core\Stream\Exception;
 use Exception as ExceptionNative;
 
 /**
- * @class Exception 套接字传输异常
+ * @class Exception Socket transfer exception
  */
 class Exception extends ExceptionNative
 {

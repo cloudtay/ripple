@@ -38,11 +38,11 @@ use Co\System;
 use PHPUnit\Framework\TestCase;
 use Throwable;
 
-use function mt_rand;
 use function Co\async;
 use function Co\await;
 use function Co\defer;
 use function Co\thread;
+use function mt_rand;
 use function sleep;
 
 class ProcessTest extends TestCase

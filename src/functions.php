@@ -32,17 +32,18 @@
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-namespace P;
+namespace Co;
 
 use Closure;
 use Psc\Core\Coroutine\Promise;
 use Psc\Core\Parallel\Thread;
+use Psc\Kernel;
+use Revolt\EventLoop;
 use Revolt\EventLoop\UnsupportedFeatureException;
+use RuntimeException;
 use Throwable;
 
 /**
- * @Description 请使用Co\await代替
- *
  * @param Promise $promise
  *
  * @return mixed
@@ -50,12 +51,12 @@ use Throwable;
  */
 function await(Promise $promise): mixed
 {
-    return \Co\await($promise);
+    return Kernel::getInstance()->await($promise);
 }
 
 /**
- * @Description 请使用Co\async代替
- * async闭包中抛出的异常落地位置可能为调用上下文/挂起恢复处,因此对异常的管理要谨慎
+ * The location of the exception thrown in the async closure may be the calling context/suspension recovery location,
+ * so exceptions must be managed carefully.
  *
  * @param Closure $closure
  *
@@ -63,37 +64,31 @@ function await(Promise $promise): mixed
  */
 function async(Closure $closure): Promise
 {
-    return \Co\async($closure);
+    return Kernel::getInstance()->async($closure);
 }
 
 /**
- * @Description 请使用Co\promise代替
- *
  * @param Closure $closure
  *
  * @return Promise
  */
 function promise(Closure $closure): Promise
 {
-    return \Co\promise($closure);
+    return Kernel::getInstance()->promise($closure);
 }
 
 /**
- * @Description 请使用Co\sleep代替
- *
  * @param int|float $second
  *
  * @return void
  */
 function sleep(int|float $second): void
 {
-    \Co\sleep($second);
+    Coroutine::Coroutine()->sleep($second);
 }
 
 
 /**
- * @Description 请使用Co\delay代替
- *
  * @param Closure   $closure
  * @param int|float $second
  *
@@ -101,13 +96,11 @@ function sleep(int|float $second): void
  */
 function delay(Closure $closure, int|float $second): string
 {
-    return \Co\delay($closure, $second);
+    return Kernel::getInstance()->delay($closure, $second);
 }
 
 
 /**
- * @Description 请使用Co\repeat代替
- *
  * @param Closure(Closure):void $closure
  * @param int|float             $second
  *
@@ -115,13 +108,12 @@ function delay(Closure $closure, int|float $second): string
  */
 function repeat(Closure $closure, int|float $second): string
 {
-    return \Co\repeat($closure, $second);
+    return Kernel::getInstance()->repeat($closure, $second);
 }
 
 /**
- * @Description 请使用Co\queue代替
- * @Author      cclilshy
- * @Date        2024/8/29 00:07
+ * @Author cclilshy
+ * @Date   2024/8/29 00:07
  *
  * @param Closure $closure
  *
@@ -129,69 +121,59 @@ function repeat(Closure $closure, int|float $second): string
  */
 function queue(Closure $closure): void
 {
-    \Co\queue($closure);
+    EventLoop::queue($closure);
 }
 
 /**
- * @Description 请使用Co\defer代替
- *
  * @param Closure $closure
  *
  * @return void
  */
 function defer(Closure $closure): void
 {
-    \Co\defer($closure);
+    Kernel::getInstance()->defer($closure);
 }
 
 /**
- * @Description 请使用Co\thread代替
- *
  * @param Closure $closure
  *
  * @return Thread
+ * @throws RuntimeException
  */
 function thread(Closure $closure): Thread
 {
-    return \Co\thread($closure);
+    return System::Parallel()->thread($closure);
 }
 
 /**
- * @Description 请使用Co\fork代替
- *
  * @param string $id
  *
  * @return void
  */
 function cancel(string $id): void
 {
-    \Co\cancel($id);
+    Kernel::getInstance()->cancel($id);
 }
 
 /**
- * @Description 请使用Co\fork代替
- *
  * @param int $index
  *
  * @return void
  */
 function cancelForkHandler(int $index): void
 {
-    \Co\cancelForkHandler($index);
+    Kernel::getInstance()->cancelForkHandler($index);
 }
 
 /**
- * @Description 请使用Co\cancelAll代替
  * @return void
  */
 function cancelAll(): void
 {
-    \Co\cancelAll();
+    Kernel::getInstance()->cancelAll();
 }
 
 /**
- * @Description 请使用Co\onSignal代替
- *
  * @param int     $signal
  * @param Closure $closure
  *
@@ -200,39 +182,39 @@ function cancelAll(): void
  */
 function onSignal(int $signal, Closure $closure): string
 {
-    return \Co\onSignal($signal, $closure);
+    return Kernel::getInstance()->onSignal($signal, $closure);
 }
 
 /**
- * @Description 请使用Co\registerForkHandler代替
- *
  * @param Closure $closure
  *
  * @return int
  */
 function registerForkHandler(Closure $closure): int
 {
-    return \Co\registerForkHandler($closure);
+    return Kernel::getInstance()->registerForkHandler($closure);
 }
 
 
 /**
- * @Description 请使用Co\tick代替
- *
  * @param Closure|null $closure
  *
  * @return void
  */
 function tick(Closure|null $closure = null): void
 {
-    \Co\tick($closure);
+    wait($closure);
+}
+
+function wait(Closure|null $closure = null): void
+{
+    Kernel::getInstance()->wait($closure);
 }
 
 /**
- * @Description 请使用Co\stop代替
  * @return void
  */
 function stop(): void
 {
-    \Co\stop();
+    Kernel::getInstance()->stop();
 }

@@ -34,14 +34,15 @@
 
 namespace Psc\Core\Socket;
 
+use Closure;
 use Co\IO;
+use Exception;
 use Psc\Core\Coroutine\Promise;
 use Psc\Core\Stream\Exception\ConnectionException;
 use Psc\Core\Stream\Stream;
 use RuntimeException;
 use Socket;
 use Throwable;
-use Exception;
 
 use function explode;
 use function file_exists;
@@ -68,40 +69,29 @@ use const SOL_SOCKET;
  */
 class SocketStream extends Stream
 {
-    /**
-     * @var Socket
-     */
+    /*** @var Socket */
     public Socket $socket;
 
-    /**
-     * @var bool
-     */
+    /*** @var bool */
     private bool $blocking = false;
 
-    /**
-     * @var Stream|null
-     */
+    /*** @var Stream|null */
     private Stream|null $storageCacheWrite = null;
 
-    /**
-     * @var Stream|null
-     */
+    /*** @var Stream|null */
     private Stream|null $storageCacheRead = null;
 
-    /**
-     * @var string|null
-     */
+    /*** @var string|null */
     private string|null $address;
 
-    /**
-     * @var string|null
-     */
+    /*** @var string|null */
     private string|null $host;
 
-    /**
-     * @var int|null
-     */
+    /*** @var int|null */
     private int|null $port;
+
+    /*** @var \Psc\Core\Coroutine\Promise */
+    private Promise $writePromise;
 
     /**
      * @param mixed       $resource
@@ -135,13 +125,19 @@ class SocketStream extends Stream
     }
 
     /**
+     * @param int|float $timeout
+     *
      * @return $this
+     * @throws \Psc\Core\Stream\Exception\ConnectionException
      */
     public function accept(int|float $timeout = 0): SocketStream
     {
         $socket = @stream_socket_accept($this->stream, $timeout, $peerName);
         if ($socket === false) {
-            throw new RuntimeException('Failed to accept connection: ' . socket_strerror(socket_last_error($this->socket)));
+            throw new ConnectionException(
+                'Failed to accept connection: ' . socket_strerror(socket_last_error($this->socket)),
+                ConnectionException::CONNECTION_ACCEPT_FAIL
+            );
         }
         return new static($socket, $peerName);
     }
@@ -171,15 +167,14 @@ class SocketStream extends Stream
      * @return int
      * @throws ConnectionException
      */
-    public function recv(int $length, mixed &$target, int|null $flags = 0): int
+    public function receive(int $length, mixed &$target, int|null $flags = 0): int
     {
         $realLength = socket_recv($this->socket, $target, $length, $flags);
         if ($realLength === false) {
-            throw new ConnectionException('Unable to read from stream');
+            throw new ConnectionException('Unable to read from stream', ConnectionException::CONNECTION_READ_FAIL);
         }
         return $realLength;
     }
-
 
     /**
      * @param string $string
@@ -192,12 +187,9 @@ class SocketStream extends Stream
         try {
             return $this->writeInternal($string)->await();
         } catch (Throwable $e) {
-            throw new ConnectionException($e->getMessage(), 0, $e);
+            throw new ConnectionException($e->getMessage(), ConnectionException::CONNECTION_WRITE_FAIL);
         }
     }
-
-    /*** @var \Psc\Core\Coroutine\Promise */
-    private Promise $writePromise;
 
     /**
      * @param string $string
@@ -215,46 +207,7 @@ class SocketStream extends Stream
         return $this->writePromise = \Co\promise(function ($resolve, $reject) use ($string) {
             try {
                 if ($this->blocking) {
-                    if ($this->storageCacheWrite === null) {
-                        $tempFilePath            = sys_get_temp_dir() . '/' . uniqid('buf_');
-                        $this->storageCacheWrite = IO::File()->open($tempFilePath, 'w+');
-                        $this->storageCacheRead  = IO::File()->open($tempFilePath, 'r+');
-
-                        $this->storageCacheWrite->setBlocking(true);
-
-                        $closeEventId = $this->onClose(function () use ($tempFilePath) {
-                            $this->storageCacheWrite->close();
-                            $this->storageCacheRead->close();
-                            if (file_exists($tempFilePath)) {
-                                unlink($tempFilePath);
-                            }
-                        });
-
-                        $this->onWritable(function ($_, $cancel) use ($tempFilePath, $closeEventId, $reject) {
-                            if ($this->storageCacheRead->eof()) {
-                                $this->blocking = false;
-                                $this->storageCacheWrite->close();
-                                $this->storageCacheRead->close();
-                                if (file_exists($tempFilePath)) {
-                                    unlink($tempFilePath);
-                                }
-                                $this->storageCacheWrite = null;
-                                $this->storageCacheRead  = null;
-                                $cancel();
-                                $this->cancelOnClose($closeEventId);
-                                return;
-                            }
-
-                            $buffer = $this->storageCacheRead->read($this->getOption(SOL_SOCKET, SO_SNDLOWAT));
-                            try {
-                                parent::write($buffer);
-                            } catch (ConnectionException $e) {
-                                $cancel();
-                                $reject($e);
-                            }
-                        });
-                    }
-
+                    $this->prepareBlockingMode($reject);
                     $this->storageCacheWrite->write($string);
                 } else {
                     $length          = parent::write($string);
@@ -273,6 +226,66 @@ class SocketStream extends Stream
         });
     }
 
+    /**
+     * Prepare the blocking mode, initialize temp files and event listeners.
+     */
+    private function prepareBlockingMode(Closure $reject): void
+    {
+        if ($this->storageCacheWrite === null) {
+            $tempFilePath            = $this->generateTempFilePath();
+            $this->storageCacheWrite = IO::File()->open($tempFilePath, 'w+');
+            $this->storageCacheWrite->setBlocking(true);
+            $this->storageCacheRead = IO::File()->open($tempFilePath, 'r+');
+
+            $closeEventId = $this->onClose(function () use ($tempFilePath) {
+                $this->cleanupTempFiles($tempFilePath);
+            });
+
+            $this->onWritable(function ($_, $cancel) use ($tempFilePath, $closeEventId, $reject) {
+                if ($this->storageCacheRead->eof()) {
+                    $this->blocking = false;
+                    $this->cleanupTempFiles($tempFilePath);
+                    $cancel();
+                    $this->cancelOnClose($closeEventId);
+                    return;
+                }
+
+                $buffer = $this->storageCacheRead->read($this->getOption(SOL_SOCKET, SO_SNDLOWAT));
+                try {
+                    parent::write($buffer);
+                } catch (ConnectionException $e) {
+                    $cancel();
+                    $reject($e);
+                }
+            });
+        }
+    }
+
+    /**
+     * Generate a unique temp file path.
+     *
+     * @return string
+     */
+    private function generateTempFilePath(): string
+    {
+        return sys_get_temp_dir() . '/' . uniqid('buf_');
+    }
+
+    /**
+     * Clean up temp files and close file handles.
+     *
+     * @param string $tempFilePath
+     */
+    private function cleanupTempFiles(string $tempFilePath): void
+    {
+        $this->storageCacheWrite->close();
+        $this->storageCacheRead->close();
+        if (file_exists($tempFilePath)) {
+            unlink($tempFilePath);
+        }
+        $this->storageCacheWrite = null;
+        $this->storageCacheRead  = null;
+    }
 
     /**
      * @param int $level
@@ -311,5 +324,21 @@ class SocketStream extends Stream
     public function getPort(): int
     {
         return $this->port;
+    }
+
+    /**
+     * @param int $length
+     *
+     * @return string
+     * @throws \Psc\Core\Stream\Exception\ConnectionException
+     */
+    public function readContinuously(int $length): string
+    {
+        $content = '';
+        while ($buffer = $this->read($length)) {
+            $content .= $buffer;
+        }
+
+        return $content;
     }
 }

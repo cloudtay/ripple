@@ -57,7 +57,7 @@ class FileStreamTest extends TestCase
     #[Test]
     public function test_fileStream(): void
     {
-        $hash = md5_file(__FILE__);
+        $hash    = md5_file(__FILE__);
         $content = IO::File()->getContents(__FILE__)->await();
         $this->assertEquals($hash, md5($content));
     }

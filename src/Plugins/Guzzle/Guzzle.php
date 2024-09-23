@@ -58,9 +58,7 @@ class Guzzle extends LibraryAbstract
     /*** @var Client */
     private Client $client;
 
-    /**
-     * @var HttpClient
-     */
+    /*** @var HttpClient */
     private HttpClient $httpClient;
 
     /**
