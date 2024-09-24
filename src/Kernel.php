@@ -49,11 +49,18 @@ use function chr;
 use function define;
 use function defined;
 use function extension_loaded;
+use function file_exists;
+use function file_get_contents;
 use function fopen;
+use function ini_set;
 use function intval;
 use function ord;
 use function pow;
+use function preg_match;
+use function shell_exec;
 use function strlen;
+
+use const PHP_OS_FAMILY;
 
 /**
  * @Author cclilshy
@@ -78,6 +85,9 @@ class Kernel
 
     public function __construct()
     {
+        ini_set('memory_limit', -1);
+        ini_set('max_execution_time', 0);
+
         if (!defined('STDIN')) {
             define('STDIN', fopen('php://stdin', 'r'));
         }
@@ -347,4 +357,43 @@ class Kernel
     {
         return $this->processControl;
     }
+
+    /**
+     * @Author cclilshy
+     * @Date   2024/9/24 14:27
+     * @return int
+     */
+    public function getMemorySize(): int
+    {
+        if (isset($this->memorySize)) {
+            return $this->memorySize;
+        }
+
+        switch (PHP_OS_FAMILY) {
+            case 'Linux':
+                if (file_exists('/proc/meminfo')) {
+                    $data = file_get_contents("/proc/meminfo");
+                    if ($data && preg_match("/MemTotal:\s+(\d+)\skB/", $data, $matches)) {
+                        return $this->memorySize = intval(($matches[1] * 1024));
+                    }
+                }
+                break;
+            case 'Windows':
+                $memory = shell_exec("wmic computersystem get totalphysicalmemory");
+                if (preg_match("/\d+/", $memory, $matches)) {
+                    return $this->memorySize = intval($matches[0]);
+                }
+                break;
+            case 'Darwin':
+                $memory = shell_exec("sysctl -n hw.memsize");
+                if ($memory) {
+                    return $this->memorySize = intval($memory);
+                }
+                break;
+        }
+
+        return $this->memorySize = 0;
+    }
+
+    private int $memorySize;
 }
