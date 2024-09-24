@@ -55,18 +55,18 @@ use function stream_set_blocking;
  * After production testing and the design architecture of the current framework, the following decisions can meet the needs of the existing design,
  * so the following decisions are made:
  *
- * 1. This class only focuses on the reliability of events and does not guarantee data integrity issues caused by write and buffer size.
+ * This class only focuses on the reliability of events and does not guarantee data integrity issues caused by write and buffer size.
  * It is positioned as a Stream in the application layer.
  *
- * 2. Standards that are as safe and easy to use as possible should be followed, allowing some performance to be lost. For more
+ * Standards that are as safe and easy to use as possible should be followed, allowing some performance to be lost. For more
  * fine-grained control, please use the StreamBase class.
  *
- * 3. Provide onReadable/onWriteable methods for monitoring readable and writable events, and any uncaught ConnectionException
+ * Provide onReadable/onWriteable methods for monitoring readable and writable events, and any uncaught ConnectionException
  * that occurs in the event will cause the Stream to close
  *
- * 4. Both the onReadable and onWritable methods will automatically cancel the previous monitoring.
+ * Both the onReadable and onWritable methods will automatically cancel the previous monitoring.
  *
- * 5. The closed stream will automatically log out all monitored events. If there is a transaction, it will automatically
+ * The closed stream will automatically log out all monitored events. If there is a transaction, it will automatically
  * mark the transaction as failed.
  *
  * @Author cclilshy

@@ -56,11 +56,11 @@ $server->onRequest(static function (Request $request, Response $response) {
                 }
                 yield '';
             };
-            $response->setContent($generator());
+            $response->setBody($generator());
             $response->respond();
             break;
         default:
-            $response->setContent('Hello, World!')->respond();
+            $response->setBody('Hello, World!')->respond();
             break;
     }
 });

@@ -38,7 +38,6 @@ use Closure;
 use Psc\Core\Http\Server\Upload\MultipartHandler;
 use Psc\Core\Socket\SocketStream;
 use Psc\Core\Stream\Exception\RuntimeException;
-use Psc\Core\Stream\Transaction;
 use Psc\Utils\Output;
 use Throwable;
 
@@ -136,20 +135,26 @@ class Connection
      */
     public function listen(Closure $builder): void
     {
-        $this->stream->onReadable(function (SocketStream $stream) use ($builder) {
-            $content = $stream->readContinuously(1024);
-
-            if ($content === '') {
-                if ($stream->eof()) {
-                    $stream->close();
-                }
-                return;
+        $this->stream->onClose(function () {
+            if (isset($this->multipartHandler)) {
+                $this->multipartHandler->cancel();
             }
+        });
 
+        $this->stream->onReadable(function (SocketStream $stream) use ($builder) {
             try {
+                $content = $stream->readContinuously(1024);
+                if ($content === '') {
+                    if ($stream->eof()) {
+                        $stream->close();
+                    }
+                    return;
+                }
+
                 if (!$requestInfo = $this->tick($content)) {
                     return;
                 }
+
                 $builder($requestInfo);
             } catch (Throwable $exception) {
                 Output::warning($exception->getMessage());
@@ -157,18 +162,9 @@ class Connection
                 $stream->close();
                 return;
             }
-        });
 
-        while (1) {
-            try {
-                $this->stream->transaction(function (Transaction $transaction) {
-                    $transaction->getPromise()->await();
-                });
-            } catch (Throwable) {
-                $this->stream->close();
-                break;
-            }
-        }
+
+        });
     }
 
     /**
@@ -347,13 +343,9 @@ class Connection
             throw new RuntimeException('boundary is not set');
         }
 
-        $this->step             = 3;
-        $this->multipartHandler = new MultipartHandler($matches[1]);
-
-        if ($transaction = $this->stream->getTransaction()) {
-            $transaction->onClose(fn () => $this->multipartHandler?->cancel());
-        } else {
-            $this->stream->onClose(fn () => $this->multipartHandler?->cancel());
+        $this->step = 3;
+        if (!isset($this->multipartHandler)) {
+            $this->multipartHandler = new MultipartHandler($matches[1]);
         }
 
         foreach ($this->multipartHandler->tick($body) as $name => $multipartResult) {

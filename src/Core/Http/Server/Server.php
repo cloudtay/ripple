@@ -46,7 +46,6 @@ use Throwable;
 use function call_user_func_array;
 use function parse_url;
 use function str_contains;
-use function strlen;
 use function strtolower;
 
 use const SO_KEEPALIVE;
@@ -134,7 +133,7 @@ class Server
             //            $client->setOption(SOL_SOCKET, SO_SNDLOWAT, 1024);
 
             /*** CPU intimacy @deprecated compatible not covered */
-            //            socket_set_option($clientSocket, SOL_SOCKET, SO_INCOMING_CPU, 1);
+            //            $stream->setOption(SOL_SOCKET, SO_INCOMING_CPU, 1);
             $this->listenSocket($client);
         });
     }
@@ -200,17 +199,11 @@ class Server
                 $stream->close();
             } catch (FormatException) {
                 /**** The message format is illegal*/
-                $stream->write("HTTP/1.1 400 Bad Request\r\n\r\n");
+                $symfonyResponse->setStatusCode(400)->respond();
             } catch (Throwable $e) {
+                $symfonyResponse->setStatusCode(500)->setBody($e->getMessage())->respond();
+
                 Output::exception($e);
-                $contentLength = strlen($message = $e->getMessage());
-                $stream->write(
-                    "HTTP/1.1 500 Internal Server Error\r\n" .
-                    "Content-Type: text/plain\r\n" .
-                    "Content-Length: {$contentLength}\r\n" .
-                    "\r\n" .
-                    $message
-                );
             }
         });
     }

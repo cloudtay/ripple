@@ -126,6 +126,7 @@ class MultipartHandler
                     $this->task['fileName'],
                     $this->task['contentType'],
                 );
+                fclose($this->task['stream']);
             }
         }
 

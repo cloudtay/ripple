@@ -87,18 +87,17 @@ class HttpTest extends TestCase
                 $file = $request->files->get('file')[0];
                 $hash = $request->request->get('hash');
                 $this->assertEquals($hash, md5_file($file->getRealPath()));
-                $response->setContent(fopen($file->getRealPath(), 'r'))->respond();
+                $response->setBody(fopen($file->getRealPath(), 'r'))->respond();
                 return;
             }
 
             if ($request->isMethod('get')) {
-                $response->setContent($request->query->get('query'))->respond();
+                $response->setBody($request->query->get('query'))->respond();
                 return;
             }
 
             if ($request->isMethod('post')) {
-                $response->setContent($request->request->get('query'))->respond();
-
+                $response->setBody($request->request->get('query'))->respond();
             }
         });
 

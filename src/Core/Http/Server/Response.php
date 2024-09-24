@@ -34,6 +34,7 @@
 
 namespace Psc\Core\Http\Server;
 
+use Closure;
 use Generator;
 use Override;
 use Psc\Core\Socket\SocketStream;
@@ -56,9 +57,7 @@ use function strval;
  */
 class Response extends \Symfony\Component\HttpFoundation\Response
 {
-    /**
-     * @var mixed
-     */
+    /*** @var mixed */
     protected mixed $body;
 
     /**
@@ -70,72 +69,25 @@ class Response extends \Symfony\Component\HttpFoundation\Response
     }
 
     /**
-     * @param mixed       $content
-     * @param string|null $contentType
+     * @param mixed $content
      *
      * @return $this
      */
-    #[Override] public function setContent(mixed $content, string|null $contentType = null): static
+    #[Override] public function setContent(mixed $content): static
     {
-        if ($contentType) {
-            $this->headers->set('Content-Type', $contentType);
-        }
-
-        if (is_string($content)) {
-            $this->headers->set('Content-Length', strval(strlen($content)));
-            $this->body = $content;
-            return $this;
-        }
-
-        if ($content instanceof Generator) {
-            $this->headers->remove('Content-Length');
-            $this->body = $content;
-            return $this;
-        }
-
-        if (is_resource($content)) {
-            $content = new Stream($content);
-        }
-
-        if ($content instanceof Stream) {
-            $path   = $content->getMetadata('uri');
-            $length = filesize($path);
-            $this->headers->set('Content-Length', strval($length));
-            $this->headers->set('Content-Type', 'application/octet-stream');
-            if (!$this->headers->get('Content-Disposition')) {
-                $this->headers->set('Content-Disposition', 'attachment; filename=' . basename($path));
-            }
-        }
-
-        $this->body = $content;
-        return $this;
-
+        return $this->setBody($content);
     }
 
     /**
-     * @return void
+     * @return static
+     * @throws \Psc\Core\Stream\Exception\ConnectionException
      */
-    public function respond(): void
+    public function sendStatus(): static
     {
-        try {
-            $this->sendHeaders();
-            $this->sendContent();
-        } catch (Throwable) {
-            $this->stream->close();
-            return;
-        }
-
-        $this->stream->completeTransaction();
-        $keepAlive = false;
-
-        if ($headerConnection = $this->headers->get('Connection')) {
-            $keepAlive = str_contains(strtolower($headerConnection), 'keep-alive');
-        }
-
-        if (!$keepAlive) {
-            $this->stream->close();
-        }
+        $this->stream->write("HTTP/1.1 {$this->getStatusCode()} {$this->statusText}\r\n");
+        return $this;
     }
+
 
     /**
      * @param int|null $statusCode
@@ -145,7 +97,6 @@ class Response extends \Symfony\Component\HttpFoundation\Response
      */
     #[Override] public function sendHeaders(int|null $statusCode = null): static
     {
-        $this->stream->write("HTTP/1.1 {$this->getStatusCode()} {$this->statusText}\r\n");
         foreach ($this->headers->allPreserveCaseWithoutCookies() as $name => $values) {
             foreach ($values as $value) {
                 $this->stream->write("$name: $value\r\n");
@@ -156,7 +107,6 @@ class Response extends \Symfony\Component\HttpFoundation\Response
             $this->stream->write('Set-Cookie: ' . $cookie . "\r\n");
         }
 
-        $this->stream->write("\r\n");
         return $this;
     }
 
@@ -168,52 +118,91 @@ class Response extends \Symfony\Component\HttpFoundation\Response
      */
     #[Override] public function sendContent(): static
     {
-        promise(function ($resolve, $reject) {
-            // An exception occurs during transfer with the HTTP client and the currently open file stream should be closed.
-            if ($transaction = $this->stream->getTransaction()) {
-                $transaction->onClose(function () use ($resolve, $reject) {
-                    if (isset($this->body) && $this->body instanceof Stream) {
-                        $this->body->close();
-                    }
-                    $resolve();
-                });
-            } else {
-                $this->stream->onClose(function () use ($resolve, $reject) {
-                    if (isset($this->body) && $this->body instanceof Stream) {
-                        $this->body->close();
-                    }
-                    $resolve();
-                });
-            }
-
-            if (is_string($this->body)) {
-                $this->stream->write($this->body);
-                $resolve();
-            } elseif ($this->body instanceof Stream) {
-                $this->body->onReadable(function () use ($resolve, $reject) {
+        $this->stream->write("\r\n");
+        // An exception occurs during transfer with the HTTP client and the currently open file stream should be closed.
+        if (is_string($this->body)) {
+            $this->stream->write($this->body);
+        } elseif ($this->body instanceof Stream) {
+            promise(function (Closure $resolve, Closure $reject) {
+                $this->body->onReadable(function (Stream $body) use ($resolve, $reject) {
                     $content = '';
-                    while ($buffer = $this->body->read(8192)) {
+                    while ($buffer = $body->read(8192)) {
                         $content .= $buffer;
                     }
-                    $this->stream->write($content);
-                    if ($this->body->eof()) {
+
+                    try {
+                        $this->stream->write($content);
+                    } catch (Throwable $exception) {
+                        $body->close();
+                        $reject($exception);
+                    }
+
+                    if ($body->eof()) {
+                        $body->close();
                         $resolve();
                     }
                 });
-            } elseif ($this->body instanceof Generator) {
-                foreach ($this->body as $content) {
-                    if ($content === '') {
-                        $this->stream->close();
-                        break;
-                    }
-                    $this->stream->write($content);
-                }
-                $resolve();
-            } else {
-                $resolve();
+            })->await();
+        } elseif ($this->body instanceof Generator) {
+            foreach ($this->body as $content) {
+                $this->stream->write($content);
             }
-        })->await();
+            if ($this->body->getReturn() === false) {
+                $this->stream->close();
+            }
+        } else {
+            throw new ConnectionException('The response content is illegal.');
+        }
         return $this;
+    }
+
+    /**
+     * @param mixed $content
+     *
+     * @return static
+     */
+    public function setBody(mixed $content): static
+    {
+        if (is_string($content)) {
+            $this->headers->set('Content-Length', strval(strlen($content)));
+        } elseif ($content instanceof Generator) {
+            $this->headers->remove('Content-Length');
+        } elseif ($content instanceof Stream) {
+            $path   = $content->getMetadata('uri');
+            $length = filesize($path);
+            $this->headers->set('Content-Length', strval($length));
+            $this->headers->set('Content-Type', 'application/octet-stream');
+            if (!$this->headers->get('Content-Disposition')) {
+                $this->headers->set('Content-Disposition', 'attachment; filename=' . basename($path));
+            }
+        } elseif (is_resource($content)) {
+            return $this->setBody(new Stream($content));
+        } elseif ($content instanceof Closure) {
+            return $this->setBody($content());
+        }
+
+        $this->body = $content;
+        return $this;
+    }
+
+    /**
+     * @return void
+     */
+    public function respond(): void
+    {
+        try {
+            $this->sendStatus();
+            $this->sendHeaders();
+            $this->sendContent();
+        } catch (Throwable) {
+            $this->stream->close();
+            return;
+        }
+
+        $headerConnection = $this->headers->get('Connection');
+        if (!$headerConnection || !str_contains(strtolower($headerConnection), 'keep-alive')) {
+            $this->stream->close();
+        }
     }
 
     /**
