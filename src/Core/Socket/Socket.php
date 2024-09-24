@@ -70,25 +70,15 @@ class Socket extends LibraryAbstract
      * @param int        $timeout
      * @param mixed|null $context
      *
-     * @return \Psc\Core\Socket\SocketStream
+     * @return SocketStream
      * @throws Throwable
      */
-    public function streamSocketClientSSL(string $address, int $timeout = 0, mixed $context = null): SocketStream
+    public function connectWithSSL(string $address, int $timeout = 0, mixed $context = null): SocketStream
     {
         return promise(function (Closure $r, Closure $d) use ($address, $timeout, $context) {
             $address = str_replace('ssl://', 'tcp://', $address);
-
-            $streamSocket = $this->streamSocketClient($address, $timeout, $context);
-            $promise      = $this->streamEnableCrypto($streamSocket)->then($r)->except($d);
-
-            if ($timeout > 0) {
-                delay(static function () use ($promise, $streamSocket, $d) {
-                    if ($promise->getStatus() === Promise::PENDING) {
-                        $streamSocket->close();
-                        $d(new Exception('Connection timeout.'));
-                    }
-                }, $timeout);
-            }
+            $streamSocket = $this->connect($address, $timeout, $context);
+            $this->enableSSL($streamSocket, $timeout);
         })->await();
     }
 
@@ -97,10 +87,10 @@ class Socket extends LibraryAbstract
      * @param int        $timeout
      * @param mixed|null $context
      *
-     * @return \Psc\Core\Socket\SocketStream
+     * @return SocketStream
      * @throws Throwable
      */
-    public function streamSocketClient(string $address, int $timeout = 0, mixed $context = null): SocketStream
+    public function connect(string $address, int $timeout = 0, mixed $context = null): SocketStream
     {
         return promise(static function (Closure $r, Closure $d) use ($address, $timeout, $context) {
             $connection = stream_socket_client(
@@ -139,13 +129,16 @@ class Socket extends LibraryAbstract
 
     /**
      * @param SocketStream $stream
-     *
-     * @return \Psc\Core\Socket\SocketStream
+     * @param float $timeout
+     * @return SocketStream
      * @throws Throwable
      */
-    public function streamEnableCrypto(SocketStream $stream): SocketStream
+    public function enableSSL(SocketStream $stream, float $timeout = 0): SocketStream
     {
-        return promise(static function ($r, $d) use ($stream) {
+        return promise(static function (Closure $r, Closure $d, Promise $promise) use ($stream, $timeout) {
+            $timeoutEventID = delay(static fn () => $d, $timeout);
+            $promise->finally(static fn () => cancel($timeoutEventID));
+
             $handshakeResult = stream_socket_enable_crypto($stream->stream, true, STREAM_CRYPTO_METHOD_SSLv23_CLIENT);
 
             if ($handshakeResult === false) {
@@ -192,7 +185,7 @@ class Socket extends LibraryAbstract
      * @return SocketStream
      * @throws Exception
      */
-    public function streamSocketServer(string $address, mixed $context = null): SocketStream
+    public function server(string $address, mixed $context = null): SocketStream
     {
         $server = stream_socket_server(
             $address,

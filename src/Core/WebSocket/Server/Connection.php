@@ -37,7 +37,6 @@ namespace Psc\Core\WebSocket\Server;
 use Closure;
 use Psc\Core\Socket\SocketStream;
 use Psc\Core\Stream\Exception\ConnectionException;
-use Psc\Core\Stream\Stream;
 use Psc\Core\WebSocket\Frame\Type;
 use Psc\Utils\Output;
 use Symfony\Component\HttpFoundation\Request;
@@ -132,17 +131,14 @@ class Connection
      * @Author cclilshy
      * @Date   2024/8/15 14:44
      *
-     * @param Stream $stream
+     * @param SocketStream $stream
      *
      * @return void
      */
-    private function handleRead(Stream $stream): void
+    private function handleRead(SocketStream $stream): void
     {
         try {
-            $data = '';
-            while ($buffer = $stream->read(8192)) {
-                $data .= $buffer;
-            }
+            $data = $stream->readContinuously(1024);
             if ($data === '') {
                 if ($stream->eof()) {
                     throw new ConnectionException('Connection closed by peer', ConnectionException::CONNECTION_CLOSED);
@@ -363,7 +359,7 @@ class Connection
             $value           .= 'permessage-deflate; server_no_context_takeover; client_max_window_bits=15';
             $this->isDeflate = true;
         }
-        //其他扩展，如：加密……
+        //Other extensions like: encryption…
 
         if ($value) {
             $extendHeaders[Connection::EXTEND_HEAD] = $value;

@@ -67,10 +67,10 @@ class ServerSentEvents
     /*** @var bool */
     private bool $isSSE = false;
 
-    /*** @var \Closure|null */
+    /*** @var Closure|null */
     private Closure|null $onEvent = null;
 
-    /*** @var \Psr\Http\Message\ResponseInterface|null */
+    /*** @var ResponseInterface|null */
     private ResponseInterface|null $response = null;
 
     /*** @var bool */

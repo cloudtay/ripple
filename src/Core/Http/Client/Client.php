@@ -81,10 +81,10 @@ class Client
     }
 
     /**
-     * @param \Psr\Http\Message\RequestInterface $request
-     * @param array                              $option
+     * @param RequestInterface $request
+     * @param array            $option
      *
-     * @return \GuzzleHttp\Psr7\Response
+     * @return Response
      * @throws Throwable
      */
     public function request(RequestInterface $request, array $option = []): Response
@@ -274,17 +274,17 @@ class Client
                     case 'socks':
                     case 'socks5':
                         $tunnelSocket = ProxySocks5::connect("tcp://{$parse['host']}:{$parse['port']}", $payload)->getSocketStream();
-                        $ssl && IO::Socket()->streamEnableCrypto($tunnelSocket);
+                        $ssl && IO::Socket()->enableSSL($tunnelSocket, $timeout);
                         $connection = new Connection($tunnelSocket);
                         break;
                     case 'http':
                         $tunnelSocket = ProxyHttp::connect("tcp://{$parse['host']}:{$parse['port']}", $payload)->getSocketStream();
-                        $ssl && IO::Socket()->streamEnableCrypto($tunnelSocket);
+                        $ssl && IO::Socket()->enableSSL($tunnelSocket, $timeout);
                         $connection = new Connection($tunnelSocket);
                         break;
                     case 'https':
                         $tunnelSocket = ProxyHttp::connect("tcp://{$parse['host']}:{$parse['port']}", $payload, true)->getSocketStream();
-                        $ssl && IO::Socket()->streamEnableCrypto($tunnelSocket);
+                        $ssl && IO::Socket()->enableSSL($tunnelSocket, $timeout);
                         $connection = new Connection($tunnelSocket);
                         break;
                     default:
@@ -292,8 +292,8 @@ class Client
                 }
             } else {
                 $connection = $ssl
-                    ? new Connection(IO::Socket()->streamSocketClientSSL("ssl://{$host}:{$port}", $timeout))
-                    : new Connection(IO::Socket()->streamSocketClient("tcp://{$host}:{$port}", $timeout));
+                    ? new Connection(IO::Socket()->connectWithSSL("ssl://{$host}:{$port}", $timeout))
+                    : new Connection(IO::Socket()->connect("tcp://{$host}:{$port}", $timeout));
             }
         }
 

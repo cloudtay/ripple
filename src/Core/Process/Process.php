@@ -49,7 +49,7 @@ use Throwable;
 use function call_user_func;
 use function Co\cancel;
 use function Co\promise;
-use function Co\tick;
+use function Co\wait;
 use function getmypid;
 use function pcntl_fork;
 use function pcntl_wait;
@@ -202,14 +202,14 @@ class Process extends LibraryAbstract
 
                     $this->forked();
                     call_user_func($closure, ...$args);
-                    tick();
+                    wait();
                     exit(0);
                 } else {
                     // Whether it belongs to the PHP space
 
                     $this->forked();
                     call_user_func($closure, ...$args);
-                    tick();
+                    wait();
                     exit(0);
                 }
             }

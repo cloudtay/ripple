@@ -43,7 +43,7 @@ use Throwable;
 
 use function Co\cancelAll;
 use function Co\defer;
-use function Co\tick;
+use function Co\wait;
 use function md5;
 use function sys_get_temp_dir;
 use function uniqid;
@@ -64,7 +64,7 @@ class UnixTest extends TestCase
     public function test_unix(): void
     {
         $path   = sys_get_temp_dir() . '/' . md5(uniqid()) . '.sock';
-        $server = IO::Socket()->streamSocketServer('unix://' . $path);
+        $server = IO::Socket()->server('unix://' . $path);
         $server->setBlocking(false);
 
         $server->onReadable(function (SocketStream $stream) {
@@ -83,7 +83,7 @@ class UnixTest extends TestCase
                 Output::error($exception->getMessage());
             }
         });
-        tick();
+        wait();
     }
 
     /**
@@ -97,7 +97,7 @@ class UnixTest extends TestCase
      */
     private function call(string $path): void
     {
-        $client = IO::Socket()->streamSocketClient('unix://' . $path);
+        $client = IO::Socket()->connect('unix://' . $path);
         $client->setBlocking(false);
 
         $client->write('hello');

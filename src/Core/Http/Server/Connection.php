@@ -35,6 +35,7 @@
 namespace Psc\Core\Http\Server;
 
 use Closure;
+use Psc\Core\Http\Server\Exception\FormatException;
 use Psc\Core\Http\Server\Upload\MultipartHandler;
 use Psc\Core\Socket\SocketStream;
 use Psc\Core\Stream\Exception\RuntimeException;
@@ -142,15 +143,15 @@ class Connection
         });
 
         $this->stream->onReadable(function (SocketStream $stream) use ($builder) {
-            try {
-                $content = $stream->readContinuously(1024);
-                if ($content === '') {
-                    if ($stream->eof()) {
-                        $stream->close();
-                    }
-                    return;
+            $content = $stream->readContinuously(1024);
+            if ($content === '') {
+                if ($stream->eof()) {
+                    $stream->close();
                 }
+                return;
+            }
 
+            try {
                 if (!$requestInfo = $this->tick($content)) {
                     return;
                 }
@@ -171,8 +172,8 @@ class Connection
      * @param string $content
      *
      * @return array|null
-     * @throws \Psc\Core\Http\Server\Exception\FormatException
-     * @throws \Psc\Core\Stream\Exception\RuntimeException
+     * @throws FormatException
+     * @throws RuntimeException
      */
     private function tick(string $content): array|null
     {
@@ -199,8 +200,8 @@ class Connection
 
     /**
      * @return void
-     * @throws \Psc\Core\Http\Server\Exception\FormatException
-     * @throws \Psc\Core\Stream\Exception\RuntimeException
+     * @throws FormatException
+     * @throws RuntimeException
      */
     private function handleInitialStep(): void
     {
@@ -291,8 +292,8 @@ class Connection
      * @param string $body
      *
      * @return void
-     * @throws \Psc\Core\Http\Server\Exception\FormatException
-     * @throws \Psc\Core\Stream\Exception\RuntimeException
+     * @throws FormatException
+     * @throws RuntimeException
      */
     private function handleRequestBody(string $method, string $body): void
     {
@@ -310,8 +311,8 @@ class Connection
      * @param string $body
      *
      * @return void
-     * @throws \Psc\Core\Http\Server\Exception\FormatException
-     * @throws \Psc\Core\Stream\Exception\RuntimeException
+     * @throws FormatException
+     * @throws RuntimeException
      */
     private function handlePostRequest(string $body): void
     {
@@ -333,8 +334,8 @@ class Connection
      * @param string $contentType
      *
      * @return void
-     * @throws \Psc\Core\Http\Server\Exception\FormatException
-     * @throws \Psc\Core\Stream\Exception\RuntimeException
+     * @throws FormatException
+     * @throws RuntimeException
      */
     private function handleMultipartFormData(string $body, string $contentType): void
     {
@@ -363,7 +364,7 @@ class Connection
 
     /**
      * @return void
-     * @throws \Psc\Core\Stream\Exception\RuntimeException
+     * @throws RuntimeException
      */
     private function validateContentLength(): void
     {
@@ -376,7 +377,7 @@ class Connection
 
     /**
      * @return void
-     * @throws \Psc\Core\Stream\Exception\RuntimeException
+     * @throws RuntimeException
      */
     private function handleOtherMethods(): void
     {
@@ -389,7 +390,7 @@ class Connection
 
     /**
      * @return void
-     * @throws \Psc\Core\Stream\Exception\RuntimeException
+     * @throws RuntimeException
      */
     private function handleContinuousTransfer(): void
     {
@@ -402,8 +403,8 @@ class Connection
 
     /**
      * @return void
-     * @throws \Psc\Core\Http\Server\Exception\FormatException
-     * @throws \Psc\Core\Stream\Exception\RuntimeException
+     * @throws FormatException
+     * @throws RuntimeException
      */
     private function handleFileTransfer(): void
     {

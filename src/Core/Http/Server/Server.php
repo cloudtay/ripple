@@ -63,10 +63,10 @@ class Server
      */
     public Closure $onRequest;
 
-    /*** @var \Psc\Core\Socket\SocketStream */
+    /*** @var SocketStream */
     private SocketStream $server;
 
-    /*** @var \Psc\Core\Http\Server\RequestFactoryInterface */
+    /*** @var RequestFactoryInterface */
     private RequestFactoryInterface $requestFactory;
 
     /**
@@ -95,7 +95,7 @@ class Server
 
         /*** @var SocketStream $server */
         $this->server = match ($scheme) {
-            'http', 'https' => IO::Socket()->streamSocketServer("tcp://{$host}:{$port}", $context),
+            'http', 'https' => IO::Socket()->server("tcp://{$host}:{$port}", $context),
             default         => throw new RuntimeException('Address format error')
         };
         $this->server->setOption(SOL_SOCKET, SO_KEEPALIVE, 1);
@@ -139,7 +139,7 @@ class Server
     }
 
     /**
-     * @param \Psc\Core\Http\Server\RequestFactoryInterface $factory
+     * @param RequestFactoryInterface $factory
      *
      * @return void
      */

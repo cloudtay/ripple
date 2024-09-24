@@ -104,7 +104,7 @@ class Server
             throw new RuntimeException('The address must contain a port');
         }
 
-        $this->server = IO::Socket()->streamSocketServer("tcp://{$host}:{$port}", $context);
+        $this->server = IO::Socket()->server("tcp://{$host}:{$port}", $context);
 
         $this->server->setOption(SOL_SOCKET, SO_KEEPALIVE, 1);
         $this->server->setOption(SOL_SOCKET, SO_REUSEADDR, 1);

@@ -48,7 +48,7 @@ use Throwable;
 use function Co\delay;
 use function Co\promise;
 use function Co\registerForkHandler;
-use function Co\tick;
+use function Co\wait;
 use function spl_object_hash;
 
 /**
@@ -258,7 +258,7 @@ class Coroutine extends LibraryAbstract
     {
         if (!Fiber::getCurrent() || !$this->hasCallback()) {
             $this->fiber2callback = array();
-            tick();
+            wait();
             exit(0);
         } else {
             throw $exception;

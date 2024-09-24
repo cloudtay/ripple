@@ -80,7 +80,7 @@ class Response extends \Symfony\Component\HttpFoundation\Response
 
     /**
      * @return static
-     * @throws \Psc\Core\Stream\Exception\ConnectionException
+     * @throws ConnectionException
      */
     public function sendStatus(): static
     {
@@ -151,7 +151,7 @@ class Response extends \Symfony\Component\HttpFoundation\Response
                 $this->stream->close();
             }
         } else {
-            throw new ConnectionException('The response content is illegal.');
+            throw new ConnectionException('The response content is illegal.', ConnectionException::ERROR_ILLEGAL_CONTENT);
         }
         return $this;
     }

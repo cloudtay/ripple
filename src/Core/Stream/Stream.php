@@ -301,7 +301,7 @@ class Stream extends StreamBase
     }
 
     /**
-     * @return \Psc\Core\Stream\Transaction|null
+     * @return Transaction|null
      */
     public function getTransaction(): Transaction|null
     {

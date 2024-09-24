@@ -45,7 +45,7 @@ use Throwable;
 
 use function Co\cancelAll;
 use function Co\defer;
-use function Co\tick;
+use function Co\wait;
 use function gc_collect_cycles;
 use function md5;
 use function memory_get_usage;
@@ -111,7 +111,7 @@ class WsTest extends TestCase
             $connection->send($data);
         });
         $server->listen();
-        tick();
+        wait();
     }
 
     /**

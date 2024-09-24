@@ -47,6 +47,7 @@ use function base64_encode;
 use function call_user_func;
 use function chr;
 use function Co\async;
+use function Co\promise;
 use function explode;
 use function ord;
 use function pack;
@@ -91,7 +92,7 @@ class Connection
     private Closure $onError;
 
     /**
-     * @var \Psc\Core\Socket\SocketStream
+     * @var SocketStream
      */
     private SocketStream $stream;
 
@@ -143,7 +144,7 @@ class Connection
      */
     private function handshake(): void
     {
-        \Co\promise(function ($r) {
+        promise(function ($r) {
             $parsedUrl = parse_url($this->address);
             if (!$parsedUrl || !isset($parsedUrl['scheme'], $parsedUrl['host'])) {
                 throw new Exception('Invalid address');
@@ -160,8 +161,8 @@ class Connection
             $path         = $parsedUrl['path'] ?? '';
             $path         = $path !== '' ? $path : '/';
             $this->stream = match ($scheme) {
-                'ws'    => IO::Socket()->streamSocketClient("tcp://{$host}:{$port}", $this->timeout, $this->context),
-                'wss'   => IO::Socket()->streamSocketClientSSL("ssl://{$host}:{$port}", $this->timeout, $this->context),
+                'ws'    => IO::Socket()->connect("tcp://{$host}:{$port}", $this->timeout, $this->context),
+                'wss'   => IO::Socket()->connectWithSSL("ssl://{$host}:{$port}", $this->timeout, $this->context),
                 default => throw new Exception('Unsupported scheme'),
             };
 

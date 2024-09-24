@@ -52,8 +52,8 @@ use function stream_context_set_option;
 abstract class Base
 {
     /**
-     * @param \Psc\Core\Socket\SocketStream $proxy
-     * @param array                         $payload
+     * @param SocketStream $proxy
+     * @param array        $payload
      */
     public function __construct(protected SocketStream $proxy, protected array $payload)
     {
@@ -64,10 +64,10 @@ abstract class Base
      * @Author cclilshy
      * @Date   2024/8/29 12:38
      *
-     * @param \Psc\Core\Socket\SocketStream|string $target
-     * @param array                                $payload
-     * @param bool                                 $ssl
-     * @param bool                                 $wait
+     * @param SocketStream|string $target
+     * @param array               $payload
+     * @param bool                $ssl
+     * @param bool                $wait
      *
      * @return static
      * @throws Throwable
@@ -79,9 +79,9 @@ abstract class Base
             stream_context_set_option($context, 'ssl', 'verify_peer', false);
             stream_context_set_option($context, 'ssl', 'verify_peer_name', false);
             if ($ssl) {
-                $target = IO::Socket()->streamSocketClientSSL($target, 10, $context);
+                $target = IO::Socket()->connectWithSSL($target, 10, $context);
             } else {
-                $target = IO::Socket()->streamSocketClient($target, 10, $context);
+                $target = IO::Socket()->connect($target, 10, $context);
             }
         }
 

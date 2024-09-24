@@ -90,7 +90,7 @@ class SocketStream extends Stream
     /*** @var int|null */
     private int|null $port;
 
-    /*** @var \Psc\Core\Coroutine\Promise */
+    /*** @var Promise */
     private Promise $writePromise;
 
     /**
@@ -128,7 +128,7 @@ class SocketStream extends Stream
      * @param int|float $timeout
      *
      * @return $this
-     * @throws \Psc\Core\Stream\Exception\ConnectionException
+     * @throws ConnectionException
      */
     public function accept(int|float $timeout = 0): SocketStream
     {
@@ -195,30 +195,59 @@ class SocketStream extends Stream
      * @param string $string
      *
      * @return int
-     * @throws \Psc\Core\Stream\Exception\ConnectionException|Throwable
+     * @throws ConnectionException|Throwable
      */
     private function writeInternal(string $string): int
     {
-        if ($this->storageCacheWrite) {
+        if ($this->blocking) {
             $this->storageCacheWrite->write($string);
             return $this->writePromise->await();
         }
 
-        $this->writePromise = \Co\promise(function ($resolve, $reject) use ($string) {
+        $this->writePromise = \Co\promise(function ($resolve, $reject, Promise $promise) use ($string) {
             try {
-                if ($this->blocking) {
-                    $this->prepareBlockingMode($reject);
-                    $this->storageCacheWrite->write($string);
-                } else {
+                if (!$this->blocking) {
                     $length          = parent::write($string);
                     $remainingString = substr($string, $length);
+                    if ($remainingString === '') {
+                        $resolve($length);
+                    } else {
+                        if ($this->storageCacheWrite === null) {
+                            $tempFilePath            = sys_get_temp_dir() . '/' . uniqid('buf_');
+                            $this->storageCacheWrite = IO::File()->open($tempFilePath, 'w+');
+                            $this->storageCacheRead  = IO::File()->open($tempFilePath, 'r+');
 
-                    if ($remainingString !== '') {
+                            $this->storageCacheWrite->setBlocking(true);
+
+                            $closeEventId = $this->onClose(fn () => $this->cleanupTempFiles($tempFilePath));
+                            $promise->finally(fn () => $this->cancelOnClose($closeEventId));
+                            $this->onWritable(function (Stream $_, Closure $cancel) use ($tempFilePath, $closeEventId, $resolve, $reject) {
+                                if ($buffer = $this->storageCacheRead->read($this->getOption(SOL_SOCKET, SO_SNDLOWAT))) {
+                                    try {
+                                        parent::write($buffer);
+                                    } catch (ConnectionException $e) {
+                                        $this->blocking = false;
+                                        $this->cleanupTempFiles($tempFilePath);
+                                        $this->cancelOnClose($closeEventId);
+                                        $cancel();
+                                        $reject($e);
+                                        return;
+                                    }
+                                }
+
+                                if ($this->storageCacheRead->eof()) {
+                                    $size           = $this->storageCacheRead->getSize();
+                                    $this->blocking = false;
+                                    $this->cleanupTempFiles($tempFilePath);
+                                    $this->cancelOnClose($closeEventId);
+                                    $cancel();
+                                    $resolve($size);
+                                }
+                            });
+                        }
                         $this->blocking = true;
-                        $this->writeInternal($remainingString);
+                        $this->storageCacheWrite->write($remainingString);
                     }
-
-                    $resolve($length);
                 }
             } catch (Exception $e) {
                 $reject($e);
@@ -226,51 +255,6 @@ class SocketStream extends Stream
         });
 
         return $this->writePromise->await();
-    }
-
-    /**
-     * Prepare the blocking mode, initialize temp files and event listeners.
-     */
-    private function prepareBlockingMode(Closure $reject): void
-    {
-        if ($this->storageCacheWrite === null) {
-            $tempFilePath            = $this->generateTempFilePath();
-            $this->storageCacheWrite = IO::File()->open($tempFilePath, 'w+');
-            $this->storageCacheWrite->setBlocking(true);
-            $this->storageCacheRead = IO::File()->open($tempFilePath, 'r+');
-
-            $closeEventId = $this->onClose(function () use ($tempFilePath) {
-                $this->cleanupTempFiles($tempFilePath);
-            });
-
-            $this->onWritable(function ($_, $cancel) use ($tempFilePath, $closeEventId, $reject) {
-                if ($this->storageCacheRead->eof()) {
-                    $this->blocking = false;
-                    $this->cleanupTempFiles($tempFilePath);
-                    $cancel();
-                    $this->cancelOnClose($closeEventId);
-                    return;
-                }
-
-                $buffer = $this->storageCacheRead->read($this->getOption(SOL_SOCKET, SO_SNDLOWAT));
-                try {
-                    parent::write($buffer);
-                } catch (ConnectionException $e) {
-                    $cancel();
-                    $reject($e);
-                }
-            });
-        }
-    }
-
-    /**
-     * Generate a unique temp file path.
-     *
-     * @return string
-     */
-    private function generateTempFilePath(): string
-    {
-        return sys_get_temp_dir() . '/' . uniqid('buf_');
     }
 
     /**
@@ -332,7 +316,7 @@ class SocketStream extends Stream
      * @param int $length
      *
      * @return string
-     * @throws \Psc\Core\Stream\Exception\ConnectionException
+     * @throws ConnectionException
      */
     public function readContinuously(int $length): string
     {

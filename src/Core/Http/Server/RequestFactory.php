@@ -45,7 +45,7 @@ class RequestFactory implements RequestFactoryInterface
      * @param array $server
      * @param array $content
      *
-     * @return \Psc\Core\Http\Server\Request
+     * @return Request
      */
     public function __invoke(array $query, array $request, array $attributes, array $cookies, array $files, array $server, mixed $content): Request
     {

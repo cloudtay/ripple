@@ -182,7 +182,7 @@ final class Transaction
     }
 
     /**
-     * @return \Psc\Core\Stream\Stream
+     * @return Stream
      */
     public function getStream(): Stream
     {

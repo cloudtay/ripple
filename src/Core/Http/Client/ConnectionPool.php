@@ -175,7 +175,7 @@ class ConnectionPool
      * @throws ConnectionException
      * @throws Throwable
      */
-    private function createConnection(string $host, int $port, bool $ssl, int|float $timeout, string|null $proxy): Connection
+    private function createConnection(string $host, int $port, bool $ssl, int|float $timeout, string|null $proxy = null): Connection
     {
         if ($proxy) {
             $parse = parse_url($proxy);
@@ -188,12 +188,12 @@ class ConnectionPool
                 $payload['password'] = $parse['pass'];
             }
             $proxySocketStream = $this->createProxySocketStream($parse, $payload);
-            $ssl && IO::Socket()->streamEnableCrypto($proxySocketStream);
+            $ssl && IO::Socket()->enableSSL($proxySocketStream, $timeout);
             return new Connection($proxySocketStream);
         }
 
-        $stream = IO::Socket()->streamSocketClient("tcp://{$host}:{$port}", $timeout);
-        $ssl && IO::Socket()->streamEnableCrypto($stream);
+        $stream = IO::Socket()->connect("tcp://{$host}:{$port}", $timeout);
+        $ssl && IO::Socket()->enableSSL($stream, $timeout);
         return new Connection($stream);
     }
 
