@@ -60,9 +60,7 @@ use const STREAM_SERVER_LISTEN;
  */
 class Socket extends LibraryAbstract
 {
-    /**
-     * @var LibraryAbstract
-     */
+    /*** @var LibraryAbstract */
     protected static LibraryAbstract $instance;
 
     /**
@@ -76,7 +74,7 @@ class Socket extends LibraryAbstract
     public function connectWithSSL(string $address, int $timeout = 0, mixed $context = null): SocketStream
     {
         return promise(function (Closure $r, Closure $d) use ($address, $timeout, $context) {
-            $address = str_replace('ssl://', 'tcp://', $address);
+            $address      = str_replace('ssl://', 'tcp://', $address);
             $streamSocket = $this->connect($address, $timeout, $context);
             $this->enableSSL($streamSocket, $timeout);
         })->await();
@@ -110,11 +108,11 @@ class Socket extends LibraryAbstract
             $stream = new SocketStream($connection, $address);
 
             if ($timeout > 0) {
-                $timeoutEventId     = delay(static function () use ($stream, $d) {
+                $timeoutEventID     = delay(static function () use ($stream, $d) {
                     $stream->close();
                     $d(new Exception('Connection timeout.'));
                 }, $timeout);
-                $timeoutEventCancel = fn () => cancel($timeoutEventId);
+                $timeoutEventCancel = fn () => cancel($timeoutEventID);
             } else {
                 $timeoutEventCancel = fn () => null;
             }
@@ -129,15 +127,20 @@ class Socket extends LibraryAbstract
 
     /**
      * @param SocketStream $stream
-     * @param float $timeout
+     * @param float        $timeout
+     *
      * @return SocketStream
      * @throws Throwable
      */
     public function enableSSL(SocketStream $stream, float $timeout = 0): SocketStream
     {
         return promise(static function (Closure $r, Closure $d, Promise $promise) use ($stream, $timeout) {
-            $timeoutEventID = delay(static fn () => $d, $timeout);
-            $promise->finally(static fn () => cancel($timeoutEventID));
+            if ($timeout > 0) {
+                $timeoutEventID = delay(static function () use ($d) {
+                    $d();
+                }, $timeout);
+                $promise->finally(static fn () => cancel($timeoutEventID));
+            }
 
             $handshakeResult = stream_socket_enable_crypto($stream->stream, true, STREAM_CRYPTO_METHOD_SSLv23_CLIENT);
 

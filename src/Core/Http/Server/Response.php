@@ -78,16 +78,6 @@ class Response extends \Symfony\Component\HttpFoundation\Response
         return $this->setBody($content);
     }
 
-    /**
-     * @return static
-     * @throws ConnectionException
-     */
-    public function sendStatus(): static
-    {
-        $this->stream->write("HTTP/1.1 {$this->getStatusCode()} {$this->statusText}\r\n");
-        return $this;
-    }
-
 
     /**
      * @param int|null $statusCode
@@ -97,16 +87,19 @@ class Response extends \Symfony\Component\HttpFoundation\Response
      */
     #[Override] public function sendHeaders(int|null $statusCode = null): static
     {
+        $content = '';
         foreach ($this->headers->allPreserveCaseWithoutCookies() as $name => $values) {
             foreach ($values as $value) {
-                $this->stream->write("$name: $value\r\n");
+                // $this->stream->write("$name: $value\r\n");
+                $content .= "$name: $value\r\n";
             }
         }
 
         foreach ($this->headers->getCookies() as $cookie) {
-            $this->stream->write('Set-Cookie: ' . $cookie . "\r\n");
+            // $this->stream->write('Set-Cookie: ' . $cookie . "\r\n");
+            $content .= 'Set-Cookie: ' . $cookie . "\r\n";
         }
-
+        $this->stream->write($content);
         return $this;
     }
 
@@ -185,6 +178,27 @@ class Response extends \Symfony\Component\HttpFoundation\Response
         return $this;
     }
 
+
+    /**
+     * @Author cclilshy
+     * @Date   2024/9/1 14:12
+     * @return SocketStream
+     */
+    public function getStream(): SocketStream
+    {
+        return $this->stream;
+    }
+
+    /**
+     * @return static
+     * @throws ConnectionException
+     */
+    public function sendStatus(): static
+    {
+        $this->stream->write("HTTP/1.1 {$this->getStatusCode()} {$this->statusText}\r\n");
+        return $this;
+    }
+
     /**
      * @return void
      */
@@ -203,15 +217,5 @@ class Response extends \Symfony\Component\HttpFoundation\Response
         if (!$headerConnection || !str_contains(strtolower($headerConnection), 'keep-alive')) {
             $this->stream->close();
         }
-    }
-
-    /**
-     * @Author cclilshy
-     * @Date   2024/9/1 14:12
-     * @return SocketStream
-     */
-    public function getStream(): SocketStream
-    {
-        return $this->stream;
     }
 }

@@ -34,11 +34,75 @@
 
 namespace Psc\Core\Http\Server;
 
-use Symfony\Component\HttpFoundation\Request as SymfonyRequest;
+use Psc\Core\Socket\SocketStream;
+
+use function array_merge;
 
 /**
  * requesting entity
  */
-class Request extends SymfonyRequest
+class Request
 {
+    /*** @var array */
+    public readonly array $REQUEST;
+
+    /*** @var \Psc\Core\Http\Server\Response */
+    private Response $response;
+
+    /**
+     * @param \Psc\Core\Socket\SocketStream $stream
+     * @param array                         $GET
+     * @param array                         $POST
+     * @param array                         $COOKIE
+     * @param array                         $FILES
+     * @param array                         $SERVER
+     * @param mixed|null                    $CONTENT
+     */
+    public function __construct(
+        public readonly SocketStream $stream,
+        public readonly array        $GET = [],
+        public readonly array        $POST = [],
+        public readonly array        $COOKIE = [],
+        public readonly array        $FILES = [],
+        public readonly array        $SERVER = [],
+        public readonly mixed        $CONTENT = null,
+    ) {
+        $this->REQUEST = array_merge($this->GET, $this->POST);
+    }
+
+    /**
+     * @return \Psc\Core\Http\Server\Response
+     */
+    public function getResponse(): Response
+    {
+        if (!isset($this->response)) {
+            $this->response = new Response($this->stream);
+        }
+        return $this->response;
+    }
+
+    /**
+     * @return \Psc\Core\Socket\SocketStream
+     */
+    public function getStream(): SocketStream
+    {
+        return $this->stream;
+    }
+
+    /**
+     * @param mixed $content
+     * @param int   $statusCode
+     * @param array $headers
+     *
+     * @return void
+     */
+    public function respond(mixed $content, int $statusCode = 200, array $headers = []): void
+    {
+        $response = $this->getResponse();
+        $response->headers->add($headers);
+        $response
+            ->setStatusCode($statusCode)
+            ->setBody($content)
+            ->respond();
+    }
 }

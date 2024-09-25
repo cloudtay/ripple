@@ -41,7 +41,6 @@ use GuzzleHttp\Exception\GuzzleException;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 use Psc\Core\Http\Server\Request;
-use Psc\Core\Http\Server\Response;
 use Psc\Utils\Output;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Throwable;
@@ -56,8 +55,10 @@ use function md5_file;
 use function memory_get_usage;
 use function str_repeat;
 use function stream_context_create;
+use function strtoupper;
 use function sys_get_temp_dir;
 use function tempnam;
+use function trim;
 use function uniqid;
 
 use const PHP_EOL;
@@ -79,25 +80,28 @@ class HttpTest extends TestCase
         ]);
 
         $server = Net::Http()->server('http://127.0.0.1:8008', $context);
-        $server->onRequest(function (Request $request, Response $response) {
-            if ($request->getRequestUri() === '/upload') {
-                /**
-                 * @var UploadedFile $file
-                 */
-                $file = $request->files->get('file')[0];
-                $hash = $request->request->get('hash');
+        $server->onRequest(function (Request $request) {
+            $url    = trim($request->SERVER['REQUEST_URI']);
+            $method = strtoupper($request->SERVER['REQUEST_METHOD']);
+
+            if ($url === '/upload') {
+                /*** @var UploadedFile $file */
+                $file = $request->FILES['file'][0];
+                $hash = $request->POST['hash'] ?? '';
                 $this->assertEquals($hash, md5_file($file->getRealPath()));
-                $response->setBody(fopen($file->getRealPath(), 'r'))->respond();
+                $request->respond(fopen($file->getRealPath(), 'r'));
                 return;
             }
 
-            if ($request->isMethod('get')) {
-                $response->setBody($request->query->get('query'))->respond();
+            if ($method === 'GET') {
+                $query = $request->GET['query'] ?? '';
+                $request->respond($query);
                 return;
             }
 
-            if ($request->isMethod('post')) {
-                $response->setBody($request->request->get('query'))->respond();
+            if ($method === 'POST') {
+                $query = $request->POST['query'] ?? '';
+                $request->respond($query);
             }
         });
 

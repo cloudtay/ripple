@@ -36,7 +36,6 @@ include __DIR__ . '/../vendor/autoload.php';
 
 use Psc\Core\Http\Server\Chunk;
 use Psc\Core\Http\Server\Request;
-use Psc\Core\Http\Server\Response;
 
 $server = Co\Net::Http()->server('http://127.0.0.1:8008', \stream_context_create([
     'socket' => [
@@ -45,22 +44,20 @@ $server = Co\Net::Http()->server('http://127.0.0.1:8008', \stream_context_create
     ]
 ]));
 
-$server->onRequest(static function (Request $request, Response $response) {
-    switch (\trim($request->getRequestUri(), '/')) {
+$server->onRequest(static function (Request $request) {
+    switch (\trim($request->SERVER['REQUEST_URI'], '/')) {
         case 'sse':
-            $response->headers->set('Transfer-Encoding', 'chunked');
             $generator = static function () {
                 foreach (\range(1, 10) as $i) {
                     Co\sleep(0.1);
                     yield Chunk::event('message', \json_encode(['id' => $i, 'content' => 'content']));
                 }
-                yield '';
+                return false;
             };
-            $response->setBody($generator());
-            $response->respond();
+            $request->respond($generator());
             break;
         default:
-            $response->setBody('Hello, World!')->respond();
+            $request->respond('Hello, World!');
             break;
     }
 });

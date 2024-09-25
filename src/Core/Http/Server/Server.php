@@ -66,9 +66,6 @@ class Server
     /*** @var SocketStream */
     private SocketStream $server;
 
-    /*** @var RequestFactoryInterface */
-    private RequestFactoryInterface $requestFactory;
-
     /**
      * @param string     $address
      * @param mixed|null $context
@@ -100,7 +97,6 @@ class Server
         };
         $this->server->setOption(SOL_SOCKET, SO_KEEPALIVE, 1);
         $this->server->setBlocking(false);
-        $this->setRequestFactory(new RequestFactory());
     }
 
     /**
@@ -139,16 +135,6 @@ class Server
     }
 
     /**
-     * @param RequestFactoryInterface $factory
-     *
-     * @return void
-     */
-    public function setRequestFactory(RequestFactoryInterface $factory): void
-    {
-        $this->requestFactory = $factory;
-    }
-
-    /**
      * @param Closure $onRequest
      *
      * @return void
@@ -167,18 +153,18 @@ class Server
     {
         $connection = new Connection($stream);
         $connection->listen(function (array $requestInfo) use ($stream) {
-            $customRequest = $this->buildRequest(
+            $request = new Request(
+                $stream,
                 $requestInfo['query'],
                 $requestInfo['request'],
-                $requestInfo['attributes'],
                 $requestInfo['cookies'],
                 $requestInfo['files'],
                 $requestInfo['server'],
                 $requestInfo['content']
             );
 
-            $symfonyResponse = new Response($stream);
-            $symfonyResponse->headers->set('Server', 'PServer');
+            $symfonyResponse = $request->getResponse();
+            $symfonyResponse->headers->set('Server', 'ripple');
 
             $keepAlive = false;
             if ($headerConnection = $requestInfo['server']['HTTP_CONNECTION'] ?? null) {
@@ -193,7 +179,7 @@ class Server
 
             try {
                 if (isset($this->onRequest)) {
-                    call_user_func_array($this->onRequest, [$customRequest, $symfonyResponse]);
+                    call_user_func_array($this->onRequest, [$request]);
                 }
             } catch (ConnectionException) {
                 $stream->close();
@@ -206,29 +192,5 @@ class Server
                 Output::exception($e);
             }
         });
-    }
-
-    /**
-     * @param array $query
-     * @param array $request
-     * @param array $attributes
-     * @param array $cookies
-     * @param array $files
-     * @param array $server
-     * @param mixed $content
-     *
-     * @return mixed
-     */
-    private function buildRequest(array $query, array $request, array $attributes, array $cookies, array $files, array $server, mixed $content): mixed
-    {
-        return $this->requestFactory->__invoke(
-            $query,
-            $request,
-            $attributes,
-            $cookies,
-            $files,
-            $server,
-            $content
-        );
     }
 }
