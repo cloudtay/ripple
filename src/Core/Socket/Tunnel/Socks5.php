@@ -51,7 +51,7 @@ use function substr;
  * @Author cclilshy
  * @Date   2024/8/29 12:16
  */
-class ProxySocks5 extends Base
+class Socks5 extends Tunnel
 {
     private int    $step   = 0;
     private string $readEventId;

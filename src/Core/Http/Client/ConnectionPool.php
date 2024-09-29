@@ -36,8 +36,8 @@ namespace Psc\Core\Http\Client;
 
 use Co\IO;
 use Psc\Core\Socket\SocketStream;
-use Psc\Core\Socket\Tunnel\ProxyHttp;
-use Psc\Core\Socket\Tunnel\ProxySocks5;
+use Psc\Core\Socket\Tunnel\Http;
+use Psc\Core\Socket\Tunnel\Socks5;
 use Psc\Core\Stream\Exception\ConnectionException;
 use Throwable;
 
@@ -213,11 +213,11 @@ class ConnectionPool
         switch ($parse['scheme']) {
             case 'socks':
             case 'socks5':
-                return ProxySocks5::connect("tcp://{$parse['host']}:{$parse['port']}", $payload)->getSocketStream();
+                return Socks5::connect("tcp://{$parse['host']}:{$parse['port']}", $payload)->getSocketStream();
             case 'http':
             case 'https':
                 $secure = $parse['scheme'] === 'https';
-                return ProxyHttp::connect("tcp://{$parse['host']}:{$parse['port']}", $payload, $secure)->getSocketStream();
+                return Http::connect("tcp://{$parse['host']}:{$parse['port']}", $payload, $secure)->getSocketStream();
             default:
                 throw new ConnectionException('Unsupported proxy protocol', ConnectionException::CONNECTION_ERROR);
         }

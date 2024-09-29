@@ -41,8 +41,8 @@ use GuzzleHttp\Psr7\Response;
 use InvalidArgumentException;
 use Psc\Core\Coroutine\Promise;
 use Psc\Core\Socket\SocketStream;
-use Psc\Core\Socket\Tunnel\ProxyHttp;
-use Psc\Core\Socket\Tunnel\ProxySocks5;
+use Psc\Core\Socket\Tunnel\Http;
+use Psc\Core\Socket\Tunnel\Socks5;
 use Psc\Core\Stream\Exception\ConnectionException;
 use Psc\Utils\Output;
 use Psr\Http\Message\RequestInterface;
@@ -53,13 +53,13 @@ use function Co\delay;
 use function Co\repeat;
 use function fclose;
 use function fopen;
+use function getenv;
 use function implode;
 use function in_array;
 use function is_resource;
 use function parse_url;
 use function str_contains;
 use function strtolower;
-use function getenv;
 
 class Client
 {
@@ -273,17 +273,17 @@ class Client
                 switch ($parse['scheme']) {
                     case 'socks':
                     case 'socks5':
-                        $tunnelSocket = ProxySocks5::connect("tcp://{$parse['host']}:{$parse['port']}", $payload)->getSocketStream();
+                        $tunnelSocket = Socks5::connect("tcp://{$parse['host']}:{$parse['port']}", $payload)->getSocketStream();
                         $ssl && IO::Socket()->enableSSL($tunnelSocket, $timeout);
                         $connection = new Connection($tunnelSocket);
                         break;
                     case 'http':
-                        $tunnelSocket = ProxyHttp::connect("tcp://{$parse['host']}:{$parse['port']}", $payload)->getSocketStream();
+                        $tunnelSocket = Http::connect("tcp://{$parse['host']}:{$parse['port']}", $payload)->getSocketStream();
                         $ssl && IO::Socket()->enableSSL($tunnelSocket, $timeout);
                         $connection = new Connection($tunnelSocket);
                         break;
                     case 'https':
-                        $tunnelSocket = ProxyHttp::connect("tcp://{$parse['host']}:{$parse['port']}", $payload, true)->getSocketStream();
+                        $tunnelSocket = Http::connect("tcp://{$parse['host']}:{$parse['port']}", $payload, true)->getSocketStream();
                         $ssl && IO::Socket()->enableSSL($tunnelSocket, $timeout);
                         $connection = new Connection($tunnelSocket);
                         break;

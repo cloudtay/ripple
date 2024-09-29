@@ -34,6 +34,81 @@
 
 namespace Psc\Core\Socket\Tunnel;
 
-class Tunnel
+use Co\IO;
+use Psc\Core\Socket\SocketStream;
+use Psc\Core\Stream\Exception\ConnectionException;
+use Throwable;
+
+use function is_string;
+use function stream_context_create;
+use function stream_context_set_option;
+
+/**
+ * This standard applies to all proxies in transparent transmission mode. The socket created by this method can be directly accessed as the target socket.
+ * It should be noted that the url part of getMeta cannot be expressed as a target address, and users should do the mapping manually.
+ *
+ * @Author cclilshy
+ * @Date   2024/8/29 11:28
+ */
+abstract class Tunnel
 {
+    /**
+     * @param SocketStream $proxy
+     * @param array        $payload
+     */
+    public function __construct(protected SocketStream $proxy, protected array $payload)
+    {
+        $this->proxy->setBlocking(false);
+    }
+
+    /**
+     * @Author cclilshy
+     * @Date   2024/8/29 12:38
+     *
+     * @param SocketStream|string $target
+     * @param array               $payload
+     * @param bool                $ssl
+     * @param bool                $wait
+     *
+     * @return static
+     * @throws ConnectionException
+     */
+    public static function connect(SocketStream|string $target, array $payload, bool $ssl = false, bool $wait = true): static
+    {
+        if (is_string($target)) {
+            $context = stream_context_create();
+            stream_context_set_option($context, 'ssl', 'verify_peer', false);
+            stream_context_set_option($context, 'ssl', 'verify_peer_name', false);
+            $target = IO::Socket()->connect($target, 0, $context);
+            $tunnel = new static($target, $payload);
+            if ($wait) {
+                $tunnel->handshake();
+                if ($ssl) {
+                    $target->enableSSL();
+                }
+            }
+            return $tunnel;
+        }
+
+        $tunnel = new static($target, $payload);
+        $wait && $tunnel->handshake();
+        return $tunnel;
+    }
+
+    /**
+     * @Author cclilshy
+     * @Date   2024/8/29 11:34
+     * @return void
+     */
+    abstract public function handshake(): void;
+
+    /**
+     * @Author cclilshy
+     * @Date   2024/8/29 12:33
+     * @return SocketStream
+     */
+    public function getSocketStream(): SocketStream
+    {
+        return $this->proxy;
+    }
 }

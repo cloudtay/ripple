@@ -80,11 +80,11 @@ function promise(Closure $closure): Promise
 /**
  * @param int|float $second
  *
- * @return void
+ * @return int
  */
-function sleep(int|float $second): void
+function sleep(int|float $second): int
 {
-    Coroutine::Coroutine()->sleep($second);
+    return Coroutine::Coroutine()->sleep($second);
 }
 
 

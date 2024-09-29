@@ -48,4 +48,5 @@ class ConnectionException extends Exception
     public const    CONNECTION_HANDSHAKE_FAIL = 32;
     public const    CONNECTION_ACCEPT_FAIL    = 64;
     public const    ERROR_ILLEGAL_CONTENT = 128;
+    public const           CONNECTION_CRYPTO     = 256;
 }

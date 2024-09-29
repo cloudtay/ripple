@@ -37,6 +37,7 @@ namespace Psc\Core\WebSocket;
 use Psc\Core\LibraryAbstract;
 use Psc\Core\WebSocket\Client\Connection;
 use Psc\Core\WebSocket\Server\Server;
+use Psc\Utils\Output;
 use Throwable;
 
 /**
@@ -67,11 +68,15 @@ class WebSocket extends LibraryAbstract
      * @param mixed        $context
      * @param Options|null $options
      *
-     * @return Server
-     * @throws Throwable
+     * @return Server|false
      */
-    public function server(string $address, mixed $context, Options|null $options = null): Server
+    public function server(string $address, mixed $context = null, Options|null $options = null): Server|false
     {
-        return new Server($address, $context, $options);
+        try {
+            return new Server($address, $context, $options);
+        } catch (Throwable $e) {
+            Output::error($e->getMessage());
+            return false;
+        }
     }
 }

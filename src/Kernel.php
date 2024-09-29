@@ -182,18 +182,6 @@ class Kernel
     }
 
     /**
-     * @param int|float $second
-     *
-     * @return void
-     */
-    public function sleep(int|float $second): void
-    {
-        $suspension = EventLoop::getSuspension();
-        $this->delay(fn () => $suspension->resume(), $second);
-        $suspension->suspend();
-    }
-
-    /**
      * @param Closure   $closure
      * @param int|float $second
      *

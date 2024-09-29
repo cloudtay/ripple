@@ -327,4 +327,15 @@ class SocketStream extends Stream
 
         return $content;
     }
+
+    /**
+     * @Author cclilshy
+     * @Date   2024/9/29 11:01
+     * @return SocketStream
+     * @throws ConnectionException
+     */
+    public function enableSSL(): SocketStream
+    {
+        return IO::Socket()->enableSSL($this);
+    }
 }

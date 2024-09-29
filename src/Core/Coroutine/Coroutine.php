@@ -50,6 +50,7 @@ use function Co\promise;
 use function Co\registerForkHandler;
 use function Co\wait;
 use function spl_object_hash;
+use function time;
 
 /**
  * 2024-07-13 principle
@@ -309,27 +310,28 @@ class Coroutine extends LibraryAbstract
     /**
      * @param float|int $second
      *
-     * @return void
+     * @return int
      */
-    public function sleep(float|int $second): void
+    public function sleep(float|int $second): int
     {
+        $startTime = time();
         if (!$fiber = Fiber::getCurrent()) {
             //is Revolt
             $suspension = EventLoop::getSuspension();
-            Kernel::getInstance()->delay(fn () => $suspension->resume(), $second);
-            $suspension->suspend();
+            Kernel::getInstance()->delay(fn () => $suspension->resume(0), $second);
+            return $suspension->suspend();
 
         } elseif (!$callback = $this->fiber2callback[spl_object_hash($fiber)] ?? null) {
             //is Revolt
             $suspension = EventLoop::getSuspension();
-            Kernel::getInstance()->delay(fn () => $suspension->resume(), $second);
-            $suspension->suspend();
+            Kernel::getInstance()->delay(fn () => $suspension->resume(0), $second);
+            return $suspension->suspend();
 
         } else {
             delay(function () use ($fiber, $callback) {
                 try {
                     // Try to resume Fiber operation
-                    $fiber->resume();
+                    $fiber->resume(0);
                 } catch (EscapeException $exception) {
                     // An escape exception occurs during recovery operation
                     $this->handleEscapeException($exception);
@@ -353,10 +355,12 @@ class Coroutine extends LibraryAbstract
             }, $second);
 
             try {
-                $fiber->suspend();
+                return $fiber->suspend();
             } catch (Throwable $e) {
                 Output::exception($e);
             }
         }
+
+        return time() - $startTime;
     }
 }

@@ -38,12 +38,15 @@ use Closure;
 use Psc\Core\Coroutine\Exception\Exception;
 use Psc\Core\Coroutine\Promise;
 use Psc\Core\LibraryAbstract;
+use Psc\Core\Stream\Exception\ConnectionException;
 use Throwable;
 
 use function Co\cancel;
 use function Co\delay;
 use function Co\promise;
+use function is_array;
 use function str_replace;
+use function stream_context_create;
 use function stream_socket_client;
 use function stream_socket_enable_crypto;
 use function stream_socket_server;
@@ -86,43 +89,47 @@ class Socket extends LibraryAbstract
      * @param mixed|null $context
      *
      * @return SocketStream
-     * @throws Throwable
+     * @throws ConnectionException
      */
     public function connect(string $address, int $timeout = 0, mixed $context = null): SocketStream
     {
-        return promise(static function (Closure $r, Closure $d) use ($address, $timeout, $context) {
-            $connection = stream_socket_client(
-                $address,
-                $_,
-                $_,
-                $timeout,
-                STREAM_CLIENT_ASYNC_CONNECT | STREAM_CLIENT_CONNECT,
-                $context
-            );
+        try {
+            return promise(static function (Closure $r, Closure $d) use ($address, $timeout, $context) {
+                $connection = stream_socket_client(
+                    $address,
+                    $_,
+                    $_,
+                    $timeout,
+                    STREAM_CLIENT_ASYNC_CONNECT | STREAM_CLIENT_CONNECT,
+                    $context
+                );
 
-            if (!$connection) {
-                $d(new Exception('Failed to connect to the server.'));
-                return;
-            }
+                if (!$connection) {
+                    $d(new ConnectionException('Failed to connect to the server.', ConnectionException::CONNECTION_ERROR));
+                    return;
+                }
 
-            $stream = new SocketStream($connection, $address);
+                $stream = new SocketStream($connection, $address);
 
-            if ($timeout > 0) {
-                $timeoutEventID     = delay(static function () use ($stream, $d) {
-                    $stream->close();
-                    $d(new Exception('Connection timeout.'));
-                }, $timeout);
-                $timeoutEventCancel = fn () => cancel($timeoutEventID);
-            } else {
-                $timeoutEventCancel = fn () => null;
-            }
+                if ($timeout > 0) {
+                    $timeoutEventID     = delay(static function () use ($stream, $d) {
+                        $stream->close();
+                        $d(new ConnectionException('Connection timeout.', ConnectionException::CONNECTION_TIMEOUT));
+                    }, $timeout);
+                    $timeoutEventCancel = fn () => cancel($timeoutEventID);
+                } else {
+                    $timeoutEventCancel = fn () => null;
+                }
 
-            $stream->onWritable(static function (SocketStream $stream, Closure $cancel) use ($r, $timeoutEventCancel) {
-                $cancel();
-                $r($stream);
-                $timeoutEventCancel();
-            });
-        })->await();
+                $stream->onWritable(static function (SocketStream $stream, Closure $cancel) use ($r, $timeoutEventCancel) {
+                    $cancel();
+                    $r($stream);
+                    $timeoutEventCancel();
+                });
+            })->await();
+        } catch (Throwable $e) {
+            throw new ConnectionException('Failed to connect to the server.', ConnectionException::CONNECTION_ERROR, $e);
+        }
     }
 
     /**
@@ -130,66 +137,73 @@ class Socket extends LibraryAbstract
      * @param float        $timeout
      *
      * @return SocketStream
-     * @throws Throwable
+     * @throws ConnectionException
      */
     public function enableSSL(SocketStream $stream, float $timeout = 0): SocketStream
     {
-        return promise(static function (Closure $r, Closure $d, Promise $promise) use ($stream, $timeout) {
-            if ($timeout > 0) {
-                $timeoutEventID = delay(static function () use ($d) {
-                    $d();
-                }, $timeout);
-                $promise->finally(static fn () => cancel($timeoutEventID));
-            }
+        try {
+            return promise(static function (Closure $r, Closure $d, Promise $promise) use ($stream, $timeout) {
+                if ($timeout > 0) {
+                    $timeoutEventID = delay(static function () use ($d) {
+                        $d(new ConnectionException('SSL handshake timeout.', ConnectionException::CONNECTION_TIMEOUT));
+                    }, $timeout);
+                    $promise->finally(static fn () => cancel($timeoutEventID));
+                }
 
-            $handshakeResult = stream_socket_enable_crypto($stream->stream, true, STREAM_CRYPTO_METHOD_SSLv23_CLIENT);
+                $handshakeResult = stream_socket_enable_crypto($stream->stream, true, STREAM_CRYPTO_METHOD_SSLv23_CLIENT);
 
-            if ($handshakeResult === false) {
-                $stream->close();
-                $d(new Exception('Failed to enable crypto.'));
-                return;
-            }
+                if ($handshakeResult === false) {
+                    $stream->close();
+                    $d(new ConnectionException('Failed to enable crypto.', ConnectionException::CONNECTION_CRYPTO));
+                    return;
+                }
 
-            if ($handshakeResult === true) {
-                $r($stream);
-                return;
-            }
+                if ($handshakeResult === true) {
+                    $r($stream);
+                    return;
+                }
 
-            if ($handshakeResult === 0) {
-                $stream->onReadable(static function (SocketStream $stream, Closure $cancel) use ($r, $d) {
-                    try {
-                        $handshakeResult = stream_socket_enable_crypto($stream->stream, true, STREAM_CRYPTO_METHOD_SSLv23_CLIENT);
-                    } catch (Throwable $exception) {
-                        $stream->close();
-                        $d($exception);
-                        return;
-                    }
+                if ($handshakeResult === 0) {
+                    $stream->onReadable(static function (SocketStream $stream, Closure $cancel) use ($r, $d) {
+                        try {
+                            $handshakeResult = stream_socket_enable_crypto($stream->stream, true, STREAM_CRYPTO_METHOD_SSLv23_CLIENT);
+                        } catch (Throwable $exception) {
+                            $stream->close();
+                            $d($exception);
+                            return;
+                        }
 
-                    if ($handshakeResult === false) {
-                        $stream->close();
-                        $d(new Exception('Failed to enable crypto.'));
-                        return;
-                    }
+                        if ($handshakeResult === false) {
+                            $stream->close();
+                            $d(new Exception('Failed to enable crypto.'));
+                            return;
+                        }
 
-                    if ($handshakeResult === true) {
-                        $cancel();
-                        $r($stream);
-                        return;
-                    }
-                });
-            }
-        })->await();
+                        if ($handshakeResult === true) {
+                            $cancel();
+                            $r($stream);
+                            return;
+                        }
+                    });
+                }
+            })->await();
+        } catch (Throwable $e) {
+            throw new ConnectionException('Failed to enable SSL.', ConnectionException::CONNECTION_CRYPTO, $e);
+        }
     }
 
     /**
      * @param string     $address
      * @param mixed|null $context
      *
-     * @return SocketStream
-     * @throws Exception
+     * @return SocketStream|false
      */
-    public function server(string $address, mixed $context = null): SocketStream
+    public function server(string $address, mixed $context = null): SocketStream|false
     {
+        if (is_array($context)) {
+            $context = stream_context_create($context);
+        }
+
         $server = stream_socket_server(
             $address,
             $_errCode,
@@ -197,9 +211,7 @@ class Socket extends LibraryAbstract
             STREAM_SERVER_BIND | STREAM_SERVER_LISTEN,
             $context
         );
-        if (!$server) {
-            throw (new Exception($_errMsg, $_errCode));
-        }
-        return (new SocketStream($server));
+
+        return $server ? new SocketStream($server) : false;
     }
 }

@@ -51,7 +51,7 @@ use function substr;
  * @Author cclilshy
  * @Date   2024/8/29 12:45
  */
-class ProxyHttp extends Base
+class Http extends Tunnel
 {
     private int    $step   = 0;
     private string $readEventId;
