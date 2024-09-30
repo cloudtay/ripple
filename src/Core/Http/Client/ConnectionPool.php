@@ -43,8 +43,8 @@ use Throwable;
 
 use function array_pop;
 use function Co\cancel;
-use function Co\cancelForkHandler;
-use function Co\registerForkHandler;
+use function Co\cancelForked;
+use function Co\forked;
 use function parse_url;
 
 class ConnectionPool
@@ -55,8 +55,8 @@ class ConnectionPool
     /*** @var array */
     private array $listenEventMap = [];
 
-    /*** @var int */
-    private int $forkEventId;
+    /*** @var string */
+    private string $forkEventId;
 
     public function __construct()
     {
@@ -70,7 +70,7 @@ class ConnectionPool
      */
     private function registerForkHandler(): void
     {
-        $this->forkEventId = registerForkHandler(function () {
+        $this->forkEventId = forked(function () {
             $this->registerForkHandler();
             $this->clearConnectionPool();
         });
@@ -108,7 +108,7 @@ class ConnectionPool
     public function __destruct()
     {
         $this->clearConnectionPool();
-        cancelForkHandler($this->forkEventId);
+        cancelForked($this->forkEventId);
     }
 
     /**

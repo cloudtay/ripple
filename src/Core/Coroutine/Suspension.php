@@ -32,57 +32,24 @@
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-namespace Psc\Core\Http;
+namespace Psc\Core\Coroutine;
 
-use Psc\Core\Http\Client\Client;
-use Psc\Core\Http\Server\Server;
-use Psc\Core\LibraryAbstract;
-use Psc\Core\Stream\Exception\ConnectionException;
-use Psc\Plugins\Guzzle\Guzzle;
-use Psc\Utils\Output;
+use Throwable;
 
-/**
- * @Author cclilshy
- * @Date   2024/8/16 09:35
- */
-class Http extends LibraryAbstract
+class Suspension implements \Revolt\EventLoop\Suspension
 {
-    /**
-     * @var LibraryAbstract
-     */
-    protected static LibraryAbstract $instance;
-
-    /**
-     * @return Guzzle
-     */
-    public function Guzzle(): Guzzle
+    public function resume(mixed $value = null): void
     {
-        return Guzzle::getInstance();
+        // TODO: Implement resume() method.
     }
 
-    /**
-     * @param string $address
-     * @param mixed  $context
-     *
-     * @return Server|false
-     */
-    public function server(string $address, mixed $context = null): Server|false
+    public function suspend(): mixed
     {
-        try {
-            return new Server($address, $context);
-        } catch (ConnectionException $e) {
-            Output::error($e->getMessage());
-            return false;
-        }
+        // TODO: Implement suspend() method.
     }
 
-    /**
-     * @param array $config
-     *
-     * @return Client
-     */
-    public function client(array $config): Client
+    public function throw(Throwable $throwable): void
     {
-        return new Client($config);
+        // TODO: Implement throw() method.
     }
 }

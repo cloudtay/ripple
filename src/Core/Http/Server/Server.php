@@ -36,10 +36,10 @@ namespace Psc\Core\Http\Server;
 
 use Closure;
 use Co\IO;
+use InvalidArgumentException;
 use Psc\Core\Http\Server\Exception\FormatException;
 use Psc\Core\Socket\SocketStream;
 use Psc\Core\Stream\Exception\ConnectionException;
-use Psc\Core\Stream\Exception\RuntimeException;
 use Psc\Utils\Output;
 use Throwable;
 
@@ -70,31 +70,36 @@ class Server
      * @param string     $address
      * @param mixed|null $context
      *
-     * @throws Throwable
+     * @throws InvalidArgumentException|\Psc\Core\Stream\Exception\ConnectionException
      */
     public function __construct(string $address, mixed $context = null)
     {
         $addressInfo = parse_url($address);
 
         if (!$scheme = $addressInfo['scheme'] ?? null) {
-            throw new RuntimeException('Address format error');
+            throw new InvalidArgumentException('Address format error');
         }
 
         if (!$host = $addressInfo['host']) {
-            throw new RuntimeException('Address format error');
+            throw new InvalidArgumentException('Address format error');
         }
 
         $port = $addressInfo['port'] ?? match ($scheme) {
             'http'  => 80,
             'https' => 443,
-            default => throw new RuntimeException('Address format error')
+            default => throw new InvalidArgumentException('Address format error')
         };
 
-        /*** @var SocketStream $server */
-        $this->server = match ($scheme) {
+        $server = match ($scheme) {
             'http', 'https' => IO::Socket()->server("tcp://{$host}:{$port}", $context),
-            default         => throw new RuntimeException('Address format error')
+            default         => throw new InvalidArgumentException('Address format error')
         };
+
+        if ($server === false) {
+            throw new ConnectionException('Failed to create server', ConnectionException::CONNECTION_ERROR);
+        }
+
+        $this->server = $server;
         $this->server->setOption(SOL_SOCKET, SO_KEEPALIVE, 1);
         $this->server->setBlocking(false);
     }

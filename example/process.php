@@ -14,7 +14,7 @@ $runtimes = [];
 
 // Register a fork handler, this will be called when a new coroutine is forked
 // Registered functions will not be inherited in child processes
-\Co\registerForkHandler(static function () {
+\Co\forked(static function () {
     echo "Forked ", \posix_getpid(), \PHP_EOL;
 });
 

@@ -8,9 +8,9 @@
 <a href="https://packagist.org/packages/cclilshy/p-ripple-core"><img src="https://img.shields.io/packagist/l/cclilshy/p-ripple-core" alt="License"></a>
 </p>
 <p>
-Ripple是一个现代化的、高性能的原生PHP协程引擎, 旨在解决PHP在高并发、复杂网络通信和数据操作方面的挑战。
+ripple是一个现代化的、高性能的原生PHP协程引擎, 旨在解决PHP在高并发、复杂网络通信和数据操作方面的挑战。
 该引擎采用创新的架构和高效的编程模型, 为现代 Web 和 Web 应用程序提供强大而灵活的后端支持。
-通过使用 Ripple, 你将体验到从系统全局视图管理任务并高效处理网络流量和数据的优势。 </p>
+通过使用 ripple, 你将体验到从系统全局视图管理任务并高效处理网络流量和数据的优势。 </p>
 
 ## 设计哲学
 
@@ -20,9 +20,19 @@ Ripple是一个现代化的、高性能的原生PHP协程引擎, 旨在解决PHP
 
 随着`PHP8`引入更轻量级的`Fiber`取代了`Generator`的协程模型,
 
-我们的设计理念得以通过PHP自举的方式实现,同时我们使用了`revolt`作为Ripple的底层驱动库, 使得Ripple完美兼容原有的PHP生态
+我们的设计理念得以通过PHP自举的方式实现,同时我们使用了`revolt`作为ripple的底层驱动库, 使得ripple完美兼容原有的PHP生态
 
 彻底解放PHPer的双手, 无缝拥抱全新的PHP协程时代
+
+### 🌟 群聊已开放加入~ 🌟
+
+`🔥 交流群的大门已为各位先行者打开,加入ripple的交流群,一起探讨PHP协程的未来`
+
+**`🎉 加入方式`** 通过以下方式添加作者微信即可加入交流群
+
+| 微信二维码                                                                                                                |
+|----------------------------------------------------------------------------------------------------------------------|
+| <img src="https://raw.githubusercontent.com/cloudtay/ripple/refs/heads/main/assets/images/wechat.jpg" width="380" /> |
 
 ## 安装
 
@@ -32,16 +42,16 @@ composer require cclilshy/p-ripple-core
 
 ## 基础用法
 
-Ripple严格遵循最新强类型的编程规范, 对IDE非常友好  
+ripple严格遵循最新强类型的编程规范, 对IDE非常友好  
 下述的复现过程在任何IDE中都能得到完美的支持和解释
 
 ### 最新文档
 
-你可以访问Ripple的[文档](https://p-ripple.cloudtay.com/)开始阅读
+你可以访问ripple的[文档](https://p-ripple.cloudtay.com/)开始阅读
 
-我们建议你从[手动安装](https://p-ripple.cloudtay.com/docs/install/professional)开始, 便于更好地理解Ripple的工作流程
+我们建议你从[手动安装](https://p-ripple.cloudtay.com/docs/install/professional)开始, 便于更好地理解ripple的工作流程
 
-如果你想快速部署并使用Ripple的服务, 你可以直接访问[快速部署](https://p-ripple.cloudtay.com/docs/install/server)
+如果你想快速部署并使用ripple的服务, 你可以直接访问[快速部署](https://p-ripple.cloudtay.com/docs/install/server)
 
 ### 协程
 
@@ -189,7 +199,7 @@ Co\wait();
 
 > 想了解WebSocket服务端与客户端、TCP服务端与客户端、UDP服务端与客户端、Unix服务端与客户端等等...
 
-你可以访问Ripple的[文档](https://p-ripple.cloudtay.com/)开始阅读
+你可以访问ripple的[文档](https://p-ripple.cloudtay.com/)开始阅读
 
 ## 附录
 
@@ -203,10 +213,13 @@ PHP应用最为广泛的HTTP客户端
 **🔥 [AmPHP](https://amphp.org/)**  
 提供丰富的PHP异步组件供用户自行封装
 
-**🟢 [PDrive](https://github.com/cloudtay/p-ripple-drive)**  
+**🚀 [PDrive](https://github.com/cloudtay/p-ripple-drive)**  
 官方提供的高性能驱动库，无缝接入你的传统应用
 
-**🟢 [Ripple](https://github.com/cloudtay/p-ripple-core)**  
+**🚀 [Webman-coroutine](https://github.com/workbunny/webman-coroutine)**
+workbunny团队体统的webman协程扩展, 为Webman提供了协程支持
+
+**🟢 [ripple](https://github.com/cloudtay/p-ripple-core)**  
 提供标准的协程架构与工具用于迅速开发或封装传统应用
 
 ### 事件库指南
@@ -237,6 +250,4 @@ pecl install ev
 
 `微信` jingnigg
 
-| 群聊直通车                                                                                                               | 作者微信(邀请入群)                                                                                                          |
-|---------------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------|
-| <img src="https://cdn.learnku.com/uploads/images/202408/26/114411/Dwy8v4gzjL.jpg!large" width="200" height="200" /> | <img src="https://cdn.learnku.com/uploads/images/202408/26/114411/h2nOpetJb0.jpg!large" width="200" height="200" /> |
+---

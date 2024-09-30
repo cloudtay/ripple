@@ -43,11 +43,14 @@ use Psc\Core\LibraryAbstract;
 use Psc\Kernel;
 use Psc\Utils\Output;
 use Revolt\EventLoop;
+use Symfony\Component\DependencyInjection\Container;
 use Throwable;
+use WeakMap;
+use WeakReference;
 
 use function Co\delay;
 use function Co\promise;
-use function Co\registerForkHandler;
+use function Co\forked;
 use function Co\wait;
 use function spl_object_hash;
 use function time;
@@ -62,18 +65,20 @@ use function time;
  */
 class Coroutine extends LibraryAbstract
 {
-    /**
-     * @var LibraryAbstract
-     */
+    /*** @var LibraryAbstract */
     protected static LibraryAbstract $instance;
-    /**
-     * @var array $fiber2promise
-     */
+
+    /*** @var array $fiber2promise */
     private array $fiber2callback = array();
+
+    /*** @var WeakMap<object,WeakReference<Container>> */
+    private WeakMap $containers;
 
     public function __construct()
     {
         $this->registerOnFork();
+
+        $this->containers = new WeakMap();
     }
 
     /**
@@ -81,20 +86,10 @@ class Coroutine extends LibraryAbstract
      */
     private function registerOnFork(): void
     {
-        registerForkHandler(function () {
+        forked(function () {
             $this->fiber2callback = array();
             $this->registerOnFork();
         });
-    }
-
-    /**
-     * @Author cclilshy
-     * @Date   2024/8/28 10:25
-     * @return bool
-     */
-    public static function isCoroutine(): bool
-    {
-        return Coroutine::getInstance()->hasCallback();
     }
 
     /**
@@ -111,16 +106,6 @@ class Coroutine extends LibraryAbstract
         }
 
         return true;
-    }
-
-    /**
-     * @Author cclilshy
-     * @Date   2024/8/28 10:24
-     * @return array|null
-     */
-    public static function getCurrent(): array|null
-    {
-        return Coroutine::getInstance()->getCoroutine();
     }
 
     /**
@@ -362,5 +347,27 @@ class Coroutine extends LibraryAbstract
         }
 
         return time() - $startTime;
+    }
+
+    /**
+     * @Author cclilshy
+     * @Date   2024/9/30 10:03
+     * @return Container
+     */
+    public function getContainer(): Container
+    {
+        if (!$fiber = Fiber::getCurrent()) {
+            Kernel::getInstance()->getContainer();
+        }
+
+        $container = ($this->containers[$fiber] ?? null)?->get();
+
+        if ($container) {
+            return $container;
+        }
+
+        $containerOg              = new Container();
+        $this->containers[$fiber] = WeakReference::create($containerOg);
+        return $containerOg;
     }
 }

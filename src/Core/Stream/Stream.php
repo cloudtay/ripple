@@ -48,6 +48,7 @@ use function call_user_func_array;
 use function Co\cancel;
 use function is_resource;
 use function stream_set_blocking;
+use function int2string;
 
 /**
  * 2024/09/21
@@ -124,7 +125,7 @@ class Stream extends StreamBase
      */
     public function onClose(Closure $closure): string
     {
-        $this->onCloseCallbacks[$key = Kernel::int2string($this->index++)] = $closure;
+        $this->onCloseCallbacks[$key = int2string($this->index++)] = $closure;
         return $key;
     }
 

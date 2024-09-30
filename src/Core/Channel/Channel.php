@@ -43,8 +43,8 @@ use Psc\Kernel;
 use Psc\Utils\Serialization\Zx7e;
 
 use function chr;
-use function Co\cancelForkHandler;
-use function Co\registerForkHandler;
+use function Co\cancelForked;
+use function Co\forked;
 use function file_exists;
 use function fopen;
 use function md5;
@@ -72,8 +72,8 @@ class Channel
     /*** @var bool */
     private bool $blocking = true;
 
-    /*** @var int */
-    private int $forkHandlerId;
+    /*** @var string */
+    private string $forkHandlerId;
 
     /*** @var Stream */
     private Stream $stream;
@@ -119,7 +119,7 @@ class Channel
         $this->zx7e   = new Zx7e();
 
         // Re-open the stream resource after registering the process fork
-        $this->forkHandlerId = registerForkHandler(function () {
+        $this->forkHandlerId = forked(function () {
             $this->owner = false;
             $this->stream->close();
 
@@ -156,7 +156,7 @@ class Channel
 
         $this->closed = true;
 
-        cancelForkHandler($this->forkHandlerId);
+        cancelForked($this->forkHandlerId);
     }
 
     /**

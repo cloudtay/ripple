@@ -34,8 +34,8 @@
 
 namespace Psc\Core\File\Lock;
 
-use function Co\cancelForkHandler;
-use function Co\registerForkHandler;
+use function Co\cancelForked;
+use function Co\forked;
 use function fclose;
 use function file_exists;
 use function flock;
@@ -58,8 +58,8 @@ class Lock
     /*** @var string */
     private string $path;
 
-    /*** @var int */
-    private int $forkHandlerEventId;
+    /*** @var string */
+    private string $forkHandlerEventId;
     /**
      * @var bool
      */
@@ -78,7 +78,7 @@ class Lock
 
         $this->resource = fopen($this->path, 'r');
 
-        $this->forkHandlerEventId = registerForkHandler(function () {
+        $this->forkHandlerEventId = forked(function () {
             fclose($this->resource);
             $this->resource = fopen($this->path, 'r');
         });
@@ -115,7 +115,7 @@ class Lock
             fclose($this->resource);
         }
 
-        cancelForkHandler($this->forkHandlerEventId);
+        cancelForked($this->forkHandlerEventId);
     }
 
     /**

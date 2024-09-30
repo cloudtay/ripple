@@ -8,9 +8,9 @@
 <a href="https://packagist.org/packages/cclilshy/p-ripple-core"><img src="https://img.shields.io/packagist/l/cclilshy/p-ripple-core" alt="License"></a>
 </p>
 <p>
-Ripple is a modern, high-performance native PHP coroutine engine designed to solve PHP's challenges in high concurrency, complex network communication and data operations.
+ripple is a modern, high-performance native PHP coroutine engine designed to solve PHP's challenges in high concurrency, complex network communication and data operations.
 The engine uses an innovative architecture and efficient programming model to provide powerful and flexible backend support for modern web and web applications.
-By using Ripple, you will experience the advantages of managing tasks from a global view of the system and efficiently handling network traffic and data. </p>
+By using ripple, you will experience the advantages of managing tasks from a global view of the system and efficiently handling network traffic and data. </p>
 
 ## Design Philosophy
 
@@ -21,9 +21,19 @@ It is the `Event` mechanism that gives PHP rocket-like performance, and we provi
 With the introduction of `PHP8`, the more lightweight `Fiber` replaces the `Generator` coroutine model,
 
 Our design concept can be realized through PHP bootstrapping. At the same time, we use `revolt` as the underlying driver
-library of Ripple, making Ripple perfectly compatible with the original PHP ecosystem.
+library of ripple, making ripple perfectly compatible with the original PHP ecosystem.
 
 Completely free the hands of PHPer and seamlessly embrace the new era of PHP coroutines
+
+### 🌟 群聊已开放加入~ 🌟
+
+`🔥 交流群的大门已为各位先行者打开,加入ripple的交流群,一起探讨PHP协程的未来`
+
+**`🎉 加入方式`** 通过以下方式添加作者微信即可加入交流群
+
+| 微信二维码                                                                                                                |
+|----------------------------------------------------------------------------------------------------------------------|
+| <img src="https://raw.githubusercontent.com/cloudtay/ripple/refs/heads/main/assets/images/wechat.jpg" width="380" /> |
 
 ## Install
 
@@ -33,17 +43,17 @@ composer require cclilshy/p-ripple-core
 
 ## Basic usage
 
-Ripple strictly follows the latest strongly typed programming standards and is very friendly to IDEs
+ripple strictly follows the latest strongly typed programming standards and is very friendly to IDEs
 The following reproduction process is perfectly supported and explained in any IDE
 
 ### Latest documentation
 
-You can visit Ripple’s [Documentation](https://p-ripple.cloudtay.com/) to start reading
+You can visit ripple’s [Documentation](https://p-ripple.cloudtay.com/) to start reading
 
 We recommend that you start with [Manual Installation](https://p-ripple.cloudtay.com/docs/install/professional) to
-better understand Ripple’s workflow
+better understand ripple’s workflow
 
-If you want to quickly deploy and use Ripple's services, you can directly
+If you want to quickly deploy and use ripple's services, you can directly
 visit [Quick Deployment](https://p-ripple.cloudtay.com/docs/install/server)
 
 ### Coroutine
@@ -195,7 +205,7 @@ Co\wait();
 > Want to know about WebSocket server and client, TCP server and client, UDP server and client, Unix server and client,
 > etc...
 
-You can visit Ripple’s [Documentation](https://p-ripple.cloudtay.com/) to start reading
+You can visit ripple’s [Documentation](https://p-ripple.cloudtay.com/) to start reading
 
 ## Appendix
 
@@ -207,13 +217,16 @@ You can visit Ripple’s [Documentation](https://p-ripple.cloudtay.com/) to star
 **🚀 [Guzzle](https://docs.guzzlephp.org/en/stable/)**
 PHP is the most widely used HTTP client
 
-**🔥[AmPHP](https://amphp.org/)**
+**🔥 [AmPHP](https://amphp.org/)**
 Provides rich PHP asynchronous components for users to encapsulate by themselves
 
-**🟢[PDrive](https://github.com/cloudtay/p-ripple-drive)**
+**🚀 [PDrive](https://github.com/cloudtay/p-ripple-drive)**
 The official high-performance driver library provides seamless access to your traditional applications.
 
-**🟢[Ripple](https://github.com/cloudtay/p-ripple-core)**
+**🚀 [webman-coroutine](https://github.com/workbunny/webman-coroutine)**
+The workbunny team's integrated webman coroutine extension provides coroutine support for Webman.
+
+**🟢 [ripple](https://github.com/cloudtay/p-ripple-core)**
 Provides standard coroutine architecture and tools for rapid development or packaging of traditional applications
 
 ### Event Library Guide

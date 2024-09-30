@@ -175,13 +175,13 @@ class Client
             }
 
             if ($timeout = $option['timeout'] ?? null) {
-                $delayEventID = delay(static function () use ($connection, $d) {
+                $delayEventId = delay(static function () use ($connection, $d) {
                     $connection->stream->close();
                     $d(new ConnectionException('Request timeout', ConnectionException::CONNECTION_TIMEOUT));
                 }, $timeout);
 
-                $promise->finally(static function () use ($delayEventID) {
-                    cancel($delayEventID);
+                $promise->finally(static function () use ($delayEventId) {
+                    cancel($delayEventId);
                 });
             }
 

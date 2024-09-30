@@ -35,7 +35,6 @@
 namespace Psc\Core\Process;
 
 use Closure;
-use Co\Coroutine;
 use Fiber;
 use Psc\Core\Coroutine\Exception\EscapeException;
 use Psc\Core\LibraryAbstract;
@@ -51,6 +50,7 @@ use function Co\cancel;
 use function Co\promise;
 use function Co\wait;
 use function getmypid;
+use function int2string;
 use function pcntl_fork;
 use function pcntl_wait;
 use function pcntl_wexitstatus;
@@ -126,20 +126,20 @@ class Process extends LibraryAbstract
     /**
      * @param Closure $closure
      *
-     * @return int
+     * @return string
      */
-    public function registerForkHandler(Closure $closure): int
+    public function forked(Closure $closure): string
     {
-        $this->onFork[$this->index] = $closure;
-        return $this->index++;
+        $this->onFork[$key = int2string($this->index++)] = $closure;
+        return $key;
     }
 
     /**
-     * @param int $index
+     * @param string $index
      *
      * @return void
      */
-    public function cancelForkHandler(int $index): void
+    public function cancelForked(string $index): void
     {
         unset($this->onFork[$index]);
     }
@@ -186,13 +186,13 @@ class Process extends LibraryAbstract
                     }
                 }
 
-                if (Coroutine::Coroutine()->isCoroutine()) {
+                if (\Psc\Core\Coroutine\Coroutine::getInstance()->getCoroutine()) {
                     // Whether it belongs to the PRipple coroutine space
                     // forked and user actions need to be deferred because they clear the coroutine hash table
                     // If you don't do this, fiber escape will occur
 
                     EventLoop::defer(function () use ($closure, $args) {
-                        $this->forked();
+                        $this->forkedTick();
                         call_user_func($closure, ...$args);
                     });
 
@@ -200,14 +200,14 @@ class Process extends LibraryAbstract
                 } elseif (Fiber::getCurrent()) {
                     // Whether it belongs to the PHP space
 
-                    $this->forked();
+                    $this->forkedTick();
                     call_user_func($closure, ...$args);
                     wait();
                     exit(0);
                 } else {
                     // Whether it belongs to the PHP space
 
-                    $this->forked();
+                    $this->forkedTick();
                     call_user_func($closure, ...$args);
                     wait();
                     exit(0);
@@ -239,7 +239,7 @@ class Process extends LibraryAbstract
      * @return void
      * @throws UnsupportedFeatureException|Throwable
      */
-    public function forked(): void
+    public function forkedTick(): void
     {
         if (!empty($this->process2runtime)) {
             $this->unregisterSignalHandler();

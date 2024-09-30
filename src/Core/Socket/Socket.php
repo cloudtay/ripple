@@ -112,11 +112,11 @@ class Socket extends LibraryAbstract
                 $stream = new SocketStream($connection, $address);
 
                 if ($timeout > 0) {
-                    $timeoutEventID     = delay(static function () use ($stream, $d) {
+                    $timeoutEventId     = delay(static function () use ($stream, $d) {
                         $stream->close();
                         $d(new ConnectionException('Connection timeout.', ConnectionException::CONNECTION_TIMEOUT));
                     }, $timeout);
-                    $timeoutEventCancel = fn () => cancel($timeoutEventID);
+                    $timeoutEventCancel = fn () => cancel($timeoutEventId);
                 } else {
                     $timeoutEventCancel = fn () => null;
                 }
@@ -144,10 +144,10 @@ class Socket extends LibraryAbstract
         try {
             return promise(static function (Closure $r, Closure $d, Promise $promise) use ($stream, $timeout) {
                 if ($timeout > 0) {
-                    $timeoutEventID = delay(static function () use ($d) {
+                    $timeoutEventId = delay(static function () use ($d) {
                         $d(new ConnectionException('SSL handshake timeout.', ConnectionException::CONNECTION_TIMEOUT));
                     }, $timeout);
-                    $promise->finally(static fn () => cancel($timeoutEventID));
+                    $promise->finally(static fn () => cancel($timeoutEventId));
                 }
 
                 $handshakeResult = stream_socket_enable_crypto($stream->stream, true, STREAM_CRYPTO_METHOD_SSLv23_CLIENT);

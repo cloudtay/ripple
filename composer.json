@@ -27,10 +27,11 @@
     "php": ">=8.1",
     "ext-sockets": "*",
     "ext-openssl": "*",
+    "psr/http-message": "*",
     "revolt/event-loop": "^1.0",
     "symfony/http-foundation": "*",
-    "guzzlehttp/guzzle": "*",
-    "psr/http-message": "*"
+    "symfony/dependency-injection": "*",
+    "guzzlehttp/guzzle": "*"
   },
   "require-dev": {
     "ext-posix": "*",

@@ -13,7 +13,6 @@ try {
 
     #  Enable SSL
     // $connection->enableSSL();
-
     $connection->setBlocking(false);
 } catch (ConnectionException $e) {
     Output::warning($e->getMessage());

@@ -35,14 +35,14 @@
 namespace Psc\Core\File;
 
 use Closure;
+use Psc\Core\File\Exception\FileException;
 use Psc\Core\LibraryAbstract;
-use Psc\Core\Stream\Exception\Exception;
 use Psc\Core\Stream\Stream;
 use Throwable;
 
 use function array_shift;
+use function Co\forked;
 use function Co\promise;
-use function Co\registerForkHandler;
 use function fopen;
 
 /**
@@ -70,7 +70,7 @@ class File extends LibraryAbstract
      */
     private function registerOnFork(): void
     {
-        registerForkHandler(function () {
+        forked(function () {
             while ($monitor = array_shift($this->monitors)) {
                 $monitor->stop();
             }
@@ -82,42 +82,46 @@ class File extends LibraryAbstract
      * @param string $path
      *
      * @return string
-     * @throws Throwable
+     * @throws \Psc\Core\File\Exception\FileException
      */
     public function getContents(string $path): string
     {
-        return promise(static function (Closure $r, Closure $d) use ($path) {
-            if (!$resource = fopen($path, 'r')) {
-                $d(new Exception('Failed to open file: ' . $path));
-                return;
-            }
-
-            $stream = new Stream($resource);
-            $stream->setBlocking(false);
-            $content = '';
-
-            $stream->onReadable(static function (Stream $stream) use ($r, $d, &$content) {
-                $fragment = '';
-                while ($buffer = $stream->read(8192)) {
-                    $fragment .= $buffer;
+        try {
+            return promise(static function (Closure $r, Closure $d) use ($path) {
+                if (!$resource = fopen($path, 'r')) {
+                    $d(new FileException('Failed to open file: ' . $path));
+                    return;
                 }
 
-                if ($fragment === '') {
+                $stream = new Stream($resource);
+                $stream->setBlocking(false);
+                $content = '';
+
+                $stream->onReadable(static function (Stream $stream) use ($r, $d, &$content) {
+                    $fragment = '';
+                    while ($buffer = $stream->read(8192)) {
+                        $fragment .= $buffer;
+                    }
+
+                    if ($fragment === '') {
+                        if ($stream->eof()) {
+                            $stream->close();
+                            $r($content);
+                        }
+                        return;
+                    }
+
+                    $content .= $fragment;
+
                     if ($stream->eof()) {
                         $stream->close();
                         $r($content);
                     }
-                    return;
-                }
-
-                $content .= $fragment;
-
-                if ($stream->eof()) {
-                    $stream->close();
-                    $r($content);
-                }
-            });
-        })->await();
+                });
+            })->await();
+        } catch (Throwable $e) {
+            throw new FileException($e->getMessage());
+        }
     }
 
     /**

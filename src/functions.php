@@ -38,9 +38,11 @@ use Closure;
 use Psc\Core\Coroutine\Promise;
 use Psc\Core\Parallel\Thread;
 use Psc\Kernel;
+use Psc\Utils\Output;
 use Revolt\EventLoop;
 use Revolt\EventLoop\UnsupportedFeatureException;
 use RuntimeException;
+use Symfony\Component\DependencyInjection\Container;
 use Throwable;
 
 /**
@@ -86,7 +88,6 @@ function sleep(int|float $second): int
 {
     return Coroutine::Coroutine()->sleep($second);
 }
-
 
 /**
  * @param Closure   $closure
@@ -156,13 +157,13 @@ function cancel(string $id): void
 }
 
 /**
- * @param int $index
+ * @param string $eventId
  *
  * @return void
  */
-function cancelForkHandler(int $index): void
+function cancelForked(string $eventId): void
 {
-    Kernel::getInstance()->cancelForkHandler($index);
+    Kernel::getInstance()->cancelForked($eventId);
 }
 
 /**
@@ -188,22 +189,11 @@ function onSignal(int $signal, Closure $closure): string
 /**
  * @param Closure $closure
  *
- * @return int
+ * @return string
  */
-function registerForkHandler(Closure $closure): int
+function forked(Closure $closure): string
 {
-    return Kernel::getInstance()->registerForkHandler($closure);
-}
-
-
-/**
- * @param Closure|null $closure
- *
- * @return void
- */
-function tick(Closure|null $closure = null): void
-{
-    wait($closure);
+    return Kernel::getInstance()->forked($closure);
 }
 
 function wait(Closure|null $closure = null): void
@@ -217,4 +207,40 @@ function wait(Closure|null $closure = null): void
 function stop(): void
 {
     Kernel::getInstance()->stop();
+}
+
+/**
+ * @Author cclilshy
+ * @Date   2024/9/30 10:54
+ * @return Container
+ */
+function container(): Container
+{
+    return Coroutine::Coroutine()->getContainer();
+}
+
+/**
+ * @Description please use forked instead.
+ *
+ * @param Closure $closure
+ *
+ * @return string
+ */
+function registerForkHandler(Closure $closure): string
+{
+    Output::warning('registerForkHandler is deprecated, please use forked instead.');
+    return forked($closure);
+}
+
+/**
+ * @Description please use cancelForked instead.
+ *
+ * @param string $eventId
+ *
+ * @return void
+ */
+function cancelForkHandler(string $eventId): void
+{
+    Output::warning('cancelForkHandler is deprecated, please use cancelForked instead.');
+    Kernel::getInstance()->cancelForked($eventId);
 }

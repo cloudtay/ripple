@@ -1,5 +1,4 @@
 <?php declare(strict_types=1);
-
 /*
  * Copyright (c) 2023-2024.
  *
@@ -36,6 +35,7 @@
 use Psc\Core\Coroutine\Promise;
 use Psc\Core\Parallel\Thread;
 use Revolt\EventLoop\UnsupportedFeatureException;
+use Symfony\Component\DependencyInjection\Container;
 
 if (!\function_exists('await')) {
     /**
@@ -147,7 +147,6 @@ if (!\function_exists('defer')) {
     }
 }
 
-
 if (!\function_exists('thread')) {
     /**
      * @Author cclilshy
@@ -175,14 +174,14 @@ if (!\function_exists('cancel')) {
     }
 }
 
-if (!\function_exists('cancelForkHandler')) {
+if (!\function_exists('cancelForked')) {
     /**
-     * @param int $index
+     * @param string $index
      * @return void
      */
-    function cancelForkHandler(int $index): void
+    function cancelForked(string $index): void
     {
-        \Co\cancelForkHandler($index);
+        \Co\cancelForked($index);
     }
 }
 
@@ -210,16 +209,15 @@ if (!\function_exists('onSignal')) {
     }
 }
 
-
-if (!\function_exists('registerForkHandler')) {
+if (!\function_exists('forked')) {
     /**
      * @param Closure $closure
      *
-     * @return int
+     * @return string
      */
-    function registerForkHandler(Closure $closure): int
+    function forked(Closure $closure): string
     {
-        return \Co\registerForkHandler($closure);
+        return \Co\forked($closure);
     }
 }
 
@@ -242,5 +240,57 @@ if (!\function_exists('stop')) {
     function stop(): void
     {
         \Co\stop();
+    }
+}
+
+if (!\function_exists('string2int')) {
+    /**
+     * @Author cclilshy
+     * @Date   2024/8/27 21:57
+     *
+     * @param string $string
+     *
+     * @return int
+     */
+    function string2int(string $string): int
+    {
+        $len = \strlen($string);
+        $sum = 0;
+        for ($i = 0; $i < $len; $i++) {
+            $sum += (\ord($string[$i]) - 96) * \pow(26, $len - $i - 1);
+        }
+        return $sum;
+    }
+}
+
+if (!\function_exists('int2string')) {
+    /**
+     * @Author cclilshy
+     * @Date   2024/8/27 21:57
+     *
+     * @param int $int
+     *
+     * @return string
+     */
+    function int2string(int $int): string
+    {
+        $string = '';
+        while ($int > 0) {
+            $string = \chr(($int - 1) % 26 + 97) . $string;
+            $int    = \intval(($int - 1) / 26);
+        }
+        return $string;
+    }
+}
+
+if (!\function_exists('container')) {
+    /**
+     * @Author cclilshy
+     * @Date   2024/9/30 10:56
+     * @return Container
+     */
+    function container(): Container
+    {
+        return \Co\container();
     }
 }

@@ -42,10 +42,10 @@ use Psc\Core\Coroutine\Promise;
 use Psc\Utils\Output;
 use Revolt\EventLoop;
 use Revolt\EventLoop\UnsupportedFeatureException;
+use Symfony\Component\DependencyInjection\Container;
 use Throwable;
 
 use function call_user_func;
-use function chr;
 use function define;
 use function defined;
 use function extension_loaded;
@@ -54,11 +54,8 @@ use function file_get_contents;
 use function fopen;
 use function ini_set;
 use function intval;
-use function ord;
-use function pow;
 use function preg_match;
 use function shell_exec;
-use function strlen;
 
 use const PHP_OS_FAMILY;
 
@@ -83,6 +80,12 @@ class Kernel
     /*** @var bool */
     private bool $running = true;
 
+    /*** @var Container */
+    private Container $container;
+
+    /*** @var int */
+    private int $memorySize;
+
     public function __construct()
     {
         ini_set('memory_limit', -1);
@@ -98,6 +101,7 @@ class Kernel
         $this->mainSuspension = EventLoop::getSuspension();
         $this->parallel       = extension_loaded('parallel');
         $this->processControl = extension_loaded('pcntl') && extension_loaded('posix');
+        $this->container = new Container();
     }
 
     /**
@@ -109,42 +113,6 @@ class Kernel
             Kernel::$instance = new self();
         }
         return Kernel::$instance;
-    }
-
-    /**
-     * @Author cclilshy
-     * @Date   2024/8/27 21:57
-     *
-     * @param string $string
-     *
-     * @return int
-     */
-    public static function string2int(string $string): int
-    {
-        $len = strlen($string);
-        $sum = 0;
-        for ($i = 0; $i < $len; $i++) {
-            $sum += (ord($string[$i]) - 96) * pow(26, $len - $i - 1);
-        }
-        return $sum;
-    }
-
-    /**
-     * @Author cclilshy
-     * @Date   2024/8/27 21:57
-     *
-     * @param int $int
-     *
-     * @return string
-     */
-    public static function int2string(int $int): string
-    {
-        $string = '';
-        while ($int > 0) {
-            $string = chr(($int - 1) % 26 + 97) . $string;
-            $int    = intval(($int - 1) / 26);
-        }
-        return $string;
     }
 
     /**
@@ -199,7 +167,7 @@ class Kernel
      */
     public function defer(Closure $closure): void
     {
-        if (!$callback = Coroutine::Coroutine()->getCoroutine()) {
+        if (!$callback = \Psc\Core\Coroutine\Coroutine::getInstance()->getCoroutine()) {
             EventLoop::queue(static function () use ($closure) {
                 try {
                     $closure();
@@ -257,21 +225,21 @@ class Kernel
     /**
      * @param Closure $closure
      *
-     * @return int
+     * @return string
      */
-    public function registerForkHandler(Closure $closure): int
+    public function forked(Closure $closure): string
     {
-        return System::Process()->registerForkHandler($closure);
+        return System::Process()->forked($closure);
     }
 
     /**
-     * @param int $index
+     * @param string $index
      *
      * @return void
      */
-    public function cancelForkHandler(int $index): void
+    public function cancelForked(string $index): void
     {
-        System::Process()->cancelForkHandler($index);
+        System::Process()->cancelForked($index);
     }
 
     /**
@@ -383,5 +351,13 @@ class Kernel
         return $this->memorySize = 0;
     }
 
-    private int $memorySize;
+    /**
+     * @Author cclilshy
+     * @Date   2024/9/30 09:58
+     * @return Container
+     */
+    public function getContainer(): Container
+    {
+        return $this->container;
+    }
 }

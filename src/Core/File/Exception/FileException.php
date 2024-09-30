@@ -32,57 +32,10 @@
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-namespace Psc\Core\Http;
+namespace Psc\Core\File\Exception;
 
-use Psc\Core\Http\Client\Client;
-use Psc\Core\Http\Server\Server;
-use Psc\Core\LibraryAbstract;
-use Psc\Core\Stream\Exception\ConnectionException;
-use Psc\Plugins\Guzzle\Guzzle;
-use Psc\Utils\Output;
+use Exception;
 
-/**
- * @Author cclilshy
- * @Date   2024/8/16 09:35
- */
-class Http extends LibraryAbstract
+class FileException extends Exception
 {
-    /**
-     * @var LibraryAbstract
-     */
-    protected static LibraryAbstract $instance;
-
-    /**
-     * @return Guzzle
-     */
-    public function Guzzle(): Guzzle
-    {
-        return Guzzle::getInstance();
-    }
-
-    /**
-     * @param string $address
-     * @param mixed  $context
-     *
-     * @return Server|false
-     */
-    public function server(string $address, mixed $context = null): Server|false
-    {
-        try {
-            return new Server($address, $context);
-        } catch (ConnectionException $e) {
-            Output::error($e->getMessage());
-            return false;
-        }
-    }
-
-    /**
-     * @param array $config
-     *
-     * @return Client
-     */
-    public function client(array $config): Client
-    {
-        return new Client($config);
-    }
 }
