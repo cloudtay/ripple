@@ -50,6 +50,7 @@ use function intval;
 use function is_array;
 use function is_string;
 use function json_decode;
+use function max;
 use function parse_str;
 use function parse_url;
 use function preg_match;
@@ -91,7 +92,7 @@ class Connection
     private string $content;
 
     /*** @var string */
-    private string $buffer;
+    private string $buffer = '';
 
     /*** @var MultipartHandler|null */
     private MultipartHandler|null $multipartHandler;
@@ -123,7 +124,6 @@ class Connection
         $this->files            = array();
         $this->server           = array();
         $this->content          = '';
-        $this->buffer           = '';
         $this->multipartHandler = null;
         $this->bodyLength       = 0;
         $this->contentLength    = 0;
@@ -152,31 +152,28 @@ class Connection
             }
 
             try {
-                if (!$requestInfo = $this->tick($content)) {
-                    return;
+                foreach ($this->tick($content) as $requestInfo) {
+                    \Co\async(static fn () => $builder($requestInfo));
                 }
-
-                $builder($requestInfo);
             } catch (Throwable $exception) {
                 Output::warning($exception->getMessage());
-
                 $stream->close();
                 return;
             }
-
-
         });
     }
 
     /**
      * @param string $content
      *
-     * @return array|null
+     * @return array
      * @throws FormatException
      * @throws RuntimeException
      */
-    private function tick(string $content): array|null
+    private function tick(string $content): array
     {
+        $list = [];
+
         $this->buffer .= $content;
 
         if ($this->step === 0) {
@@ -192,10 +189,16 @@ class Connection
         }
 
         if ($this->step === 2) {
-            return $this->finalizeRequest();
+            $list[] = $this->finalizeRequest();
+
+            if ($this->buffer !== '') {
+                foreach ($this->tick('') as $item) {
+                    $list[] = $item;
+                }
+            }
         }
 
-        return null;
+        return $list;
     }
 
     /**
@@ -206,32 +209,50 @@ class Connection
     private function handleInitialStep(): void
     {
         if ($headerEnd = strpos($this->buffer, "\r\n\r\n")) {
-            $buffer = $this->freeBuffer();
+            $buffer = $this->readBuffer();
 
             $this->step = 1;
             $header     = substr($buffer, 0, $headerEnd);
-            $base       = strtok($header, "\r\n");
+            $firstLine  = strtok($header, "\r\n");
 
-            if (count($base = explode(' ', $base)) !== 3) {
-                throw new RuntimeException('Request head is not match');
+            if (count($base = explode(' ', $firstLine)) !== 3) {
+                throw new RuntimeException('Request head is not match: ' . $firstLine);
             }
 
             $this->initializeRequestParams($base);
             $this->parseHeaders();
-            $body             = substr($buffer, $headerEnd + 4);
-            $this->bodyLength += strlen($body);
+            if ($this->server['REQUEST_METHOD'] === 'GET') {
+                $body         = '';
+                $this->buffer = substr($buffer, $headerEnd + 4);
+            } else {
+                $body = substr(
+                    $buffer,
+                    $headerEnd + 4,
+                    max(0, $this->contentLength - $this->bodyLength)
+                );
+
+                $this->buffer     = substr($buffer, $headerEnd + 4 + strlen($body));
+                $this->bodyLength += strlen($body);
+            }
 
             $this->handleRequestBody($base[0], $body);
         }
     }
 
     /**
+     * @param int $length
+     *
      * @return string
      */
-    private function freeBuffer(): string
+    private function readBuffer(int $length = 0): string
     {
-        $buffer       = $this->buffer;
-        $this->buffer = '';
+        if ($length === 0) {
+            $buffer       = $this->buffer;
+            $this->buffer = '';
+            return $buffer;
+        }
+        $buffer       = substr($this->buffer, 0, $length);
+        $this->buffer = substr($this->buffer, $length);
         return $buffer;
     }
 
@@ -394,7 +415,7 @@ class Connection
      */
     private function handleContinuousTransfer(): void
     {
-        if ($buffer = $this->freeBuffer()) {
+        if ($buffer = $this->readBuffer(max(0, $this->contentLength - $this->bodyLength))) {
             $this->content    .= $buffer;
             $this->bodyLength += strlen($buffer);
             $this->validateContentLength();
@@ -408,7 +429,7 @@ class Connection
      */
     private function handleFileTransfer(): void
     {
-        if ($buffer = $this->freeBuffer()) {
+        if ($buffer = $this->readBuffer(max(0, $this->contentLength - $this->bodyLength))) {
             $this->bodyLength += strlen($buffer);
             foreach ($this->multipartHandler->tick($buffer) as $name => $multipartResult) {
                 if (is_string($multipartResult)) {

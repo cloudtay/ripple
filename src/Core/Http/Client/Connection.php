@@ -160,10 +160,10 @@ class Connection
                  */
                 $this->step = 1;
                 $header     = substr($buffer, 0, $headerEnd);
-                $base       = strtok($header, "\r\n");
+                $firstLine  = strtok($header, "\r\n");
 
-                if (count($base = explode(' ', $base)) < 3) {
-                    throw new RuntimeException('Request head is not match');
+                if (count($base = explode(' ', $firstLine)) < 3) {
+                    throw new RuntimeException('Request head is not match: ' . $firstLine);
                 }
 
                 $this->versionString = $base[0];
