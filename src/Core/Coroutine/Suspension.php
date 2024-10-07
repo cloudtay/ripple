@@ -40,14 +40,14 @@ use Throwable;
 
 class Suspension implements \Revolt\EventLoop\Suspension
 {
-    /*** @var \Fiber */
+    /*** @var Fiber */
     public readonly Fiber $fiber;
 
     /**
-     * @param Closure                     $main
-     * @param Closure                     $resolve
-     * @param Closure                     $reject
-     * @param \Psc\Core\Coroutine\Promise $promise
+     * @param Closure $main
+     * @param Closure $resolve
+     * @param Closure $reject
+     * @param Promise $promise
      */
     public function __construct(
         public readonly Closure $main,

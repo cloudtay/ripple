@@ -137,7 +137,7 @@ class Monitor
      * @Date   2024/8/26 21:51
      * @return void
      */
-    public function run(): void
+    public function start(): void
     {
         $this->timer1 = repeat(fn () => $this->tick(), 1);
         $this->timer2 = repeat(fn () => $this->inspector(), 1);
@@ -252,5 +252,16 @@ class Monitor
         if (isset($this->timer2)) {
             cancel($this->timer2);
         }
+    }
+
+    /**
+     * @Description Please use `start` method
+     * @Author cclilshy
+     * @Date   2024/10/7 17:57
+     * @return void
+     */
+    public function run(): void
+    {
+        $this->start();
     }
 }

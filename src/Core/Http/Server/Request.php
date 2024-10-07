@@ -46,17 +46,17 @@ class Request
     /*** @var array */
     public readonly array $REQUEST;
 
-    /*** @var \Psc\Core\Http\Server\Response */
+    /*** @var Response */
     private Response $response;
 
     /**
-     * @param \Psc\Core\Socket\SocketStream $stream
-     * @param array                         $GET
-     * @param array                         $POST
-     * @param array                         $COOKIE
-     * @param array                         $FILES
-     * @param array                         $SERVER
-     * @param mixed|null                    $CONTENT
+     * @param SocketStream $stream
+     * @param array        $GET
+     * @param array        $POST
+     * @param array        $COOKIE
+     * @param array        $FILES
+     * @param array        $SERVER
+     * @param mixed|null   $CONTENT
      */
     public function __construct(
         public readonly SocketStream $stream,
@@ -71,7 +71,7 @@ class Request
     }
 
     /**
-     * @return \Psc\Core\Http\Server\Response
+     * @return Response
      */
     public function getResponse(): Response
     {
@@ -82,7 +82,7 @@ class Request
     }
 
     /**
-     * @return \Psc\Core\Socket\SocketStream
+     * @return SocketStream
      */
     public function getStream(): SocketStream
     {

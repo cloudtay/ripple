@@ -37,7 +37,6 @@ namespace Psc\Core\Socket\Tunnel;
 use Co\IO;
 use Psc\Core\Socket\SocketStream;
 use Psc\Core\Stream\Exception\ConnectionException;
-use Throwable;
 
 use function is_string;
 use function stream_context_create;

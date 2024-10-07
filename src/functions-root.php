@@ -32,8 +32,10 @@
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
+use Co\Coroutine;
 use Psc\Core\Coroutine\Promise;
 use Psc\Core\Parallel\Thread;
+use Revolt\EventLoop\Suspension;
 use Revolt\EventLoop\UnsupportedFeatureException;
 use Symfony\Component\DependencyInjection\Container;
 
@@ -292,5 +294,17 @@ if (!\function_exists('container')) {
     function container(): Container
     {
         return \Co\container();
+    }
+}
+
+if (!\function_exists('getSuspension')) {
+    /**
+     * @Author cclilshy
+     * @Date   2024/10/7 17:15
+     * @return Suspension
+     */
+    function getSuspension(): Suspension
+    {
+        return Coroutine::Coroutine()->getSuspension();
     }
 }

@@ -38,6 +38,7 @@ use Closure;
 use Fiber;
 use Psc\Core\Coroutine\Coroutine;
 use Psc\Core\Coroutine\Exception\EscapeException;
+use Psc\Core\Coroutine\Suspension;
 use Psc\Core\LibraryAbstract;
 use Psc\Core\Process\Exception\ProcessException;
 use Psc\Kernel;
@@ -187,7 +188,8 @@ class Process extends LibraryAbstract
                     }
                 }
 
-                if (Coroutine::getInstance()->getCoroutine()) {
+                $suspension = Coroutine::getInstance()->getSuspension();
+                if ($suspension instanceof Suspension) {
                     // Whether it belongs to the PRipple coroutine space
                     // forked and user actions need to be deferred because they clear the coroutine hash table
                     // If you don't do this, fiber escape will occur
@@ -219,10 +221,10 @@ class Process extends LibraryAbstract
                 $this->registerSignalHandler();
             }
 
-            $promise = promise(function ($r, $d) use ($processId) {
+            $promise = promise(function ($resolve, $reject) use ($processId) {
                 $this->process2promiseCallback[$processId] = array(
-                    'resolve' => $r,
-                    'reject'  => $d,
+                    'resolve' => $resolve,
+                    'reject'  => $reject,
                 );
             });
 

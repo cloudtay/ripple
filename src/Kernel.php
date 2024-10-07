@@ -39,6 +39,7 @@ use Co\Coroutine;
 use Co\System;
 use Fiber;
 use Psc\Core\Coroutine\Promise;
+use Psc\Core\Coroutine\Suspension;
 use Psc\Utils\Output;
 use Revolt\EventLoop;
 use Revolt\EventLoop\UnsupportedFeatureException;
@@ -46,6 +47,7 @@ use Symfony\Component\DependencyInjection\Container;
 use Throwable;
 
 use function call_user_func;
+use function Co\getSuspension;
 use function define;
 use function defined;
 use function extension_loaded;
@@ -167,7 +169,8 @@ class Kernel
      */
     public function defer(Closure $closure): void
     {
-        if (!$suspension = Core\Coroutine\Coroutine::getInstance()->getCoroutine()) {
+        $suspension = getSuspension();
+        if (!$suspension instanceof Suspension) {
             EventLoop::queue(static function () use ($closure) {
                 try {
                     $closure();
@@ -178,7 +181,7 @@ class Kernel
             return;
         }
 
-        $suspension->promise->finally(fn () => EventLoop::queue(static function () use ($closure) {
+        $suspension->promise->finally(static fn () => EventLoop::queue(static function () use ($closure) {
             try {
                 $closure();
             } catch (Throwable $exception) {
@@ -250,7 +253,7 @@ class Kernel
     public function wait(Closure|null $result = null): bool
     {
         if (!isset($this->mainSuspension)) {
-            $this->mainSuspension = EventLoop::getSuspension();
+            $this->mainSuspension = getSuspension();
         }
 
         if (!$this->running) {
@@ -273,7 +276,7 @@ class Kernel
             /**
              * The Event object may be reset during the running of $result, so mainSuspension needs to be reacquired.
              */
-            $this->mainSuspension = EventLoop::getSuspension();
+            $this->mainSuspension = getSuspension();
             return $this->wait();
         } catch (Throwable) {
             return false;

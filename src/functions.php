@@ -244,3 +244,13 @@ function cancelForkHandler(string $eventId): void
     Output::warning('cancelForkHandler is deprecated, please use cancelForked instead.');
     Kernel::getInstance()->cancelForked($eventId);
 }
+
+/**
+ * @Author cclilshy
+ * @Date   2024/10/7 17:15
+ * @return EventLoop\Suspension
+ */
+function getSuspension(): EventLoop\Suspension
+{
+    return Coroutine::Coroutine()->getSuspension();
+}

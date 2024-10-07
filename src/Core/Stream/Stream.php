@@ -38,7 +38,6 @@ use Closure;
 use Exception;
 use Psc\Core\Coroutine\Promise;
 use Psc\Core\Stream\Exception\ConnectionException;
-use Psc\Kernel;
 use Psc\Utils\Output;
 use Revolt\EventLoop;
 use Throwable;

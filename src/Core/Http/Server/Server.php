@@ -70,7 +70,7 @@ class Server
      * @param string     $address
      * @param mixed|null $context
      *
-     * @throws InvalidArgumentException|\Psc\Core\Stream\Exception\ConnectionException
+     * @throws InvalidArgumentException|ConnectionException
      */
     public function __construct(string $address, mixed $context = null)
     {

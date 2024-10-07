@@ -82,14 +82,14 @@ class File extends LibraryAbstract
      * @param string $path
      *
      * @return string
-     * @throws \Psc\Core\File\Exception\FileException
+     * @throws FileException
      */
     public function getContents(string $path): string
     {
         try {
-            return promise(static function (Closure $r, Closure $d) use ($path) {
+            return promise(static function (Closure $resolve, Closure $reject) use ($path) {
                 if (!$resource = fopen($path, 'r')) {
-                    $d(new FileException('Failed to open file: ' . $path));
+                    $reject(new FileException('Failed to open file: ' . $path));
                     return;
                 }
 
@@ -97,7 +97,7 @@ class File extends LibraryAbstract
                 $stream->setBlocking(false);
                 $content = '';
 
-                $stream->onReadable(static function (Stream $stream) use ($r, $d, &$content) {
+                $stream->onReadable(static function (Stream $stream) use ($resolve, $reject, &$content) {
                     $fragment = '';
                     while ($buffer = $stream->read(8192)) {
                         $fragment .= $buffer;
@@ -106,7 +106,7 @@ class File extends LibraryAbstract
                     if ($fragment === '') {
                         if ($stream->eof()) {
                             $stream->close();
-                            $r($content);
+                            $resolve($content);
                         }
                         return;
                     }
@@ -115,7 +115,7 @@ class File extends LibraryAbstract
 
                     if ($stream->eof()) {
                         $stream->close();
-                        $r($content);
+                        $resolve($content);
                     }
                 });
             })->await();

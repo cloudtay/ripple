@@ -51,6 +51,7 @@ use WeakReference;
 
 use function Co\delay;
 use function Co\forked;
+use function Co\getSuspension;
 use function Co\promise;
 use function Co\wait;
 use function time;
@@ -69,7 +70,7 @@ class Coroutine extends LibraryAbstract
     protected static LibraryAbstract $instance;
 
     /*** @var WeakMap<object,WeakReference<Suspension>> */
-    private WeakMap $fiber2callback;
+    private WeakMap $fiber2suspension;
 
     /*** @var WeakMap<object,WeakReference<Container>> */
     private WeakMap $containers;
@@ -79,7 +80,7 @@ class Coroutine extends LibraryAbstract
         $this->registerOnFork();
 
         $this->containers     = new WeakMap();
-        $this->fiber2callback = new WeakMap();
+        $this->fiber2suspension = new WeakMap();
     }
 
     /**
@@ -88,7 +89,7 @@ class Coroutine extends LibraryAbstract
     private function registerOnFork(): void
     {
         forked(function () {
-            $this->fiber2callback = new WeakMap();
+            $this->fiber2suspension = new WeakMap();
             $this->registerOnFork();
         });
     }
@@ -102,7 +103,7 @@ class Coroutine extends LibraryAbstract
             return false;
         }
 
-        if (!isset($this->fiber2callback[$fiber])) {
+        if (!isset($this->fiber2suspension[$fiber])) {
             return false;
         }
 
@@ -110,15 +111,15 @@ class Coroutine extends LibraryAbstract
     }
 
     /**
-     * @return \Psc\Core\Coroutine\Suspension|null
+     * @return EventLoop\Suspension
      */
-    public function getCoroutine(): Suspension|null
+    public function getSuspension(): EventLoop\Suspension
     {
         if (!$fiber = Fiber::getCurrent()) {
-            return null;
+            return EventLoop::getSuspension();
         }
 
-        return ($this->fiber2callback[$fiber] ?? null)?->get();
+        return ($this->fiber2suspension[$fiber] ?? null)?->get() ?? EventLoop::getSuspension();
     }
 
     /**
@@ -142,19 +143,19 @@ class Coroutine extends LibraryAbstract
         }
 
         if (!$fiber = Fiber::getCurrent()) {
-            $suspend = EventLoop::getSuspension();
-            $promise->then(fn ($result) => $suspend->resume($result));
-            $promise->except(fn (mixed $e) => $suspend->throw($e));
+            $suspension = getSuspension();
+            $promise->then(fn ($result) => $suspension->resume($result));
+            $promise->except(fn (mixed $e) => $suspension->throw($e));
 
-            $result = $suspend->suspend();
+            $result = $suspension->suspend();
             if ($result instanceof Promise) {
                 return $this->await($result);
             }
             return $result;
         }
 
-        /*** @var \Psc\Core\Coroutine\Suspension $suspension */
-        if (!$suspension = ($this->fiber2callback[$fiber] ?? null)?->get()) {
+        /*** @var Suspension $suspension */
+        if (!$suspension = ($this->fiber2suspension[$fiber] ?? null)?->get()) {
             $promise->then(fn ($result) => $fiber->resume($result));
             $promise->except(
                 fn (mixed $e) => $e instanceof Throwable
@@ -246,7 +247,7 @@ class Coroutine extends LibraryAbstract
     public function handleEscapeException(EscapeException $exception): void
     {
         if (!Fiber::getCurrent() || !$this->hasCallback()) {
-            $this->fiber2callback = new WeakMap();
+            $this->fiber2suspension = new WeakMap();
             wait();
             exit(0);
         } else {
@@ -263,7 +264,7 @@ class Coroutine extends LibraryAbstract
     {
         return promise(function (Closure $resolve, Closure $reject, Promise $promise) use ($closure) {
             $suspension                               = new Suspension($closure, $resolve, $reject, $promise);
-            $this->fiber2callback[$suspension->fiber] = WeakReference::create($suspension);
+            $this->fiber2suspension[$suspension->fiber] = WeakReference::create($suspension);
 
             try {
                 $result = $suspension->start();
@@ -284,27 +285,27 @@ class Coroutine extends LibraryAbstract
     }
 
     /**
-     * @param float|int $second
+     * @param int|float $second
      *
      * @return int
      */
-    public function sleep(float|int $second): int
+    public function sleep(int|float $second): int
     {
         $startTime = time();
         if (!$fiber = Fiber::getCurrent()) {
             //is Revolt
-            $suspension = EventLoop::getSuspension();
-            Kernel::getInstance()->delay(fn () => $suspension->resume(0), $second);
+            $suspension = getSuspension();
+            delay(static fn () => $suspension->resume(0), $second);
             return $suspension->suspend();
 
-        } elseif (!$suspension = ($this->fiber2callback[$fiber] ?? null)?->get()) {
+        } elseif (!$suspension = ($this->fiber2suspension[$fiber] ?? null)?->get()) {
             //is Revolt
-            $suspension = EventLoop::getSuspension();
-            Kernel::getInstance()->delay(fn () => $suspension->resume(0), $second);
+            $suspension = getSuspension();
+            delay(static fn () => $suspension->resume(0), $second);
             return $suspension->suspend();
 
         } else {
-            /*** @var \Psc\Core\Coroutine\Suspension $suspension */
+            /*** @var Suspension $suspension */
             delay(function () use ($fiber, $suspension) {
                 try {
                     // Try to resume Fiber operation
