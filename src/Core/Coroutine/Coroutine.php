@@ -37,6 +37,7 @@ namespace Psc\Core\Coroutine;
 use Closure;
 use Fiber;
 use FiberError;
+use JetBrains\PhpStorm\NoReturn;
 use Psc\Core\Coroutine\Exception\EscapeException;
 use Psc\Core\Coroutine\Exception\Exception;
 use Psc\Core\LibraryAbstract;
@@ -49,10 +50,9 @@ use WeakMap;
 use WeakReference;
 
 use function Co\delay;
-use function Co\promise;
 use function Co\forked;
+use function Co\promise;
 use function Co\wait;
-use function spl_object_hash;
 use function time;
 
 /**
@@ -68,8 +68,8 @@ class Coroutine extends LibraryAbstract
     /*** @var LibraryAbstract */
     protected static LibraryAbstract $instance;
 
-    /*** @var array $fiber2promise */
-    private array $fiber2callback = array();
+    /*** @var WeakMap<object,WeakReference<Suspension>> */
+    private WeakMap $fiber2callback;
 
     /*** @var WeakMap<object,WeakReference<Container>> */
     private WeakMap $containers;
@@ -78,7 +78,8 @@ class Coroutine extends LibraryAbstract
     {
         $this->registerOnFork();
 
-        $this->containers = new WeakMap();
+        $this->containers     = new WeakMap();
+        $this->fiber2callback = new WeakMap();
     }
 
     /**
@@ -87,7 +88,7 @@ class Coroutine extends LibraryAbstract
     private function registerOnFork(): void
     {
         forked(function () {
-            $this->fiber2callback = array();
+            $this->fiber2callback = new WeakMap();
             $this->registerOnFork();
         });
     }
@@ -101,7 +102,7 @@ class Coroutine extends LibraryAbstract
             return false;
         }
 
-        if (!isset($this->fiber2callback[spl_object_hash($fiber)])) {
+        if (!isset($this->fiber2callback[$fiber])) {
             return false;
         }
 
@@ -109,15 +110,15 @@ class Coroutine extends LibraryAbstract
     }
 
     /**
-     * @return array|null
+     * @return \Psc\Core\Coroutine\Suspension|null
      */
-    public function getCoroutine(): array|null
+    public function getCoroutine(): Suspension|null
     {
         if (!$fiber = Fiber::getCurrent()) {
             return null;
         }
 
-        return $this->fiber2callback[spl_object_hash($fiber)] ?? null;
+        return ($this->fiber2callback[$fiber] ?? null)?->get();
     }
 
     /**
@@ -152,7 +153,8 @@ class Coroutine extends LibraryAbstract
             return $result;
         }
 
-        if (!$callback = $this->fiber2callback[spl_object_hash($fiber)] ?? null) {
+        /*** @var \Psc\Core\Coroutine\Suspension $suspension */
+        if (!$suspension = ($this->fiber2callback[$fiber] ?? null)?->get()) {
             $promise->then(fn ($result) => $fiber->resume($result));
             $promise->except(
                 fn (mixed $e) => $e instanceof Throwable
@@ -171,7 +173,7 @@ class Coroutine extends LibraryAbstract
          * To determine your own control over preparing Fiber, you must be responsible for the subsequent status of Fiber.
          */
         // When the status of the awaited Promise is completed
-        $promise->then(static function (mixed $result) use ($fiber, $callback) {
+        $promise->then(static function (mixed $result) use ($fiber, $suspension) {
             try {
                 // Try to resume Fiber operation
                 $fiber->resume($result);
@@ -179,10 +181,10 @@ class Coroutine extends LibraryAbstract
                 // Fiber has been terminated
                 if ($fiber->isTerminated()) {
                     try {
-                        $callback['resolve']($fiber->getReturn());
+                        $suspension->resolve($fiber->getReturn());
                         return;
                     } catch (FiberError $e) {
-                        $callback['reject']($e);
+                        $suspension->reject($e);
                         return;
                     }
                 }
@@ -192,13 +194,13 @@ class Coroutine extends LibraryAbstract
             } catch (Throwable $e) {
                 // Unexpected exception occurred during recovery operation
 
-                $callback['reject']($e);
+                $suspension->reject($e);
                 return;
             }
         });
 
         // When rejected by the status of the awaited Promise
-        $promise->except(static function (mixed $e) use ($fiber, $callback) {
+        $promise->except(static function (mixed $e) use ($fiber, $suspension) {
             try {
                 // Try to notice Fiber: An exception occurred in the awaited Promise
                 $e instanceof Throwable
@@ -208,10 +210,10 @@ class Coroutine extends LibraryAbstract
                 // Fiber has been terminated
                 if ($fiber->isTerminated()) {
                     try {
-                        $callback['resolve']($fiber->getReturn());
+                        $suspension->resolve($fiber->getReturn());
                         return;
                     } catch (FiberError $e) {
-                        $callback['reject']($e);
+                        $suspension->reject($e);
                         return;
                     }
                 }
@@ -220,7 +222,7 @@ class Coroutine extends LibraryAbstract
                 $this->handleEscapeException($exception);
             } catch (Throwable $e) {
                 // Unexpected exception occurred during recovery operation
-                $callback['reject']($e);
+                $suspension->reject($e);
                 return;
             }
         });
@@ -240,10 +242,11 @@ class Coroutine extends LibraryAbstract
      * @throws EscapeException
      * @throws Throwable
      */
+    #[NoReturn]
     public function handleEscapeException(EscapeException $exception): void
     {
         if (!Fiber::getCurrent() || !$this->hasCallback()) {
-            $this->fiber2callback = array();
+            $this->fiber2callback = new WeakMap();
             wait();
             exit(0);
         } else {
@@ -258,37 +261,25 @@ class Coroutine extends LibraryAbstract
      */
     public function async(Closure $closure): Promise
     {
-        return promise(function (Closure $r, Closure $d, Promise $promise) use ($closure) {
-            $fiber = new Fiber($closure);
-            $hash  = spl_object_hash($fiber);
-
-            $this->fiber2callback[$hash] = array(
-                'resolve' => $r,
-                'reject'  => $d,
-                'promise' => $promise,
-                'fiber'   => $fiber,
-            );
+        return promise(function (Closure $resolve, Closure $reject, Promise $promise) use ($closure) {
+            $suspension                               = new Suspension($closure, $resolve, $reject, $promise);
+            $this->fiber2callback[$suspension->fiber] = WeakReference::create($suspension);
 
             try {
-                $fiber->start($r, $d);
+                $result = $suspension->start();
             } catch (EscapeException $exception) {
                 $this->handleEscapeException($exception);
             }
 
-            if ($fiber->isTerminated()) {
+            if ($suspension->fiber->isTerminated()) {
                 try {
-                    $result = $fiber->getReturn();
-                    $r($result);
+                    $resolve($result);
                     return;
                 } catch (FiberError $e) {
-                    $d($e);
+                    $reject($e);
                     return;
                 }
             }
-
-            $promise->finally(function () use ($fiber) {
-                unset($this->fiber2callback[spl_object_hash($fiber)]);
-            });
         });
     }
 
@@ -306,14 +297,15 @@ class Coroutine extends LibraryAbstract
             Kernel::getInstance()->delay(fn () => $suspension->resume(0), $second);
             return $suspension->suspend();
 
-        } elseif (!$callback = $this->fiber2callback[spl_object_hash($fiber)] ?? null) {
+        } elseif (!$suspension = ($this->fiber2callback[$fiber] ?? null)?->get()) {
             //is Revolt
             $suspension = EventLoop::getSuspension();
             Kernel::getInstance()->delay(fn () => $suspension->resume(0), $second);
             return $suspension->suspend();
 
         } else {
-            delay(function () use ($fiber, $callback) {
+            /*** @var \Psc\Core\Coroutine\Suspension $suspension */
+            delay(function () use ($fiber, $suspension) {
                 try {
                     // Try to resume Fiber operation
                     $fiber->resume(0);
@@ -323,17 +315,16 @@ class Coroutine extends LibraryAbstract
                 } catch (Throwable $e) {
                     // Unexpected exception occurred during recovery operation
 
-                    $callback['reject']($e);
+                    $suspension->reject($e);
                     return;
                 }
 
                 if ($fiber->isTerminated()) {
                     try {
-                        $result = $fiber->getReturn();
-                        $callback['resolve']($result);
+                        $suspension->resolve($fiber->getReturn());
                         return;
                     } catch (FiberError $e) {
-                        $callback['reject']($e);
+                        $suspension->reject($e);
                         return;
                     }
                 }

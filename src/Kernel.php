@@ -167,7 +167,7 @@ class Kernel
      */
     public function defer(Closure $closure): void
     {
-        if (!$callback = \Psc\Core\Coroutine\Coroutine::getInstance()->getCoroutine()) {
+        if (!$suspension = Core\Coroutine\Coroutine::getInstance()->getCoroutine()) {
             EventLoop::queue(static function () use ($closure) {
                 try {
                     $closure();
@@ -178,7 +178,7 @@ class Kernel
             return;
         }
 
-        $callback['promise']->finally(fn () => EventLoop::queue(static function () use ($closure) {
+        $suspension->promise->finally(fn () => EventLoop::queue(static function () use ($closure) {
             try {
                 $closure();
             } catch (Throwable $exception) {

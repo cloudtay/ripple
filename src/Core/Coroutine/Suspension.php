@@ -34,22 +34,87 @@
 
 namespace Psc\Core\Coroutine;
 
+use Closure;
+use Fiber;
 use Throwable;
 
 class Suspension implements \Revolt\EventLoop\Suspension
 {
+    /*** @var \Fiber */
+    public readonly Fiber $fiber;
+
+    /**
+     * @param Closure                     $main
+     * @param Closure                     $resolve
+     * @param Closure                     $reject
+     * @param \Psc\Core\Coroutine\Promise $promise
+     */
+    public function __construct(
+        public readonly Closure $main,
+        public readonly Closure $resolve,
+        public readonly Closure $reject,
+        public readonly Promise $promise
+    ) {
+        $this->fiber = new Fiber($this->main);
+    }
+
+    /**
+     * @param mixed|null $value
+     *
+     * @return void
+     * @throws Throwable
+     */
     public function resume(mixed $value = null): void
     {
-        // TODO: Implement resume() method.
+        $this->fiber->resume($value);
     }
 
+    /**
+     * @return mixed
+     * @throws Throwable
+     */
     public function suspend(): mixed
     {
-        // TODO: Implement suspend() method.
+        return Fiber::suspend();
     }
 
+    /**
+     * @param Throwable $throwable
+     *
+     * @return void
+     * @throws Throwable
+     */
     public function throw(Throwable $throwable): void
     {
-        // TODO: Implement throw() method.
+        $this->fiber->throw($throwable);
+    }
+
+    /**
+     * @return mixed
+     * @throws Throwable
+     */
+    public function start(): mixed
+    {
+        return $this->fiber->start($this->resolve, $this->reject);
+    }
+
+    /**
+     * @param mixed $value
+     *
+     * @return void
+     */
+    public function resolve(mixed $value): void
+    {
+        ($this->resolve)($value);
+    }
+
+    /**
+     * @param Throwable $throwable
+     *
+     * @return void
+     */
+    public function reject(Throwable $throwable): void
+    {
+        ($this->reject)($throwable);
     }
 }

@@ -36,6 +36,7 @@ namespace Psc\Core\Process;
 
 use Closure;
 use Fiber;
+use Psc\Core\Coroutine\Coroutine;
 use Psc\Core\Coroutine\Exception\EscapeException;
 use Psc\Core\LibraryAbstract;
 use Psc\Core\Process\Exception\ProcessException;
@@ -186,7 +187,7 @@ class Process extends LibraryAbstract
                     }
                 }
 
-                if (\Psc\Core\Coroutine\Coroutine::getInstance()->getCoroutine()) {
+                if (Coroutine::getInstance()->getCoroutine()) {
                     // Whether it belongs to the PRipple coroutine space
                     // forked and user actions need to be deferred because they clear the coroutine hash table
                     // If you don't do this, fiber escape will occur
