@@ -56,6 +56,7 @@ use const STREAM_CLIENT_CONNECT;
 use const STREAM_CRYPTO_METHOD_SSLv23_CLIENT;
 use const STREAM_SERVER_BIND;
 use const STREAM_SERVER_LISTEN;
+use const STREAM_CRYPTO_METHOD_TLS_CLIENT;
 
 /**
  * @Author cclilshy
@@ -150,7 +151,11 @@ class Socket extends LibraryAbstract
                     $promise->finally(static fn () => cancel($timeoutEventId));
                 }
 
-                $handshakeResult = stream_socket_enable_crypto($stream->stream, true, STREAM_CRYPTO_METHOD_SSLv23_CLIENT);
+                $handshakeResult = stream_socket_enable_crypto(
+                    $stream->stream,
+                    true,
+                    STREAM_CRYPTO_METHOD_SSLv23_CLIENT | STREAM_CRYPTO_METHOD_TLS_CLIENT
+                );
 
                 if ($handshakeResult === false) {
                     $stream->close();
@@ -166,7 +171,11 @@ class Socket extends LibraryAbstract
                 if ($handshakeResult === 0) {
                     $stream->onReadable(static function (SocketStream $stream, Closure $cancel) use ($resolve, $reject) {
                         try {
-                            $handshakeResult = stream_socket_enable_crypto($stream->stream, true, STREAM_CRYPTO_METHOD_SSLv23_CLIENT);
+                            $handshakeResult = stream_socket_enable_crypto(
+                                $stream->stream,
+                                true,
+                                STREAM_CRYPTO_METHOD_SSLv23_CLIENT | STREAM_CRYPTO_METHOD_TLS_CLIENT
+                            );
                         } catch (Throwable $exception) {
                             $stream->close();
                             $reject($exception);

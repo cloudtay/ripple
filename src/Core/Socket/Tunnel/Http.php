@@ -39,6 +39,7 @@ use Exception;
 use Psc\Core\Stream\Exception\ConnectionException;
 use Throwable;
 
+use function base64_encode;
 use function Co\cancel;
 use function Co\promise;
 use function preg_match;
@@ -95,8 +96,13 @@ class Http extends Tunnel
         $port    = $this->payload['port'];
         $request = "CONNECT {$host}:{$port} HTTP/1.1\r\n" .
                    "Host: {$host}:{$port}\r\n" .
-                   "Proxy-Connection: Keep-Alive\r\n\r\n";
+                   "Proxy-Connection: Keep-Alive\r\n";
 
+        if (isset($this->payload['username'], $this->payload['password'])) {
+            $request .= "Proxy-Authorization: Basic " . base64_encode("{$this->payload['username']}:{$this->payload['password']}") . "\r\n";
+        }
+
+        $request .= "\r\n";
         $this->proxy->write($request);
         $this->step = 1;
     }

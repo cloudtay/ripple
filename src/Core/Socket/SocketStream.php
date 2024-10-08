@@ -93,6 +93,9 @@ class SocketStream extends Stream
     /*** @var Promise */
     private Promise $writePromise;
 
+    /*** @var bool */
+    private bool $isSSL = false;
+
     /**
      * @param mixed       $resource
      * @param string|null $peerName
@@ -111,11 +114,11 @@ class SocketStream extends Stream
             $peerName = stream_socket_get_name($this->stream, true);
         }
 
-        if ($peerName === false) {
-            $peerName = null;
+        if ($peerName) {
+            $this->address = $peerName;
+        } else {
+            $this->address = null;
         }
-
-        $this->address = $peerName;
 
         if ($this->address) {
             $exploded   = explode(':', $this->address);

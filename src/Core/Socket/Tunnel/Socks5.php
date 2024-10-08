@@ -89,7 +89,11 @@ class Socks5 extends Tunnel
      */
     private function sendInitialHandshake(): void
     {
-        $request = "\x05\x01\x00";
+        if (isset($this->payload['username'], $this->payload['password'])) {
+            $request = "\x05\x01\x02";
+        } else {
+            $request = "\x05\x01\x00";
+        }
         $this->proxy->write($request);
         $this->step = 1;
     }
