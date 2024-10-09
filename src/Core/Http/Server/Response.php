@@ -36,7 +36,6 @@ namespace Psc\Core\Http\Server;
 
 use Closure;
 use Generator;
-use Override;
 use Psc\Core\Socket\SocketStream;
 use Psc\Core\Stream\Exception\ConnectionException;
 use Psc\Core\Stream\Stream;
@@ -51,21 +50,33 @@ use function str_contains;
 use function strlen;
 use function strtolower;
 use function strval;
+use function is_array;
 
 /**
  * response entity
  */
-class Response extends \Symfony\Component\HttpFoundation\Response
+class Response
 {
     /*** @var mixed */
     protected mixed $body;
+
+    /*** @var array */
+    protected array $headers = [];
+
+    /*** @var array */
+    protected array $cookies = [];
+
+    /*** @var int */
+    protected int $statusCode = 200;
+
+    /*** @var string */
+    protected string $statusText = 'OK';
 
     /**
      * @param SocketStream $stream
      */
     public function __construct(private readonly SocketStream $stream)
     {
-        parent::__construct();
     }
 
     /**
@@ -73,11 +84,10 @@ class Response extends \Symfony\Component\HttpFoundation\Response
      *
      * @return $this
      */
-    #[Override] public function setContent(mixed $content): static
+    public function setContent(mixed $content): static
     {
         return $this->setBody($content);
     }
-
 
     /**
      * @param int|null $statusCode
@@ -85,16 +95,24 @@ class Response extends \Symfony\Component\HttpFoundation\Response
      * @return static
      * @throws ConnectionException
      */
-    #[Override] public function sendHeaders(int|null $statusCode = null): static
+    public function sendHeaders(int|null $statusCode = null): static
     {
+        if ($statusCode) {
+            $this->setStatusCode($statusCode);
+        }
+
         $content = '';
-        foreach ($this->headers->allPreserveCaseWithoutCookies() as $name => $values) {
-            foreach ($values as $value) {
-                $content .= "$name: $value\r\n";
+        foreach ($this->headers as $name => $values) {
+            if (is_string($values)) {
+                $content .= "$name: $values\r\n";
+            } elseif (is_array($values)) {
+                foreach ($values as $value) {
+                    $content .= "$name: $value\r\n";
+                }
             }
         }
 
-        foreach ($this->headers->getCookies() as $cookie) {
+        foreach ($this->cookies as $cookie) {
             $content .= 'Set-Cookie: ' . $cookie . "\r\n";
         }
         $this->stream->writeInternal($content, false);
@@ -107,12 +125,12 @@ class Response extends \Symfony\Component\HttpFoundation\Response
      * @return Response
      * @throws ConnectionException|Throwable
      */
-    #[Override] public function sendContent(): static
+    public function sendContent(): static
     {
-        $this->stream->writeInternal("\r\n", false);
+        $this->stream->write("\r\n");
         // An exception occurs during transfer with the HTTP client and the currently open file stream should be closed.
         if (is_string($this->body)) {
-            $this->stream->writeInternal($this->body, false);
+            $this->stream->write($this->body);
         } elseif ($this->body instanceof Stream) {
             promise(function (Closure $resolve, Closure $reject) {
                 $this->body->onReadable(function (Stream $body) use ($resolve, $reject) {
@@ -122,7 +140,7 @@ class Response extends \Symfony\Component\HttpFoundation\Response
                     }
 
                     try {
-                        $this->stream->writeInternal($content, false);
+                        $this->stream->write($content);
                     } catch (Throwable $exception) {
                         $body->close();
                         $reject($exception);
@@ -136,7 +154,7 @@ class Response extends \Symfony\Component\HttpFoundation\Response
             })->await();
         } elseif ($this->body instanceof Generator) {
             foreach ($this->body as $content) {
-                $this->stream->writeInternal($content, false);
+                $this->stream->write($content);
             }
             if ($this->body->getReturn() === false) {
                 $this->stream->close();
@@ -155,16 +173,16 @@ class Response extends \Symfony\Component\HttpFoundation\Response
     public function setBody(mixed $content): static
     {
         if (is_string($content)) {
-            $this->headers->set('Content-Length', strval(strlen($content)));
+            $this->setHeader('Content-Length', strval(strlen($content)));
         } elseif ($content instanceof Generator) {
-            $this->headers->remove('Content-Length');
+            $this->removeHeader('Content-Length');
         } elseif ($content instanceof Stream) {
             $path   = $content->getMetadata('uri');
             $length = filesize($path);
-            $this->headers->set('Content-Length', strval($length));
-            $this->headers->set('Content-Type', 'application/octet-stream');
-            if (!$this->headers->get('Content-Disposition')) {
-                $this->headers->set('Content-Disposition', 'attachment; filename=' . basename($path));
+            $this->setHeader('Content-Length', strval($length));
+            $this->setHeader('Content-Type', 'application/octet-stream');
+            if (!$this->getHeader('Content-Disposition')) {
+                $this->setHeader('Content-Disposition', 'attachment; filename=' . basename($path));
             }
         } elseif (is_resource($content)) {
             return $this->setBody(new Stream($content));
@@ -203,17 +221,112 @@ class Response extends \Symfony\Component\HttpFoundation\Response
     public function respond(): void
     {
         try {
-            $this->sendStatus();
-            $this->sendHeaders();
-            $this->sendContent();
+            $this->sendStatus()->sendHeaders()->sendContent();
         } catch (Throwable) {
             $this->stream->close();
             return;
         }
 
-        $headerConnection = $this->headers->get('Connection');
+        $headerConnection = $this->getHeader('Connection');
         if (!$headerConnection || !str_contains(strtolower($headerConnection), 'keep-alive')) {
             $this->stream->close();
         }
+    }
+
+    /**
+     * @param string       $name
+     * @param string|array $value
+     *
+     * @return $this
+     */
+    public function setHeader(string $name, string|array $value): static
+    {
+        $this->headers[$name] = $value;
+        return $this;
+    }
+
+    /**
+     * @param string|null $name
+     *
+     * @return mixed
+     */
+    public function getHeader(string $name = null): mixed
+    {
+        if (!$name) {
+            return $this->headers;
+        }
+        return $this->headers[$name] ?? null;
+    }
+
+    /**
+     * @param string $name
+     *
+     * @return $this
+     */
+    public function removeHeader(string $name): static
+    {
+        unset($this->headers[$name]);
+        return $this;
+    }
+
+    /**
+     * @param string $name
+     * @param string $value
+     *
+     * @return $this
+     */
+    public function setCookie(string $name, string $value): static
+    {
+        $this->cookies[$name] = $value;
+        return $this;
+    }
+
+
+    /**
+     * @param string $name
+     *
+     * @return mixed
+     */
+    public function getCookie(string $name): mixed
+    {
+        return $this->cookies[$name] ?? null;
+    }
+
+    /**
+     * @return int
+     */
+    public function getStatusCode(): int
+    {
+        return $this->statusCode;
+    }
+
+    /**
+     * @param int $statusCode
+     *
+     * @return $this
+     */
+    public function setStatusCode(int $statusCode): static
+    {
+        $this->statusCode = $statusCode;
+        return $this;
+    }
+
+    /**
+     * @return string
+     */
+    public function getStatusText(): string
+    {
+        return $this->statusText;
+    }
+
+    /**
+     * @param string $statusText
+     *
+     * @return $this
+     */
+    public function setStatusText(string $statusText): static
+    {
+        $this->statusText = $statusText;
+        return $this;
     }
 }

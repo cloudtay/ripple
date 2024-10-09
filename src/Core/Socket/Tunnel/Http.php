@@ -70,7 +70,7 @@ class Http extends Tunnel
             // Wait for handshake response
             $this->readEventId = $this->proxy->onReadable(function () use ($resolve, $reject) {
                 try {
-                    $this->buffer .= $this->proxy->readContinuously(1024);
+                    $this->buffer .= $this->proxy->readContinuously(8192);
                     $this->processBuffer($resolve, $reject);
                 } catch (Exception $e) {
                     $reject($e);

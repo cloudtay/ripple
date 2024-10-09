@@ -47,7 +47,7 @@ class Request
     public readonly array $REQUEST;
 
     /*** @var Response */
-    private Response $response;
+    protected Response $response;
 
     /**
      * @param SocketStream $stream
@@ -99,7 +99,10 @@ class Request
     public function respond(mixed $content, int $statusCode = 200, array $headers = []): void
     {
         $response = $this->getResponse();
-        $response->headers->add($headers);
+        foreach ($headers as $name => $value) {
+            $response->setHeader($name, $value);
+        }
+
         $response
             ->setStatusCode($statusCode)
             ->setBody($content)

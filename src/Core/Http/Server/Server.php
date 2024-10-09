@@ -168,8 +168,8 @@ class Server
                 $requestInfo['content']
             );
 
-            $symfonyResponse = $request->getResponse();
-            $symfonyResponse->headers->set('Server', 'ripple');
+            $response = $request->getResponse();
+            $response->setHeader('Server', 'ripple');
 
             $keepAlive = false;
             if ($headerConnection = $requestInfo['server']['HTTP_CONNECTION'] ?? null) {
@@ -179,7 +179,7 @@ class Server
             }
 
             if ($keepAlive) {
-                $symfonyResponse->headers->set('Connection', 'keep-alive');
+                $response->setHeader('Connection', 'keep-alive');
             }
 
             try {
@@ -190,10 +190,9 @@ class Server
                 $stream->close();
             } catch (FormatException) {
                 /**** The message format is illegal*/
-                $symfonyResponse->setStatusCode(400)->respond();
+                $response->setStatusCode(400)->respond();
             } catch (Throwable $e) {
-                $symfonyResponse->setStatusCode(500)->setBody($e->getMessage())->respond();
-
+                $response->setStatusCode(500)->setBody($e->getMessage())->respond();
                 Output::exception($e);
             }
         });

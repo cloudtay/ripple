@@ -143,7 +143,7 @@ class Connection
         });
 
         $this->stream->onReadable(function (SocketStream $stream) use ($builder) {
-            $content = $stream->readContinuously(1024);
+            $content = $stream->read(8192);
             if ($content === '') {
                 if ($stream->eof()) {
                     $stream->close();
@@ -153,7 +153,7 @@ class Connection
 
             try {
                 foreach ($this->tick($content) as $requestInfo) {
-                    \Co\async(static fn () => $builder($requestInfo));
+                    $builder($requestInfo);
                 }
             } catch (Throwable $exception) {
                 Output::warning($exception->getMessage());
@@ -190,7 +190,6 @@ class Connection
 
         if ($this->step === 2) {
             $list[] = $this->finalizeRequest();
-
             if ($this->buffer !== '') {
                 foreach ($this->tick('') as $item) {
                     $list[] = $item;
