@@ -216,8 +216,7 @@ class ConnectionPool
                 return Socks5::connect("tcp://{$parse['host']}:{$parse['port']}", $payload)->getSocketStream();
             case 'http':
             case 'https':
-                $secure = $parse['scheme'] === 'https';
-                return Http::connect("tcp://{$parse['host']}:{$parse['port']}", $payload, $secure)->getSocketStream();
+                return Http::connect("tcp://{$parse['host']}:{$parse['port']}", $payload)->getSocketStream();
             default:
                 throw new ConnectionException('Unsupported proxy protocol', ConnectionException::CONNECTION_ERROR);
         }

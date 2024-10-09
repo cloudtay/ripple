@@ -40,6 +40,7 @@ use GuzzleHttp\Psr7\MultipartStream;
 use GuzzleHttp\Psr7\Response;
 use InvalidArgumentException;
 use Psc\Core\Coroutine\Promise;
+use Psc\Core\Socket\Socket;
 use Psc\Core\Socket\SocketStream;
 use Psc\Core\Socket\Tunnel\Http;
 use Psc\Core\Socket\Tunnel\Socks5;
@@ -89,15 +90,25 @@ class Client
      */
     public function request(RequestInterface $request, array $option = []): Response
     {
-        return \Co\promise(function (Closure $r, Closure $d, Promise $promise) use ($request, $option) {
+        return \Co\promise(function (Closure $resolve, Closure $reject, Promise $promise) use ($request, $option) {
             $uri    = $request->getUri();
             $method = $request->getMethod();
             $scheme = $uri->getScheme();
             $host   = $uri->getHost();
-            $port   = $uri->getPort() ?? ($scheme === 'https' ? 443 : 80);
-            $path   = $uri->getPath() ?: '/';
-            $query  = $uri->getQuery();
-            $query  = $query ? "?{$query}" : '';
+
+            if (!$port = $uri->getPort()) {
+                $port = $scheme === 'https' ? 443 : 80;
+            }
+
+            if (!$path = $uri->getPath()) {
+                $path = '/';
+            }
+
+            if ($query = $uri->getQuery()) {
+                $query = "?{$query}";
+            } else {
+                $query = '';
+            }
 
             if (!isset($option['proxy'])) {
                 if ($scheme === 'http' && $httpProxy = getenv('http_proxy')) {
@@ -148,7 +159,7 @@ class Client
                         $writeHandler("Content-Type: multipart/form-data; boundary={$bodyStream->getBoundary()}\r\n");
                     }
                     $writeHandler("\r\n");
-                    repeat(static function (Closure $cancel) use ($connection, $bodyStream, $r, $d, $writeHandler) {
+                    repeat(static function (Closure $cancel) use ($connection, $bodyStream, $resolve, $reject, $writeHandler) {
                         try {
                             $content = '';
                             while ($buffer = $bodyStream->read(8192)) {
@@ -164,7 +175,7 @@ class Client
                         } catch (Throwable) {
                             $cancel();
                             $bodyStream->close();
-                            $d(new InvalidArgumentException('Invalid body stream'));
+                            $reject(new InvalidArgumentException('Invalid body stream'));
                         }
                     }, 0.1);
                 } else {
@@ -175,9 +186,9 @@ class Client
             }
 
             if ($timeout = $option['timeout'] ?? null) {
-                $delayEventId = delay(static function () use ($connection, $d) {
+                $delayEventId = delay(static function () use ($connection, $reject) {
                     $connection->stream->close();
-                    $d(new ConnectionException('Request timeout', ConnectionException::CONNECTION_TIMEOUT));
+                    $reject(new ConnectionException('Request timeout', ConnectionException::CONNECTION_TIMEOUT));
                 }, $timeout);
 
                 $promise->finally(static function () use ($delayEventId) {
@@ -200,8 +211,8 @@ class Client
                 $port,
                 $connection,
                 $scheme,
-                $r,
-                $d,
+                $resolve,
+                $reject,
                 $tickHandler
             ) {
                 try {
@@ -228,11 +239,11 @@ class Client
                         } else {
                             $socketStream->close();
                         }
-                        $r($response);
+                        $resolve($response);
                     }
                 } catch (ConnectionException $exception) {
                     $socketStream->close();
-                    $d($exception);
+                    $reject($exception);
                 } catch (Throwable $exception) {
                     Output::warning($exception->getMessage());
                 }
@@ -283,7 +294,8 @@ class Client
                         $connection = new Connection($tunnelSocket);
                         break;
                     case 'https':
-                        $tunnelSocket = Http::connect("tcp://{$parse['host']}:{$parse['port']}", $payload, true)->getSocketStream();
+                        $tunnel       = IO::Socket()->connectWithSSL("tcp://{$parse['host']}:{$parse['port']}", $timeout);
+                        $tunnelSocket = Http::connect($tunnel, $payload)->getSocketStream();
                         $ssl && IO::Socket()->enableSSL($tunnelSocket, $timeout);
                         $connection = new Connection($tunnelSocket);
                         break;

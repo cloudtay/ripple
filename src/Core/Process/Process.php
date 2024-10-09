@@ -221,7 +221,7 @@ class Process extends LibraryAbstract
                 $this->registerSignalHandler();
             }
 
-            $promise = promise(function ($resolve, $reject) use ($processId) {
+            $promise = promise(function (Closure $resolve, Closure $reject) use ($processId) {
                 $this->process2promiseCallback[$processId] = array(
                     'resolve' => $resolve,
                     'reject'  => $reject,

@@ -177,7 +177,7 @@ class Parallel extends LibraryAbstract
         $this->counterChannel = $this->makeChannel('counter');
         $this->eventScalar    = new Sync(0);
         $this->counterRuntime = new Runtime(Parallel::$autoload);
-        $this->counterFuture  = $this->counterRuntime->run(static function ($channel, $eventScalar) {
+        $this->counterFuture  = $this->counterRuntime->run(static function (\parallel\Channel $channel, Sync $eventScalar) {
             $eventScalar(fn () => $eventScalar->wait());
             /*** @compatible:Windows */
             if (!Kernel::getInstance()->supportProcessControl()) {

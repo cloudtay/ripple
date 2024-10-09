@@ -154,8 +154,7 @@ class HttpTest extends TestCase
         $response = $client->get('http://127.0.0.1:8008/', [
             'query'   => [
                 'query' => $hash,
-            ],
-            'timeout' => 1
+            ]
         ]);
 
         $result = $response->getBody()->getContents();

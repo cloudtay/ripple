@@ -90,16 +90,14 @@ class Response extends \Symfony\Component\HttpFoundation\Response
         $content = '';
         foreach ($this->headers->allPreserveCaseWithoutCookies() as $name => $values) {
             foreach ($values as $value) {
-                // $this->stream->write("$name: $value\r\n");
                 $content .= "$name: $value\r\n";
             }
         }
 
         foreach ($this->headers->getCookies() as $cookie) {
-            // $this->stream->write('Set-Cookie: ' . $cookie . "\r\n");
             $content .= 'Set-Cookie: ' . $cookie . "\r\n";
         }
-        $this->stream->write($content);
+        $this->stream->writeInternal($content, false);
         return $this;
     }
 
@@ -111,10 +109,10 @@ class Response extends \Symfony\Component\HttpFoundation\Response
      */
     #[Override] public function sendContent(): static
     {
-        $this->stream->write("\r\n");
+        $this->stream->writeInternal("\r\n", false);
         // An exception occurs during transfer with the HTTP client and the currently open file stream should be closed.
         if (is_string($this->body)) {
-            $this->stream->write($this->body);
+            $this->stream->writeInternal($this->body, false);
         } elseif ($this->body instanceof Stream) {
             promise(function (Closure $resolve, Closure $reject) {
                 $this->body->onReadable(function (Stream $body) use ($resolve, $reject) {
@@ -124,7 +122,7 @@ class Response extends \Symfony\Component\HttpFoundation\Response
                     }
 
                     try {
-                        $this->stream->write($content);
+                        $this->stream->writeInternal($content, false);
                     } catch (Throwable $exception) {
                         $body->close();
                         $reject($exception);
@@ -138,7 +136,7 @@ class Response extends \Symfony\Component\HttpFoundation\Response
             })->await();
         } elseif ($this->body instanceof Generator) {
             foreach ($this->body as $content) {
-                $this->stream->write($content);
+                $this->stream->writeInternal($content, false);
             }
             if ($this->body->getReturn() === false) {
                 $this->stream->close();
@@ -195,7 +193,7 @@ class Response extends \Symfony\Component\HttpFoundation\Response
      */
     public function sendStatus(): static
     {
-        $this->stream->write("HTTP/1.1 {$this->getStatusCode()} {$this->statusText}\r\n");
+        $this->stream->writeInternal("HTTP/1.1 {$this->getStatusCode()} {$this->statusText}\r\n", false);
         return $this;
     }
 

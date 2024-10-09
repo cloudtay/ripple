@@ -73,15 +73,14 @@ class Socket extends LibraryAbstract
      * @param mixed|null $context
      *
      * @return SocketStream
-     * @throws Throwable
+     * @throws \Psc\Core\Stream\Exception\ConnectionException
      */
     public function connectWithSSL(string $address, int $timeout = 0, mixed $context = null): SocketStream
     {
-        return promise(function (Closure $resolve, Closure $reject) use ($address, $timeout, $context) {
-            $address      = str_replace('ssl://', 'tcp://', $address);
-            $streamSocket = $this->connect($address, $timeout, $context);
-            $this->enableSSL($streamSocket, $timeout);
-        })->await();
+        $address      = str_replace('ssl://', 'tcp://', $address);
+        $streamSocket = $this->connect($address, $timeout, $context);
+        $this->enableSSL($streamSocket, $timeout);
+        return $streamSocket;
     }
 
     /**

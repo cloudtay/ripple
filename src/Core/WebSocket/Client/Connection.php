@@ -144,7 +144,7 @@ class Connection
      */
     private function handshake(): void
     {
-        promise(function ($r) {
+        promise(function (Closure $resolve) {
             $parsedUrl = parse_url($this->address);
             if (!$parsedUrl || !isset($parsedUrl['scheme'], $parsedUrl['host'])) {
                 throw new Exception('Invalid address');
@@ -181,7 +181,7 @@ class Connection
 
             $this->stream->write($context);
             $this->stream->onReadable(function (Stream $stream, Closure $cancel) use (
-                $r,
+                $resolve,
                 $key,
                 &$buffer,
             ) {
@@ -229,7 +229,7 @@ class Connection
                     }
 
                     $cancel();
-                    $r();
+                    $resolve();
                 }
             });
         })->await();

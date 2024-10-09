@@ -37,9 +37,11 @@ namespace Psc\Core\Socket\Tunnel;
 use Co\IO;
 use Psc\Core\Socket\SocketStream;
 use Psc\Core\Stream\Exception\ConnectionException;
+use Throwable;
 
 use function is_string;
 use function stream_context_create;
+use function str_starts_with;
 
 /**
  * This standard applies to all proxies in transparent transmission mode. The socket created by this method can be directly accessed as the target socket.
@@ -65,13 +67,12 @@ abstract class Tunnel
      *
      * @param SocketStream|string $target
      * @param array               $payload
-     * @param bool                $ssl
      * @param bool                $wait
      *
      * @return static
-     * @throws ConnectionException
+     * @throws \Psc\Core\Stream\Exception\ConnectionException
      */
-    public static function connect(SocketStream|string $target, array $payload, bool $ssl = false, bool $wait = true): static
+    public static function connect(SocketStream|string $target, array $payload, bool $wait = true): static
     {
         if (is_string($target)) {
             $context = stream_context_create([
@@ -80,15 +81,16 @@ abstract class Tunnel
                     'allow_self_signed' => true
                 ]
             ]);
-            $target  = IO::Socket()->connect($target, 0, $context);
+
+            $target = match (str_starts_with($target, 'ssl://')) {
+                true    => IO::Socket()->connectWithSSL($target, 0, $context),
+                default => IO::Socket()->connect($target, 0, $context)
+            };
         }
 
         $tunnel = new static($target, $payload);
         if ($wait) {
             $tunnel->handshake();
-            if ($ssl) {
-                $tunnel->getSocketStream()->enableSSL();
-            }
         }
         return $tunnel;
     }

@@ -103,7 +103,7 @@ class Kernel
         $this->mainSuspension = EventLoop::getSuspension();
         $this->parallel       = extension_loaded('parallel');
         $this->processControl = extension_loaded('pcntl') && extension_loaded('posix');
-        $this->container = new Container();
+        $this->container      = new Container();
     }
 
     /**
@@ -198,7 +198,7 @@ class Kernel
      */
     public function repeat(Closure $closure, int|float $second): string
     {
-        return EventLoop::repeat($second, function ($cancelId) use ($closure) {
+        return EventLoop::repeat($second, function (string $cancelId) use ($closure) {
             call_user_func($closure, fn () => $this->cancel($cancelId));
         });
     }

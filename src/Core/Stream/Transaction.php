@@ -79,7 +79,7 @@ final class Transaction
      */
     public function __construct(private readonly Stream $stream)
     {
-        $this->promise = promise(function ($resolve, $reject) {
+        $this->promise = promise(function (Closure $resolve, Closure $reject) {
             $this->resolve = $resolve;
             $this->reject  = $reject;
         })->finally(fn () => $this->cancelAll());

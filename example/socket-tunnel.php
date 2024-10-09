@@ -2,7 +2,6 @@
 
 include __DIR__ . '/../vendor/autoload.php';
 
-use Co\IO;
 use Psc\Core\Socket\Tunnel\Socks5;
 use Psc\Core\Stream\Exception\ConnectionException;
 use Psc\Utils\Output;
@@ -11,12 +10,7 @@ use function Co\wait;
 
 # base
 try {
-    $context = \stream_context_create();
-    \stream_context_set_option($context, 'ssl', 'verify_peer', false);
-    \stream_context_set_option($context, 'ssl', 'verify_peer_name', false);
-    $proxySocket = IO::Socket()->connect('tcp://127.0.0.1:1080', 10, $context);
-
-    $googleSocks5 = Socks5::connect($proxySocket, [
+    $googleSocks5 = Socks5::connect('tcp://127.0.0.1:1080', [
         'host' => 'www.google.com',
         'port' => 443
     ]);
@@ -45,12 +39,11 @@ try {
         payload: [
             'host' => 'www.google.com',
             'port' => 443
-        ],
-        ssl: true,
-        wait: true
+        ]
     );
 
     $connection = $google->getSocketStream();
+    $connection->enableSSL();
     $connection->write("GET / HTTP/1.1\r\nHost: www.google.com\r\nConnection: close\r\n\r\n");
     $connection->onReadable(function () use ($connection) {
         $data = $connection->read(1024);

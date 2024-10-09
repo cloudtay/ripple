@@ -2,6 +2,7 @@
 
 include __DIR__ . '/../vendor/autoload.php';
 
+use Co\System;
 use Psc\Kernel;
 use Psc\Utils\Output;
 
@@ -18,17 +19,17 @@ $runtimes = [];
     echo "Forked ", \posix_getpid(), \PHP_EOL;
 });
 
-$runtimes[] = \Co\System::Process()->task(static function () {
+$runtimes[] = System::Process()->task(static function () {
     \sleep(1);
     exit(1);
 })->run();
 
-$runtimes[] = \Co\System::Process()->task(static function () {
+$runtimes[] = System::Process()->task(static function () {
     \sleep(2);
     exit(2);
 })->run();
 
-$runtimes[] = \Co\System::Process()->task(static function () {
+$runtimes[] = System::Process()->task(static function () {
     \sleep(3);
     exit(3);
 })->run();

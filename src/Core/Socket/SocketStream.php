@@ -36,7 +36,6 @@ namespace Psc\Core\Socket;
 
 use Closure;
 use Co\IO;
-use Exception;
 use Psc\Core\Coroutine\Promise;
 use Psc\Core\Stream\Exception\ConnectionException;
 use Psc\Core\Stream\Stream;
@@ -59,6 +58,7 @@ use function substr;
 use function sys_get_temp_dir;
 use function uniqid;
 use function unlink;
+use function strlen;
 
 use const SO_SNDLOWAT;
 use const SOL_SOCKET;
@@ -92,9 +92,6 @@ class SocketStream extends Stream
 
     /*** @var Promise */
     private Promise $writePromise;
-
-    /*** @var bool */
-    private bool $isSSL = false;
 
     /**
      * @param mixed       $resource
@@ -196,68 +193,90 @@ class SocketStream extends Stream
 
     /**
      * @param string $string
+     * @param bool   $wait
      *
      * @return int
-     * @throws ConnectionException|Throwable
+     * @throws \Psc\Core\Stream\Exception\ConnectionException
      */
-    private function writeInternal(string $string): int
+    public function writeInternal(string $string, bool $wait = true): int
     {
-        if ($this->blocking) {
-            $this->storageCacheWrite->write($string);
-            return $this->writePromise->await();
-        }
+        $writeLength = 0;
+        if (!$this->blocking) {
+            $length       = parent::write($string);
+            $string2cache = substr($string, $length);
+            if ($string2cache === '') {
+                return $length;
+            }
 
-        $this->writePromise = \Co\promise(function ($resolve, $reject, Promise $promise) use ($string) {
-            try {
-                if (!$this->blocking) {
-                    $length          = parent::write($string);
-                    $remainingString = substr($string, $length);
-                    if ($remainingString === '') {
-                        $resolve($length);
-                    } else {
-                        if ($this->storageCacheWrite === null) {
-                            $tempFilePath            = sys_get_temp_dir() . '/' . uniqid('buf_');
-                            $this->storageCacheWrite = IO::File()->open($tempFilePath, 'w+');
-                            $this->storageCacheRead  = IO::File()->open($tempFilePath, 'r+');
+            $writeLength += $length;
 
-                            $this->storageCacheWrite->setBlocking(true);
+            $this->blocking = true;
+            $tempFilePath   = sys_get_temp_dir() . '/' . uniqid('buf_');
 
-                            $closeEventId = $this->onClose(fn () => $this->cleanupTempFiles($tempFilePath));
-                            $promise->finally(fn () => $this->cancelOnClose($closeEventId));
-                            $this->onWritable(function (Stream $_, Closure $cancel) use ($tempFilePath, $closeEventId, $resolve, $reject) {
-                                if ($buffer = $this->storageCacheRead->read($this->getOption(SOL_SOCKET, SO_SNDLOWAT))) {
-                                    try {
-                                        parent::write($buffer);
-                                    } catch (ConnectionException $e) {
-                                        $this->blocking = false;
-                                        $this->cleanupTempFiles($tempFilePath);
-                                        $this->cancelOnClose($closeEventId);
-                                        $cancel();
-                                        $reject($e);
-                                        return;
-                                    }
-                                }
+            $this->storageCacheWrite = IO::File()->open($tempFilePath, 'w+');
+            $this->storageCacheWrite->setBlocking(true);
 
-                                if ($this->storageCacheRead->eof()) {
-                                    $size           = $this->storageCacheRead->getSize();
-                                    $this->blocking = false;
-                                    $this->cleanupTempFiles($tempFilePath);
-                                    $this->cancelOnClose($closeEventId);
-                                    $cancel();
-                                    $resolve($size);
-                                }
-                            });
+            $this->storageCacheRead = IO::File()->open($tempFilePath, 'r+');
+            $this->storageCacheRead->setBlocking(false);
+
+            $eventId = $this->onClose(function () use ($tempFilePath) {
+                $this->cleanupTempFiles($tempFilePath);
+            });
+
+            $this->onWritable(function (SocketStream $_, Closure $cancel) use ($tempFilePath, $eventId) {
+                if ($buffer = $this->storageCacheRead->read($this->getOption(SOL_SOCKET, SO_SNDLOWAT))) {
+                    try {
+                        parent::write($buffer);
+                    } catch (ConnectionException $e) {
+                        $this->blocking = false;
+                        $this->cleanupTempFiles($tempFilePath);
+                        $cancel();
+                        $this->cancelOnClose($eventId);
+
+                        if (isset($this->writePromise)) {
+                            $this->writePromise->reject($e);
+
+                            unset($this->writePromise);
                         }
-                        $this->blocking = true;
-                        $this->storageCacheWrite->write($remainingString);
+                        return;
                     }
                 }
-            } catch (Exception $e) {
-                $reject($e);
-            }
-        });
 
-        return $this->writePromise->await();
+                if ($this->storageCacheRead->eof()) {
+                    $this->blocking = false;
+                    $this->cleanupTempFiles($tempFilePath);
+                    $cancel();
+                    $this->cancelOnClose($eventId);
+
+                    if (isset($this->writePromise)) {
+                        $this->writePromise->resolve(0);
+
+                        unset($this->writePromise);
+                    }
+                }
+            });
+        } else {
+            $string2cache = $string;
+        }
+
+        $writeLength += $this->storageCacheWrite->write($string2cache);
+
+        /*** @var Promise $writePromise */
+        if ($wait) {
+            if (!isset($this->writePromise)) {
+                $this->writePromise = \Co\promise(static function () {
+                });
+            }
+
+            try {
+                $this->writePromise->await();
+                return strlen($string);
+            } catch (Throwable $e) {
+                throw new ConnectionException($e->getMessage(), ConnectionException::CONNECTION_WRITE_FAIL);
+            }
+        }
+
+        return $writeLength;
     }
 
     /**
