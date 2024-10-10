@@ -106,9 +106,7 @@ class Response
             if (is_string($values)) {
                 $content .= "$name: $values\r\n";
             } elseif (is_array($values)) {
-                foreach ($values as $value) {
-                    $content .= "$name: $value\r\n";
-                }
+                $content .= "$name: " . implode(', ', $values) . "\r\n";
             }
         }
 
