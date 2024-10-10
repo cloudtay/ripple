@@ -159,7 +159,13 @@ class Kernel
      */
     public function delay(Closure $closure, int|float $second): string
     {
-        return EventLoop::delay($second, $closure);
+        return EventLoop::delay($second, static function () use ($closure) {
+            try {
+                $closure();
+            } catch (Throwable $exception) {
+                Output::exception($exception);
+            }
+        });
     }
 
     /**
