@@ -159,7 +159,9 @@ class Kernel
      */
     public function delay(Closure $closure, int|float $second): string
     {
-        return EventLoop::delay($second, $closure);
+        return EventLoop::delay($second, static function () use ($closure) {
+            $closure();
+        });
     }
 
     /**
@@ -178,7 +180,6 @@ class Kernel
                     Output::exception($exception);
                 }
             });
-            return;
         }
 
         $suspension->promise->finally(static fn () => EventLoop::queue(static function () use ($closure) {

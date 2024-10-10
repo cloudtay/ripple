@@ -1,5 +1,5 @@
 <p align="center">
-<img src="https://www.cloudtay.com/static/image/logo-wide.png" width="420" alt="Logo">
+<img src="https://raw.githubusercontent.com/cloudtay/ripple/refs/heads/main/assets/images/logo.png" width="420" alt="Logo">
 </p>
 <p align="center">
 <a href="#"><img src="https://img.shields.io/badge/PHP-%3E%3D%208.1-blue" alt="Build Status"></a>

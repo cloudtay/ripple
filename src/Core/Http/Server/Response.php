@@ -51,6 +51,7 @@ use function strlen;
 use function strtolower;
 use function strval;
 use function is_array;
+use function implode;
 
 /**
  * response entity
