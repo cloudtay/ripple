@@ -37,6 +37,8 @@ namespace Psc\Core\Http\Server;
 use Psc\Core\Socket\SocketStream;
 
 use function array_merge;
+use function is_string;
+use function json_encode;
 
 /**
  * requesting entity
@@ -92,11 +94,11 @@ class Request
     /**
      * @param mixed $content
      * @param int   $statusCode
-     * @param array $headers
+     * @param array $withHeaders
      *
      * @return void
      */
-    public function respond(mixed $content, int $statusCode = 200, array $headers = []): void
+    public function respond(mixed $content, array $withHeaders = [], int $statusCode = 200): void
     {
         $response = $this->getResponse();
 
@@ -104,10 +106,58 @@ class Request
             $response->setStatusCode($statusCode);
         }
 
-        foreach ($headers as $name => $value) {
+        foreach ($withHeaders as $name => $value) {
             $response->withHeader($name, $value);
         }
 
         $response->setBody($content)->respond();
+    }
+
+    /**
+     * @param mixed $content
+     * @param array $withHeaders
+     * @param int   $statusCode
+     *
+     * @return void
+     */
+    public function respondJson(mixed $content, array $withHeaders = [], int $statusCode = 200): void
+    {
+        $this->respond(
+            is_string($content) ? $content : json_encode($content),
+            array_merge(['Content-Type' => 'application/json'], $withHeaders),
+            $statusCode
+        );
+    }
+
+    /**
+     * @param mixed $content
+     * @param array $withHeaders
+     * @param int   $statusCode
+     *
+     * @return void
+     */
+    public function respondText(string $content, array $withHeaders = [], int $statusCode = 200): void
+    {
+        $this->respond(
+            $content,
+            array_merge(['Content-Type' => 'text/plain'], $withHeaders),
+            $statusCode
+        );
+    }
+
+    /**
+     * @param mixed $content
+     * @param array $withHeaders
+     * @param int   $statusCode
+     *
+     * @return void
+     */
+    public function respondHtml(string $content, array $withHeaders = [], int $statusCode = 200): void
+    {
+        $this->respond(
+            $content,
+            array_merge(['Content-Type' => 'text/html'], $withHeaders),
+            $statusCode
+        );
     }
 }
