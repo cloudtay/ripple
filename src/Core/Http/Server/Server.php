@@ -37,6 +37,7 @@ namespace Psc\Core\Http\Server;
 use Closure;
 use Co\IO;
 use InvalidArgumentException;
+use Psc\Core\Http\Enum\Status;
 use Psc\Core\Http\Server\Exception\FormatException;
 use Psc\Core\Socket\SocketStream;
 use Psc\Core\Stream\Exception\ConnectionException;
@@ -50,6 +51,8 @@ use function strtolower;
 
 use const SO_KEEPALIVE;
 use const SOL_SOCKET;
+use const SOL_TCP;
+use const TCP_NODELAY;
 
 /**
  * Http service class
@@ -117,6 +120,8 @@ class Server
             }
 
             $client->setBlocking(false);
+            $client->setOption(SOL_SOCKET, SO_KEEPALIVE, 1);
+            $client->setOption(SOL_TCP, TCP_NODELAY, 1);
 
             /*** Debug: Low Water Level & Buffer*/
             //            $lowWaterMarkRecv = socket_get_option($clientSocket, SOL_SOCKET, SO_RCVLOWAT);
@@ -169,7 +174,7 @@ class Server
             );
 
             $response = $request->getResponse();
-            $response->setHeader('Server', 'ripple');
+            $response->withHeader('Server', 'ripple');
 
             $keepAlive = false;
             if ($headerConnection = $requestInfo['server']['HTTP_CONNECTION'] ?? null) {
@@ -179,7 +184,7 @@ class Server
             }
 
             if ($keepAlive) {
-                $response->setHeader('Connection', 'keep-alive');
+                $response->withHeader('Connection', 'keep-alive');
             }
 
             try {
@@ -190,9 +195,9 @@ class Server
                 $stream->close();
             } catch (FormatException) {
                 /**** The message format is illegal*/
-                $response->setStatusCode(400)->respond();
+                $response->setStatusCode(Status::BAD_REQUEST)->setBody(Status::MESSAGES[Status::BAD_REQUEST])->respond();
             } catch (Throwable $e) {
-                $response->setStatusCode(500)->setBody($e->getMessage())->respond();
+                $response->setStatusCode(Status::INTERNAL_SERVER_ERROR)->setBody($e->getMessage())->respond();
                 Output::exception($e);
             }
         });

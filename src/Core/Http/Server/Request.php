@@ -99,13 +99,15 @@ class Request
     public function respond(mixed $content, int $statusCode = 200, array $headers = []): void
     {
         $response = $this->getResponse();
-        foreach ($headers as $name => $value) {
-            $response->setHeader($name, $value);
+
+        if ($statusCode) {
+            $response->setStatusCode($statusCode);
         }
 
-        $response
-            ->setStatusCode($statusCode)
-            ->setBody($content)
-            ->respond();
+        foreach ($headers as $name => $value) {
+            $response->withHeader($name, $value);
+        }
+
+        $response->setBody($content)->respond();
     }
 }
