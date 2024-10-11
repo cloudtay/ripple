@@ -53,6 +53,7 @@ use function deflate_init;
 use function explode;
 use function inflate_add;
 use function inflate_init;
+use function is_resource;
 use function ord;
 use function pack;
 use function parse_url;
@@ -124,7 +125,7 @@ class Connection
     public function __construct(public readonly SocketStream $stream, private readonly Server $server)
     {
         $this->stream->onReadable(fn (SocketStream $stream) => $this->handleRead($stream));
-        $this->stream->onClose(fn () => $this->close());
+        $this->stream->onClose(fn () => $this->_onClose());
     }
 
     /**
@@ -489,6 +490,8 @@ class Connection
                 break;
             case Type::BINARY:
             case Type::CLOSE:
+                $this->close();
+                break;
             case Type::TEXT:
             case Type::PONG:
             default:
@@ -605,9 +608,6 @@ class Connection
     public function close(): void
     {
         $this->stream->close();
-        if ($this->onClose !== null) {
-            call_user_func($this->onClose, $this);
-        }
     }
 
     protected function inflate($payload, $fin): bool|string
@@ -635,11 +635,11 @@ class Connection
      * @Author cclilshy
      * @Date   2024/8/15 14:45
      *
-     * @param Closure $onClose
+     * @param Closure|null $onClose
      *
      * @return void
      */
-    public function onClose(Closure $onClose): void
+    public function onClose(Closure|null $onClose): void
     {
         $this->onClose = $onClose;
     }
@@ -691,11 +691,11 @@ class Connection
      * @Author cclilshy
      * @Date   2024/8/15 14:45
      *
-     * @param Closure $onMessage
+     * @param Closure|null $onMessage
      *
      * @return void
      */
-    public function onMessage(Closure $onMessage): void
+    public function onMessage(Closure|null $onMessage): void
     {
         $this->onMessage = $onMessage;
     }
@@ -704,11 +704,11 @@ class Connection
      * @Author cclilshy
      * @Date   2024/8/15 14:45
      *
-     * @param Closure $onConnect
+     * @param Closure|null $onConnect
      *
      * @return void
      */
-    public function onConnect(Closure $onConnect): void
+    public function onConnect(Closure|null $onConnect): void
     {
         $this->onConnect = $onConnect;
     }
@@ -717,12 +717,24 @@ class Connection
      * @Author cclilshy
      * @Date   2024/8/30 15:13
      *
-     * @param Closure $onRequest
+     * @param Closure|null $onRequest
      *
      * @return void
      */
-    public function onRequest(Closure $onRequest): void
+    public function onRequest(Closure|null $onRequest): void
     {
         $this->onRequest = $onRequest;
+    }
+
+    /**
+     * @Author cclilshy
+     * @Date   2024/10/11 15:19
+     * @return void
+     */
+    private function _onClose(): void
+    {
+        if ($this->onClose !== null) {
+            call_user_func($this->onClose, $this);
+        }
     }
 }
