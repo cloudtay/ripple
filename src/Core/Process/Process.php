@@ -190,7 +190,7 @@ class Process extends LibraryAbstract
 
                 $suspension = Coroutine::getInstance()->getSuspension();
                 if ($suspension instanceof Suspension) {
-                    // Whether it belongs to the PRipple coroutine space
+                    // Whether it belongs to the ripple coroutine space
                     // forked and user actions need to be deferred because they clear the coroutine hash table
                     // If you don't do this, fiber escape will occur
 

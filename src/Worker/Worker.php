@@ -36,6 +36,7 @@ namespace Psc\Worker;
 
 use Closure;
 use Co\System;
+use JetBrains\PhpStorm\NoReturn;
 use Psc\Core\Process\Runtime;
 use Psc\Core\Socket\SocketStream;
 use Psc\Core\Stream\Exception\ConnectionException;
@@ -92,6 +93,16 @@ abstract class Worker
      * @var SocketStream
      */
     protected SocketStream $parentSocket;
+
+    /**
+     * @var int
+     */
+    protected int $count = 1;
+
+    /**
+     * @var string
+     */
+    protected string $name = 'worker';
 
     /**
      * @var array
@@ -207,7 +218,10 @@ abstract class Worker
      * @Date     2024/8/17 01:06
      * @return int
      */
-    abstract public function getCount(): int;
+    public function getCount(): int
+    {
+        return $this->count;
+    }
 
     /**
      * @Author cclilshy
@@ -284,7 +298,9 @@ abstract class Worker
      *
      * @return void
      */
-    abstract public function onCommand(Command $workerCommand): void;
+    public function onCommand(Command $workerCommand): void
+    {
+    }
 
     /**
      * @Context  share
@@ -292,7 +308,10 @@ abstract class Worker
      * @Date     2024/8/17 01:05
      * @return string
      */
-    abstract public function getName(): string;
+    public function getName(): string
+    {
+        return $this->name;
+    }
 
     /**
      * @Context  worker
@@ -317,6 +336,7 @@ abstract class Worker
             case Worker::COMMAND_RELOAD:
                 $this->onReload();
                 break;
+
             case Worker::COMMAND_SYNC_ID:
                 $id   = $workerCommand->arguments['id'];
                 $sync = $workerCommand->arguments['sync'];
@@ -326,6 +346,7 @@ abstract class Worker
                     $callback['resolve']($sync);
                 }
                 break;
+
             default:
                 $this->onCommand($workerCommand);
         }
@@ -339,7 +360,10 @@ abstract class Worker
      * @Date     2024/8/17 00:59
      * @return void
      */
-    abstract public function onReload(): void;
+    #[NoReturn] public function onReload(): void
+    {
+        exit(0);
+    }
 
     /**
      * @Context  manager

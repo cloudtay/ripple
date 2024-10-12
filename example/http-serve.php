@@ -20,17 +20,20 @@ if (!$server) {
 $server->onRequest(static function (Request $request) {
     switch (\trim($request->SERVER['REQUEST_URI'], '/')) {
         case 'sse':
-            $request->respond(static function () {
-                foreach (\range(1, 10) as $i) {
-                    Co\sleep(0.1);
-                    yield Chunk::event('message', \json_encode(['id' => $i, 'content' => 'content']));
-                }
-                return false;
-            }, 200, [
+            $request->respond(
+                content: static function () {
+                    foreach (\range(1, 10) as $i) {
+                        Co\sleep(0.1);
+                        yield Chunk::event('message', \json_encode(['id' => $i, 'content' => 'content']));
+                    }
+                    return false;
+                },
+                withHeaders: [
                 'Content-Type'  => 'text/event-stream',
                 'Cache-Control' => 'no-cache',
                 'Connection'    => 'keep-alive',
-            ]);
+                ]
+            );
             break;
 
         default:

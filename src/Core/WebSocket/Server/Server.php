@@ -129,7 +129,7 @@ class Server
 
                 $client->setOption(SOL_TCP, SO_KEEPALIVE, 1);
                 $client->setOption(SOL_TCP, TCP_NODELAY, 1);
-                $connection = $this->client2connection[$stream->id] = new Connection($client, $this);
+                $connection = $this->client2connection[$client->id] = new Connection($client, $this);
 
                 $connection->onMessage(fn (string $data, Connection $connection) => $this->message($data, $connection));
                 $connection->onConnect(fn (Connection $connection) => $this->connect($connection));
@@ -203,11 +203,11 @@ class Server
      */
     private function close(Connection $connection): void
     {
+        unset($this->client2connection[$connection->getId()]);
+
         if (isset($this->onClose)) {
             ($this->onClose)($connection);
         }
-
-        unset($this->client2connection[$connection->getId()]);
     }
 
     /**

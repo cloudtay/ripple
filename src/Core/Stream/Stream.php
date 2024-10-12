@@ -41,6 +41,7 @@ use Psc\Core\Stream\Exception\ConnectionException;
 use Psc\Utils\Output;
 use Revolt\EventLoop;
 use Throwable;
+use Fiber;
 
 use function call_user_func;
 use function call_user_func_array;
@@ -309,5 +310,71 @@ class Stream extends StreamBase
             return $this->transaction;
         }
         return null;
+    }
+
+    /**
+     * Wait for readable events. This method is only valid when there are no readable events to listen for.
+     * After enabling this method, it is forbidden to use the onReadable method elsewhere unless you know what you are doing.
+     *
+     * After getting the result of this event, please do not perform other asynchronous suspension operations including \Co\sleep
+     * in the current coroutine except the waitForReadable method.
+     * Please put other asynchronous operations in the new coroutine
+     *
+     * @param bool $once
+     *
+     * @return void
+     */
+    public function waitForReadable(bool $once = true): void
+    {
+        if (!isset($this->onReadable)) {
+            $suspension       = \Co\getSuspension();
+            $this->onReadable = $this->onReadable(static fn () => $suspension->resume());
+            $suspension->suspend();
+        } else {
+            try {
+                Fiber::suspend();
+            } catch (Throwable) {
+                $this->cancelReadable();
+                return;
+            }
+        }
+
+        if ($once) {
+            $this->cancelReadable();
+        }
+    }
+
+    /**
+     * Wait for writable events. This method is only valid when there is no writable event listener.
+     * After enabling this method, it is forbidden to use the onWritable method elsewhere unless you know what you are doing.
+     *
+     * After getting the result of this event, please do not perform other asynchronous suspension operations including \Co\sleep
+     * in the current coroutine except the waitForWriteable method.
+     * Please put other asynchronous operations in the new coroutine
+     *
+     * @param bool $once
+     *
+     * @return bool
+     */
+    public function waitForWriteable(bool $once = true): bool
+    {
+        if (!isset($this->onWritable)) {
+            $suspension       = \Co\getSuspension();
+            $this->onWritable = $this->onWritable(static fn () => $suspension->resume());
+            $suspension->suspend();
+        } else {
+            try {
+                Fiber::suspend();
+            } catch (Throwable) {
+                $this->cancelWritable();
+                return false;
+            }
+        }
+
+        if ($once) {
+            $this->cancelWritable();
+        }
+
+        return true;
     }
 }

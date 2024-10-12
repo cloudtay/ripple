@@ -111,9 +111,7 @@ class Monitor
                         continue;
                     }
 
-                    if (is_dir("{$path}/{$item}")) {
-                        $this->add("{$path}/{$item}");
-                    }
+                    $this->add("{$path}/{$item}");
                 }
             } else {
                 /**

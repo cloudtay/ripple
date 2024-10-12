@@ -44,14 +44,14 @@ use Throwable;
 use function basename;
 use function Co\promise;
 use function filesize;
+use function implode;
+use function is_array;
 use function is_resource;
 use function is_string;
 use function str_contains;
 use function strlen;
 use function strtolower;
 use function strval;
-use function is_array;
-use function implode;
 
 /**
  * response entity
@@ -102,19 +102,7 @@ class Response
             $this->setStatusCode($statusCode);
         }
 
-        $content = '';
-        foreach ($this->headers as $name => $values) {
-            if (is_string($values)) {
-                $content .= "$name: $values\r\n";
-            } elseif (is_array($values)) {
-                $content .= "$name: " . implode(', ', $values) . "\r\n";
-            }
-        }
-
-        foreach ($this->cookies as $cookie) {
-            $content .= 'Set-Cookie: ' . $cookie . "\r\n";
-        }
-        $this->stream->writeInternal($content, false);
+        $this->stream->writeInternal($this->buildPacket('header'), false);
         return $this;
     }
 
@@ -126,7 +114,6 @@ class Response
      */
     public function sendContent(): static
     {
-        $this->stream->write("\r\n");
         // An exception occurs during transfer with the HTTP client and the currently open file stream should be closed.
         if (is_string($this->body)) {
             $this->stream->write($this->body);
@@ -172,16 +159,16 @@ class Response
     public function setBody(mixed $content): static
     {
         if (is_string($content)) {
-            $this->setHeader('Content-Length', strval(strlen($content)));
+            $this->withHeader('Content-Length', strval(strlen($content)));
         } elseif ($content instanceof Generator) {
             $this->removeHeader('Content-Length');
         } elseif ($content instanceof Stream) {
             $path   = $content->getMetadata('uri');
             $length = filesize($path);
-            $this->setHeader('Content-Length', strval($length));
-            $this->setHeader('Content-Type', 'application/octet-stream');
+            $this->withHeader('Content-Length', strval($length));
+            $this->withHeader('Content-Type', 'application/octet-stream');
             if (!$this->getHeader('Content-Disposition')) {
-                $this->setHeader('Content-Disposition', 'attachment; filename=' . basename($path));
+                $this->withHeader('Content-Disposition', 'attachment; filename=' . basename($path));
             }
         } elseif (is_resource($content)) {
             return $this->setBody(new Stream($content));
@@ -210,7 +197,7 @@ class Response
      */
     public function sendStatus(): static
     {
-        $this->stream->writeInternal("HTTP/1.1 {$this->getStatusCode()} {$this->statusText}\r\n", false);
+        $this->stream->writeInternal($this->buildPacket('status'), false);
         return $this;
     }
 
@@ -220,7 +207,14 @@ class Response
     public function respond(): void
     {
         try {
-            $this->sendStatus()->sendHeaders()->sendContent();
+            $packet = $this->buildPacket('status') . $this->buildPacket('header');
+
+            if (is_string($this->body)) {
+                $this->stream->write("{$packet}\r\n{$this->body}");
+            } else {
+                $this->stream->write("{$packet}\r\n");
+                $this->sendContent();
+            }
         } catch (Throwable) {
             $this->stream->close();
             return;
@@ -238,9 +232,22 @@ class Response
      *
      * @return $this
      */
-    public function setHeader(string $name, string|array $value): static
+    public function withHeader(string $name, string|array $value): static
     {
         $this->headers[$name] = $value;
+        return $this;
+    }
+
+    /**
+     * @param array $headers
+     *
+     * @return $this
+     */
+    public function withHeaders(array $headers): static
+    {
+        foreach ($headers as $name => $value) {
+            $this->withHeader($name, $value);
+        }
         return $this;
     }
 
@@ -274,7 +281,7 @@ class Response
      *
      * @return $this
      */
-    public function setCookie(string $name, string $value): static
+    public function withCookie(string $name, string $value): static
     {
         $this->cookies[$name] = $value;
         return $this;
@@ -327,5 +334,33 @@ class Response
     {
         $this->statusText = $statusText;
         return $this;
+    }
+
+    /**
+     * @param string $type
+     *
+     * @return string
+     */
+    private function buildPacket(string $type): string
+    {
+        switch ($type) {
+            case 'status':
+                return "HTTP/1.1 {$this->getStatusCode()} {$this->statusText}\r\n";
+            case 'header':
+                $content = '';
+                foreach ($this->headers as $name => $values) {
+                    if (is_string($values)) {
+                        $content .= "$name: $values\r\n";
+                    } elseif (is_array($values)) {
+                        $content .= "$name: " . implode(', ', $values) . "\r\n";
+                    }
+                }
+                foreach ($this->cookies as $cookie) {
+                    $content .= 'Set-Cookie: ' . $cookie . "\r\n";
+                }
+                return $content;
+            default:
+                return '';
+        }
     }
 }
