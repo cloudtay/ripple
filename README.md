@@ -3,9 +3,9 @@
 </p>
 <p align="center">
 <a href="#"><img src="https://img.shields.io/badge/PHP-%3E%3D%208.1-blue" alt="Build Status"></a>
-<a href="https://packagist.org/packages/cclilshy/p-ripple-core"><img src="https://img.shields.io/packagist/dt/cclilshy/p-ripple-core" alt="Download statistics"></a>
-<a href="https://packagist.org/packages/cclilshy/p-ripple-core"><img src="https://img.shields.io/packagist/v/cclilshy/p-ripple-core" alt="Stable version"></a>
-<a href="https://packagist.org/packages/cclilshy/p-ripple-core"><img src="https://img.shields.io/packagist/l/cclilshy/p-ripple-core" alt="License"></a>
+<a href="https://packagist.org/packages/cloudtay/ripple"><img src="https://img.shields.io/packagist/dt/cloudtay/ripple" alt="Download statistics"></a>
+<a href="https://packagist.org/packages/cloudtay/ripple"><img src="https://img.shields.io/packagist/v/cloudtay/ripple" alt="Stable version"></a>
+<a href="https://packagist.org/packages/cloudtay/ripple"><img src="https://img.shields.io/packagist/l/cloudtay/ripple" alt="License"></a>
 </p>
 <p>
 ripple is a modern, high-performance native PHP coroutine engine designed to solve PHP's challenges in high concurrency, complex network communication and data operations.
@@ -38,7 +38,7 @@ Completely free the hands of PHPer and seamlessly embrace the new era of PHP cor
 ## Install
 
 ````bash
-composer require cclilshy/p-ripple-core
+composer require cloudtay/ripple
 ````
 
 ## Basic usage
@@ -48,13 +48,13 @@ The following reproduction process is perfectly supported and explained in any I
 
 ### Latest documentation
 
-You can visit ripple’s [Documentation](https://p-ripple.cloudtay.com/) to start reading
+You can visit ripple’s [Documentation](https://ripple.cloudtay.com/) to start reading
 
-We recommend that you start with [Manual Installation](https://p-ripple.cloudtay.com/docs/install/professional) to
+We recommend that you start with [Manual Installation](https://ripple.cloudtay.com/docs/install/professional) to
 better understand ripple’s workflow
 
 If you want to quickly deploy and use ripple's services, you can directly
-visit [Quick Deployment](https://p-ripple.cloudtay.com/docs/install/server)
+visit [Quick Deployment](https://ripple.cloudtay.com/docs/install/server)
 
 ### Coroutine
 
@@ -205,7 +205,7 @@ Co\wait();
 > Want to know about WebSocket server and client, TCP server and client, UDP server and client, Unix server and client,
 > etc...
 
-You can visit ripple’s [Documentation](https://p-ripple.cloudtay.com/) to start reading
+You can visit ripple’s [Documentation](https://ripple.cloudtay.com/) to start reading
 
 ## Appendix
 
@@ -220,13 +220,13 @@ PHP is the most widely used HTTP client
 **🔥 [AmPHP](https://amphp.org/)**
 Provides rich PHP asynchronous components for users to encapsulate by themselves
 
-**🚀 [PDrive](https://github.com/cloudtay/p-ripple-drive)**
+**🚀 [Driver](https://github.com/cloudtay/ripple-driver)**
 The official high-performance driver library provides seamless access to your traditional applications.
 
 **🚀 [webman-coroutine](https://github.com/workbunny/webman-coroutine)**
 The workbunny team's integrated webman coroutine extension provides coroutine support for Webman.
 
-**🟢 [ripple](https://github.com/cloudtay/p-ripple-core)**
+**🟢 [ripple](https://github.com/cloudtay/ripple)**
 Provides standard coroutine architecture and tools for rapid development or packaging of traditional applications
 
 ### Event Library Guide
@@ -245,11 +245,11 @@ pecl install ev
 
 ## Special thanks
 
-<a href="https://www.jetbrains.com/?from=p-ripple-core" target="__blank">
+<a href="https://www.jetbrains.com/?from=ripple" target="__blank">
     <img src="https://www.jetbrains.com/company/brand/img/jetbrains_logo.png" width="200">
 </a>
 
-[Jetbrains](https://www.jetbrains.com/?from=p-ripple-core) provides free development tools for this project
+[Jetbrains](https://www.jetbrains.com/?from=ripple) provides free development tools for this project
 
 ### Contact information
 
