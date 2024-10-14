@@ -43,6 +43,7 @@ use function array_reverse;
 use function call_user_func;
 use function call_user_func_array;
 use function Co\await;
+use function count;
 
 /**
  * @Author cclilshy
@@ -61,13 +62,13 @@ class Promise
     public mixed $result;
 
     /*** @var string */
-    private string $status = Promise::PENDING;
+    protected string $status = Promise::PENDING;
 
     /*** @var Closure[] */
-    private array $onFulfilled = array();
+    protected array $onFulfilled = array();
 
     /*** @var Closure[] */
-    private array $onRejected = array();
+    protected array $onRejected = array();
 
     /*** @param Closure $closure */
 
@@ -89,7 +90,7 @@ class Promise
      *
      * @return void
      */
-    private function execute(Closure $closure): void
+    protected function execute(Closure $closure): void
     {
         try {
             call_user_func_array($closure, [
@@ -320,5 +321,62 @@ class Promise
     public function otherwise(Closure $onRejected): Promise
     {
         return $this->except($onRejected);
+    }
+
+
+    /**
+     * @param Promise[] $promises
+     *
+     * @return \Psc\Core\Coroutine\Promise
+     */
+    public static function all(array $promises): Promise
+    {
+        return \Co\promise(static function (Closure $resolve, Closure $reject) use ($promises) {
+            $results = [];
+
+            foreach ($promises as $promise) {
+                try {
+                    $results[] = $promise->await();
+                } catch (Throwable $exception) {
+                    $reject($exception);
+                    return;
+                }
+            }
+
+            $resolve($results);
+        });
+    }
+
+    /**
+     * @param Promise[] $promises
+     *
+     * @return \Psc\Core\Coroutine\Promise
+     */
+    public static function allSettled(array $promises): Promise
+    {
+        return \Co\async(static function (Closure $resolve) use ($promises) {
+            $waitGroup = new WaitGroup(count($promises));
+
+            foreach ($promises as $promise) {
+                $promise->then(
+                    static fn () => $waitGroup->done(),
+                    static fn () => $waitGroup->done()
+                );
+            }
+
+            $waitGroup->wait();
+
+            $resolve($promises);
+        });
+    }
+
+    /**
+     * @param array $promises
+     *
+     * @return \Psc\Core\Coroutine\Futures
+     */
+    public static function futures(array $promises): Futures
+    {
+        return new Futures($promises);
     }
 }

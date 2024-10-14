@@ -32,17 +32,66 @@
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-namespace Psc\Core\Http\Enum;
+namespace Psc\Core\Coroutine;
 
-enum Method
+use Iterator;
+use Throwable;
+
+use function assert;
+
+class Futures implements Iterator
 {
-    public const GET     = 'GET';
-    public const POST    = 'POST';
-    public const PUT     = 'PUT';
-    public const DELETE  = 'DELETE';
-    public const PATCH   = 'PATCH';
-    public const OPTIONS = 'OPTIONS';
-    public const HEAD    = 'HEAD';
-    public const TRACE   = 'TRACE';
-    public const CONNECT = 'CONNECT';
+    /*** @var int */
+    protected int $index = 0;
+
+    /**
+     * @param \Psc\Core\Coroutine\Promise[] $promises
+     */
+    public function __construct(protected readonly array $promises)
+    {
+        foreach ($promises as $promise) {
+            assert($promise instanceof Promise, 'All elements must be instances of Promise');
+        }
+    }
+
+    /**
+     * @return mixed
+     * @throws Throwable
+     */
+    public function current(): mixed
+    {
+        return $this->promises[$this->index]->await();
+    }
+
+    /**
+     * @return void
+     */
+    public function next(): void
+    {
+        $this->index++;
+    }
+
+    /**
+     * @return int
+     */
+    public function key(): int
+    {
+        return $this->index;
+    }
+
+    /**
+     * @return bool
+     */
+    public function valid(): bool
+    {
+        return isset($this->promises[$this->index]);
+    }
+
+    /**
+     * @return void
+     */
+    public function rewind(): void
+    {
+        $this->index = 0;
+    }
 }

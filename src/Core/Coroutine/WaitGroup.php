@@ -32,17 +32,93 @@
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-namespace Psc\Core\Http\Enum;
+namespace Psc\Core\Coroutine;
 
-enum Method
+use LogicException;
+
+class WaitGroup
 {
-    public const GET     = 'GET';
-    public const POST    = 'POST';
-    public const PUT     = 'PUT';
-    public const DELETE  = 'DELETE';
-    public const PATCH   = 'PATCH';
-    public const OPTIONS = 'OPTIONS';
-    public const HEAD    = 'HEAD';
-    public const TRACE   = 'TRACE';
-    public const CONNECT = 'CONNECT';
+    /*** @var \Revolt\EventLoop\Suspension */
+    protected \Revolt\EventLoop\Suspension $suspension;
+
+    /*** @var bool */
+    protected bool $done = true;
+
+    /*** @var bool */
+    protected bool $isSuspended = false;
+
+    /*** @param int $count */
+    public function __construct(protected int $count = 0)
+    {
+        $this->add($count);
+    }
+
+    /**
+     * @param int $delta
+     *
+     * @return void
+     */
+    public function add(int $delta = 1): void
+    {
+        if ($delta > 0) {
+            $this->count += $delta;
+            $this->done  = false;
+        } elseif ($delta < 0) {
+            throw new LogicException('delta must be greater than or equal to 0');
+        }
+
+        // For the case where $delta is 0, no operation is performed
+    }
+
+    /**
+     * @return void
+     */
+    public function done(): void
+    {
+        if ($this->count <= 0) {
+            throw new LogicException('No tasks to mark as done');
+        }
+
+        $this->count--;
+        if ($this->count === 0) {
+            $this->done = true;
+            if ($this->isSuspended) {
+                $this->suspension->resume();
+            }
+        }
+    }
+
+    /**
+     * @return void
+     */
+    public function wait(): void
+    {
+        if ($this->done) {
+            return;
+        }
+
+        if (!isset($this->suspension)) {
+            $this->suspension = \Co\getSuspension();
+        }
+
+        $this->isSuspended = true;
+        $this->suspension->suspend();
+        $this->isSuspended = false;
+    }
+
+    /**
+     * @return int
+     */
+    public function getCount(): int
+    {
+        return $this->count;
+    }
+
+    /**
+     * @return bool
+     */
+    public function isDone(): bool
+    {
+        return $this->done;
+    }
 }
