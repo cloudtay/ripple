@@ -8,6 +8,8 @@
       <sourceFolder url="file://$MODULE_DIR$/tests" isTestSource="true" packagePrefix="Tests\" />
       <excludeFolder url="file://$MODULE_DIR$/vendor/symfony/dependency-injection" />
       <excludeFolder url="file://$MODULE_DIR$/vendor/symfony/var-exporter" />
+      <excludeFolder url="file://$MODULE_DIR$/vendor/cloudtay/ripple-http" />
+      <excludeFolder url="file://$MODULE_DIR$/vendor/cloudtay/ripple-websocket" />
     </content>
     <orderEntry type="sourceFolder" forTests="false" />
   </component>
