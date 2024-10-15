@@ -34,18 +34,21 @@
 
 namespace Psc\Core\Coroutine;
 
+use BadMethodCallException;
 use LogicException;
+use Psc\Utils\Output;
+use Throwable;
+
+use function array_shift;
+use function Co\getSuspension;
 
 class WaitGroup
 {
-    /*** @var \Revolt\EventLoop\Suspension */
-    protected \Revolt\EventLoop\Suspension $suspension;
-
     /*** @var bool */
     protected bool $done = true;
 
-    /*** @var bool */
-    protected bool $isSuspended = false;
+    /*** @var \Revolt\EventLoop\Suspension[] */
+    protected array $waiters = [];
 
     /*** @param int $count */
     public function __construct(protected int $count = 0)
@@ -82,8 +85,13 @@ class WaitGroup
         $this->count--;
         if ($this->count === 0) {
             $this->done = true;
-            if ($this->isSuspended) {
-                $this->suspension->resume();
+            while ($suspension = array_shift($this->waiters)) {
+                try {
+                    Coroutine::resume($suspension);
+                } catch (Throwable $e) {
+                    Output::error($e->getMessage());
+                    continue;
+                }
             }
         }
     }
@@ -97,13 +105,12 @@ class WaitGroup
             return;
         }
 
-        if (!isset($this->suspension)) {
-            $this->suspension = \Co\getSuspension();
+        $this->waiters[] = $suspension = getSuspension();
+        try {
+            Coroutine::suspend($suspension);
+        } catch (Throwable $e) {
+            throw new BadMethodCallException($e->getMessage(), $e->getCode(), $e);
         }
-
-        $this->isSuspended = true;
-        $this->suspension->suspend();
-        $this->isSuspended = false;
     }
 
     /**

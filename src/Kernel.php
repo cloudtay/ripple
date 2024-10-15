@@ -37,7 +37,6 @@ namespace Psc;
 use Closure;
 use Co\Coroutine;
 use Co\System;
-use Fiber;
 use Psc\Core\Coroutine\Promise;
 use Psc\Core\Coroutine\Suspension;
 use Psc\Utils\Output;
@@ -255,6 +254,7 @@ class Kernel
      * @param Closure|null $result
      *
      * @return bool
+     * @throws Throwable
      */
     public function wait(Closure|null $result = null): bool
     {
@@ -263,9 +263,9 @@ class Kernel
         }
 
         if (!$this->running) {
-            $this->mainSuspension->resume($result);
+            Core\Coroutine\Coroutine::resume($this->mainSuspension, $result);
             try {
-                Fiber::suspend();
+                Core\Coroutine\Coroutine::suspend(getSuspension());
             } catch (Throwable) {
                 exit(1);
             }
@@ -273,7 +273,7 @@ class Kernel
 
         try {
             $this->running = false;
-            $result        = $this->mainSuspension->suspend();
+            $result        = Core\Coroutine\Coroutine::suspend($this->mainSuspension);
             $this->running = true;
             if ($result instanceof Closure) {
                 $result();

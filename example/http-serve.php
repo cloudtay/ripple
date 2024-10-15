@@ -2,10 +2,13 @@
 
 include __DIR__ . '/../vendor/autoload.php';
 
+use Co\Net;
 use Psc\Core\Http\Server\Chunk;
 use Psc\Core\Http\Server\Request;
 
-$server = Co\Net::Http()->server('http://127.0.0.1:8008', [
+use function Co\wait;
+
+$server = Net::Http()->server('http://127.0.0.1:8008', [
     'socket' => [
         'so_reuseport' => true,
         'so_reuseaddr' => true,
@@ -45,4 +48,4 @@ $server->onRequest(static function (Request $request) {
 // Subscribe to the readable event of server-socket
 $server->listen();
 
-Co\wait();
+wait();

@@ -34,6 +34,7 @@
 
 namespace Co;
 
+use BadFunctionCallException;
 use Closure;
 use Psc\Core\Coroutine\Promise;
 use Psc\Core\Parallel\Thread;
@@ -86,7 +87,11 @@ function promise(Closure $closure): Promise
  */
 function sleep(int|float $second): int
 {
-    return Coroutine::Coroutine()->sleep($second);
+    try {
+        return Coroutine::Coroutine()->sleep($second);
+    } catch (Throwable $e) {
+        throw new BadFunctionCallException($e->getMessage(), $e->getCode(), $e);
+    }
 }
 
 /**
@@ -198,7 +203,11 @@ function forked(Closure $closure): string
 
 function wait(Closure|null $closure = null): void
 {
-    Kernel::getInstance()->wait($closure);
+    try {
+        Kernel::getInstance()->wait($closure);
+    } catch (Throwable $e) {
+        throw new BadFunctionCallException($e->getMessage(), $e->getCode(), $e);
+    }
 }
 
 /**

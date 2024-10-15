@@ -42,7 +42,9 @@ use Throwable;
 use function array_reverse;
 use function call_user_func;
 use function call_user_func_array;
+use function Co\async;
 use function Co\await;
+use function Co\promise;
 use function count;
 
 /**
@@ -331,7 +333,7 @@ class Promise
      */
     public static function all(array $promises): Promise
     {
-        return \Co\promise(static function (Closure $resolve, Closure $reject) use ($promises) {
+        return promise(static function (Closure $resolve, Closure $reject) use ($promises) {
             $results = [];
 
             foreach ($promises as $promise) {
@@ -354,7 +356,7 @@ class Promise
      */
     public static function allSettled(array $promises): Promise
     {
-        return \Co\async(static function (Closure $resolve) use ($promises) {
+        return async(static function (Closure $resolve) use ($promises) {
             $waitGroup = new WaitGroup(count($promises));
 
             foreach ($promises as $promise) {

@@ -6,6 +6,9 @@ use Co\System;
 use Psc\Kernel;
 use Psc\Utils\Output;
 
+use function Co\forked;
+use function Co\wait;
+
 // Check if process control is supported
 if (!Kernel::getInstance()->supportProcessControl()) {
     Output::warning('Process control is not supported');
@@ -15,7 +18,7 @@ $runtimes = [];
 
 // Register a fork handler, this will be called when a new coroutine is forked
 // Registered functions will not be inherited in child processes
-\Co\forked(static function () {
+forked(static function () {
     echo "Forked ", \posix_getpid(), \PHP_EOL;
 });
 
@@ -41,4 +44,4 @@ foreach ($runtimes as $runtime) {
     });
 }
 
-\Co\wait();
+wait();

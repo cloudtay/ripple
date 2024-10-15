@@ -36,19 +36,20 @@ namespace Psc\Core\Stream;
 
 use Closure;
 use Exception;
+use Psc\Core\Coroutine\Coroutine;
 use Psc\Core\Coroutine\Promise;
 use Psc\Core\Stream\Exception\ConnectionException;
 use Psc\Utils\Output;
 use Revolt\EventLoop;
 use Throwable;
-use Fiber;
 
 use function call_user_func;
 use function call_user_func_array;
 use function Co\cancel;
+use function Co\getSuspension;
+use function int2string;
 use function is_resource;
 use function stream_set_blocking;
-use function int2string;
 
 /**
  * 2024/09/21
@@ -323,16 +324,18 @@ class Stream extends StreamBase
      * @param bool $once
      *
      * @return void
+     * @throws \Psc\Core\Coroutine\Exception\EscapeException
+     * @throws Throwable
      */
-    public function waitForReadable(bool $once = true): void
+    public function waitForReadable(bool $once = false): void
     {
         if (!isset($this->onReadable)) {
-            $suspension       = \Co\getSuspension();
-            $this->onReadable = $this->onReadable(static fn () => $suspension->resume());
-            $suspension->suspend();
+            $suspension       = getSuspension();
+            $this->onReadable = $this->onReadable(static fn () => Coroutine::resume($suspension));
+            Coroutine::suspend($suspension);
         } else {
             try {
-                Fiber::suspend();
+                Coroutine::suspend(getSuspension());
             } catch (Throwable) {
                 $this->cancelReadable();
                 return;
@@ -355,16 +358,17 @@ class Stream extends StreamBase
      * @param bool $once
      *
      * @return bool
+     * @throws Throwable
      */
-    public function waitForWriteable(bool $once = true): bool
+    public function waitForWriteable(bool $once = false): bool
     {
         if (!isset($this->onWritable)) {
-            $suspension       = \Co\getSuspension();
-            $this->onWritable = $this->onWritable(static fn () => $suspension->resume());
-            $suspension->suspend();
+            $suspension       = getSuspension();
+            $this->onWritable = $this->onWritable(static fn () => Coroutine::resume($suspension));
+            Coroutine::suspend($suspension);
         } else {
             try {
-                Fiber::suspend();
+                Coroutine::suspend(getSuspension());
             } catch (Throwable) {
                 $this->cancelWritable();
                 return false;

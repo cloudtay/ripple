@@ -79,7 +79,7 @@ class Coroutine extends LibraryAbstract
     {
         $this->registerOnFork();
 
-        $this->containers     = new WeakMap();
+        $this->containers       = new WeakMap();
         $this->fiber2suspension = new WeakMap();
     }
 
@@ -142,28 +142,27 @@ class Coroutine extends LibraryAbstract
             throw $promise->getResult();
         }
 
+        $suspension = getSuspension();
         if (!$fiber = Fiber::getCurrent()) {
-            $suspension = getSuspension();
-            $promise->then(fn ($result) => $suspension->resume($result));
+            $promise->then(fn ($result) => Coroutine::resume($suspension, $result));
             $promise->except(fn (mixed $e) => $suspension->throw($e));
 
-            $result = $suspension->suspend();
+            $result = Coroutine::suspend($suspension);
             if ($result instanceof Promise) {
                 return $this->await($result);
             }
             return $result;
         }
 
-        /*** @var Suspension $suspension */
-        if (!$suspension = ($this->fiber2suspension[$fiber] ?? null)?->get()) {
-            $promise->then(fn ($result) => $fiber->resume($result));
-            $promise->except(
-                fn (mixed $e) => $e instanceof Throwable
-                    ? $fiber->throw($e)
-                    : $fiber->throw(new Exception('An exception occurred in the awaited Promise'))
-            );
+        if (!$suspension instanceof Suspension) {
+            $promise->then(static fn ($result) => Coroutine::resume($suspension, $result));
+            $promise->except(static function (mixed $e) use ($suspension) {
+                $e instanceof Throwable
+                    ? $suspension->throw($e)
+                    : $suspension->throw(new Exception('An exception occurred in the awaited Promise'));
+            });
 
-            $result = $fiber->suspend();
+            $result = Coroutine::suspend($suspension);
             if ($result instanceof Promise) {
                 return $this->await($result);
             }
@@ -177,7 +176,7 @@ class Coroutine extends LibraryAbstract
         $promise->then(static function (mixed $result) use ($fiber, $suspension) {
             try {
                 // Try to resume Fiber operation
-                $fiber->resume($result);
+                Coroutine::resume($suspension, $result);
 
                 // Fiber has been terminated
                 if ($fiber->isTerminated()) {
@@ -229,7 +228,7 @@ class Coroutine extends LibraryAbstract
         });
 
         // Confirm that you have prepared to handle Fiber recovery and take over control of Fiber by suspending it
-        $result = $fiber->suspend();
+        $result = Coroutine::suspend($suspension);
         if ($result instanceof Promise) {
             return $this->await($result);
         }
@@ -263,7 +262,7 @@ class Coroutine extends LibraryAbstract
     public function async(Closure $closure): Promise
     {
         return promise(function (Closure $resolve, Closure $reject, Promise $promise) use ($closure) {
-            $suspension                               = new Suspension($closure, $resolve, $reject, $promise);
+            $suspension                                 = new Suspension($closure, $resolve, $reject, $promise);
             $this->fiber2suspension[$suspension->fiber] = WeakReference::create($suspension);
 
             try {
@@ -288,6 +287,7 @@ class Coroutine extends LibraryAbstract
      * @param int|float $second
      *
      * @return int
+     * @throws Throwable
      */
     public function sleep(int|float $second): int
     {
@@ -295,24 +295,21 @@ class Coroutine extends LibraryAbstract
         if (!$fiber = Fiber::getCurrent()) {
             //is Revolt
             $suspension = getSuspension();
-            delay(static fn () => $suspension->resume(0), $second);
-            return $suspension->suspend();
+            delay(static fn () => Coroutine::resume($suspension, 0), $second);
+            return Coroutine::suspend($suspension);
 
         } elseif (!$suspension = ($this->fiber2suspension[$fiber] ?? null)?->get()) {
             //is Revolt
             $suspension = getSuspension();
-            delay(static fn () => $suspension->resume(0), $second);
-            return $suspension->suspend();
+            delay(static fn () => Coroutine::resume($suspension, 0), $second);
+            return Coroutine::suspend($suspension);
 
         } else {
             /*** @var Suspension $suspension */
             delay(function () use ($fiber, $suspension) {
                 try {
                     // Try to resume Fiber operation
-                    $fiber->resume(0);
-                } catch (EscapeException $exception) {
-                    // An escape exception occurs during recovery operation
-                    $this->handleEscapeException($exception);
+                    Coroutine::resume($suspension, 0);
                 } catch (Throwable $e) {
                     // Unexpected exception occurred during recovery operation
 
@@ -332,7 +329,7 @@ class Coroutine extends LibraryAbstract
             }, $second);
 
             try {
-                return $fiber->suspend();
+                return Coroutine::suspend($suspension);
             } catch (Throwable $e) {
                 Output::exception($e);
             }
@@ -361,5 +358,36 @@ class Coroutine extends LibraryAbstract
         $containerOg              = new Container();
         $this->containers[$fiber] = WeakReference::create($containerOg);
         return $containerOg;
+    }
+
+    /**
+     * @param \Revolt\EventLoop\Suspension $suspension
+     * @param mixed|null                   $result
+     *
+     * @return void
+     * @throws Throwable
+     */
+    public static function resume(EventLoop\Suspension $suspension, mixed $result = null): void
+    {
+        try {
+            $suspension->resume($result);
+        } catch (EscapeException $exception) {
+            Coroutine::getInstance()->handleEscapeException($exception);
+        }
+    }
+
+    /**
+     * @param \Psc\Core\Coroutine\Suspension $suspension
+     *
+     * @return mixed
+     * @throws Throwable
+     */
+    public static function suspend(EventLoop\Suspension $suspension): mixed
+    {
+        try {
+            return $suspension->suspend();
+        } catch (EscapeException $exception) {
+            Coroutine::getInstance()->handleEscapeException($exception);
+        }
     }
 }
