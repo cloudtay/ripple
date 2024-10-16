@@ -4,10 +4,10 @@ namespace Tests;
 
 use Co\Net;
 use Co\Plugin;
-use GuzzleHttp\Client;
 use GuzzleHttp\Exception\GuzzleException;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
+use Psc\Core\Coroutine\Promise;
 use Psc\Core\Http\Server\Request;
 use Psc\Utils\Output;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
@@ -18,6 +18,7 @@ use function Co\cancelAll;
 use function file_put_contents;
 use function fopen;
 use function gc_collect_cycles;
+use function is_array;
 use function md5;
 use function md5_file;
 use function memory_get_usage;
@@ -131,15 +132,7 @@ class HttpTest extends TestCase
             echo "\nThere may be a memory leak.\n";
         }
 
-        /**
-         * HttpClient测试
-         */
-        try {
-            $this->httpClient();
-        } catch (GuzzleException $exception) {
-            echo($exception->getMessage() . PHP_EOL);
-        }
-
+        $this->httpClient();
         cancelAll();
     }
 
@@ -152,7 +145,7 @@ class HttpTest extends TestCase
         $hash     = md5(uniqid());
         $client   = Plugin::Guzzle()->newClient();
         $response = $client->get('http://127.0.0.1:8008/', [
-            'query'   => [
+            'query' => [
                 'query' => $hash,
             ]
         ]);
@@ -211,7 +204,6 @@ class HttpTest extends TestCase
      * @Author cclilshy
      * @Date   2024/8/29 10:01
      * @return void
-     * @throws Throwable
      */
     private function httpClient(): void
     {
@@ -233,44 +225,24 @@ class HttpTest extends TestCase
             'https://www.php.net/',
         ];
 
-        $x = 0;
-        $y = 0;
 
         $list = [];
-        foreach ($urls as $i => $url) {
-            $list[] = async(function () use ($i, $url, $urls, &$x, &$y) {
-                try {
-                    $response = Plugin::Guzzle()->newClient()->get($url, ['timeout' => 10]);
-                    if ($response->getStatusCode() === 200) {
-                        $x++;
-                    }
-
-                    echo "Request ({$i}){$url} response: {$response->getStatusCode()}\n";
-                } catch (GuzzleException $exception) {
-                    echo "\n";
-                    echo "Request ({$i}){$url} error: {$exception->getMessage()}\n";
-                    echo($exception->getMessage() . PHP_EOL);
-                }
-
-                try {
-                    $guzzleResponse = (new Client())->get($url, ['timeout' => 10]);
-                    if ($guzzleResponse->getStatusCode() === 200) {
-                        $y++;
-                    }
-
-                    echo "GuzzleRequest ({$i}){$url} response: {$guzzleResponse->getStatusCode()}\n";
-                } catch (GuzzleException $exception) {
-                    echo "\n";
-                    echo "GuzzleRequest ({$i}){$url} error: {$exception->getMessage()}\n";
-                }
+        foreach ($urls as $index => $url) {
+            $list[] = async(function () use ($url, $urls, $index) {
+                return [$index, Plugin::Guzzle()->newClient()->get($url, ['timeout' => 10])];
             });
         }
 
-        foreach ($list as $promise) {
-            $promise->await();
+        foreach (Promise::futures($list) as $result) {
+            if ($result instanceof Throwable) {
+                echo $result->getMessage(), PHP_EOL;
+            } elseif (is_array($result)) {
+                [$index, $response] = $result;
+                echo $index, ' ', $urls[$index], ' ';
+                echo $response->getStatusCode(), ' ', $response->getReasonPhrase(), PHP_EOL;
+            } else {
+                echo 'Unknown error', PHP_EOL;
+            }
         }
-
-        echo "\n";
-        echo("Request success: {$x}, GuzzleRequest success: {$y}\n");
     }
 }

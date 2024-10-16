@@ -35,8 +35,6 @@
 namespace Psc\Core\Process;
 
 use Closure;
-use Fiber;
-use Psc\Core\Coroutine\Coroutine;
 use Psc\Core\Coroutine\Exception\EscapeException;
 use Psc\Core\Coroutine\Suspension;
 use Psc\Core\LibraryAbstract;
@@ -49,6 +47,7 @@ use Throwable;
 
 use function call_user_func;
 use function Co\cancel;
+use function Co\getSuspension;
 use function Co\promise;
 use function Co\wait;
 use function getmypid;
@@ -188,26 +187,8 @@ class Process extends LibraryAbstract
                     }
                 }
 
-                $suspension = Coroutine::getInstance()->getSuspension();
-                if ($suspension instanceof Suspension) {
-                    // Whether it belongs to the ripple coroutine space
-                    // forked and user actions need to be deferred because they clear the coroutine hash table
-                    // If you don't do this, fiber escape will occur
-
-                    EventLoop::defer(function () use ($closure, $args) {
-                        $this->forkedTick();
-                        call_user_func($closure, ...$args);
-                    });
-
-                    throw new EscapeException('The process is abnormal.');
-                } elseif (Fiber::getCurrent()) {
-                    // Whether it belongs to the PHP space
-
-                    $this->forkedTick();
-                    call_user_func($closure, ...$args);
-                    wait();
-                    exit(0);
-                } else {
+                $suspension = getSuspension();
+                if (!$suspension instanceof Suspension) {
                     // Whether it belongs to the PHP space
 
                     $this->forkedTick();
@@ -215,6 +196,17 @@ class Process extends LibraryAbstract
                     wait();
                     exit(0);
                 }
+
+                // Whether it belongs to the ripple coroutine space
+                // forked and user actions need to be deferred because they clear the coroutine hash table
+                // If you don't do this, fiber escape will occur
+
+                EventLoop::defer(function () use ($closure, $args) {
+                    $this->forkedTick();
+                    call_user_func($closure, ...$args);
+                });
+
+                throw new EscapeException('The process is abnormal.');
             }
 
             if (empty($this->process2runtime)) {

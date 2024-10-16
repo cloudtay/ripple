@@ -89,7 +89,7 @@ class WaitGroup
                 try {
                     Coroutine::resume($suspension);
                 } catch (Throwable $e) {
-                    Output::error($e->getMessage());
+                    Output::warning($e->getMessage());
                     continue;
                 }
             }

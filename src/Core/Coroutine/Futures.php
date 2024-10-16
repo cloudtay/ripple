@@ -37,20 +37,33 @@ namespace Psc\Core\Coroutine;
 use Iterator;
 use Throwable;
 
+use function array_shift;
 use function assert;
+use function Co\getSuspension;
 
 class Futures implements Iterator
 {
     /*** @var int */
     protected int $index = 0;
 
-    /**
-     * @param \Psc\Core\Coroutine\Promise[] $promises
-     */
+    /*** @var array */
+    protected array $results = [];
+
+    /*** @var \Revolt\EventLoop\Suspension[] */
+    protected array $waiters = [];
+
+    /*** @param \Psc\Core\Coroutine\Promise[] $promises */
     public function __construct(protected readonly array $promises)
     {
         foreach ($promises as $promise) {
             assert($promise instanceof Promise, 'All elements must be instances of Promise');
+
+            $promise->finally(function ($result) {
+                $this->results[] = $result;
+                while ($waiter = array_shift($this->waiters)) {
+                    Coroutine::resume($waiter, $result);
+                }
+            });
         }
     }
 
@@ -60,7 +73,12 @@ class Futures implements Iterator
      */
     public function current(): mixed
     {
-        return $this->promises[$this->index]->await();
+        if (isset($this->results[$this->index])) {
+            return $this->results[$this->index];
+        } else {
+            $this->waiters[] = $suspension = getSuspension();
+            return Coroutine::suspend($suspension);
+        }
     }
 
     /**

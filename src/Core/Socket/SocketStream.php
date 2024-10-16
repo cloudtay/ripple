@@ -54,11 +54,11 @@ use function socket_set_option;
 use function socket_strerror;
 use function stream_socket_accept;
 use function stream_socket_get_name;
+use function strlen;
 use function substr;
 use function sys_get_temp_dir;
 use function uniqid;
 use function unlink;
-use function strlen;
 
 use const SO_SNDLOWAT;
 use const SOL_SOCKET;
@@ -73,25 +73,25 @@ class SocketStream extends Stream
     public Socket $socket;
 
     /*** @var bool */
-    private bool $blocking = false;
+    protected bool $blocking = false;
 
     /*** @var Stream|null */
-    private Stream|null $storageCacheWrite = null;
+    protected Stream|null $storageCacheWrite = null;
 
     /*** @var Stream|null */
-    private Stream|null $storageCacheRead = null;
+    protected Stream|null $storageCacheRead = null;
 
     /*** @var string|null */
-    private string|null $address;
+    protected string|null $address;
 
     /*** @var string|null */
-    private string|null $host;
+    protected string|null $host;
 
     /*** @var int|null */
-    private int|null $port;
+    protected int|null $port;
 
     /*** @var Promise */
-    private Promise $writePromise;
+    protected Promise $writePromise;
 
     /**
      * @param mixed       $resource
@@ -127,17 +127,13 @@ class SocketStream extends Stream
     /**
      * @param int|float $timeout
      *
-     * @return $this
-     * @throws ConnectionException
+     * @return \Psc\Core\Socket\SocketStream|false
      */
-    public function accept(int|float $timeout = 0): SocketStream
+    public function accept(int|float $timeout = 0): SocketStream|false
     {
         $socket = @stream_socket_accept($this->stream, $timeout, $peerName);
         if ($socket === false) {
-            throw new ConnectionException(
-                'Failed to accept connection: ' . socket_strerror(socket_last_error($this->socket)),
-                ConnectionException::CONNECTION_ACCEPT_FAIL
-            );
+            return false;
         }
         return new static($socket, $peerName);
     }
@@ -171,7 +167,12 @@ class SocketStream extends Stream
     {
         $realLength = socket_recv($this->socket, $target, $length, $flags);
         if ($realLength === false) {
-            throw new ConnectionException('Unable to read from stream', ConnectionException::CONNECTION_READ_FAIL);
+            throw new ConnectionException(
+                'Unable to read from stream',
+                ConnectionException::CONNECTION_READ_FAIL,
+                null,
+                $this
+            );
         }
         return $realLength;
     }
@@ -187,7 +188,12 @@ class SocketStream extends Stream
         try {
             return $this->writeInternal($string);
         } catch (Throwable $e) {
-            throw new ConnectionException($e->getMessage(), ConnectionException::CONNECTION_WRITE_FAIL);
+            throw new ConnectionException(
+                $e->getMessage(),
+                ConnectionException::CONNECTION_WRITE_FAIL,
+                null,
+                $this
+            );
         }
     }
 
@@ -272,7 +278,12 @@ class SocketStream extends Stream
                 $this->writePromise->await();
                 return strlen($string);
             } catch (Throwable $e) {
-                throw new ConnectionException($e->getMessage(), ConnectionException::CONNECTION_WRITE_FAIL);
+                throw new ConnectionException(
+                    $e->getMessage(),
+                    ConnectionException::CONNECTION_WRITE_FAIL,
+                    null,
+                    $this
+                );
             }
         }
 
@@ -284,7 +295,7 @@ class SocketStream extends Stream
      *
      * @param string $tempFilePath
      */
-    private function cleanupTempFiles(string $tempFilePath): void
+    protected function cleanupTempFiles(string $tempFilePath): void
     {
         $this->storageCacheWrite->close();
         $this->storageCacheRead->close();

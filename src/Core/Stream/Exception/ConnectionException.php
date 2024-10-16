@@ -34,6 +34,9 @@
 
 namespace Psc\Core\Stream\Exception;
 
+use Psr\Http\Message\StreamInterface;
+use Throwable;
+
 /**
  * @Author cclilshy
  * @Date   2024/8/16 09:37
@@ -49,4 +52,14 @@ class ConnectionException extends Exception
     public const           CONNECTION_ACCEPT_FAIL    = 64;
     public const           ERROR_ILLEGAL_CONTENT     = 128;
     public const           CONNECTION_CRYPTO         = 256;
+
+    public function __construct(
+        string               $message = "",
+        int                  $code = 0,
+        Throwable|null       $previous = null,
+        StreamInterface|null $streamBase = null
+    ) {
+        parent::__construct($message, $code, $previous);
+        $streamBase?->close();
+    }
 }

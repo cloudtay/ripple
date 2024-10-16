@@ -34,15 +34,15 @@
 
 namespace Psc\Core\Coroutine;
 
+use BadFunctionCallException;
 use Closure;
 use Fiber;
 use FiberError;
 use JetBrains\PhpStorm\NoReturn;
 use Psc\Core\Coroutine\Exception\EscapeException;
-use Psc\Core\Coroutine\Exception\Exception;
+use Psc\Core\Coroutine\Exception\PromiseRejectException;
 use Psc\Core\LibraryAbstract;
 use Psc\Kernel;
-use Psc\Utils\Output;
 use Revolt\EventLoop;
 use Symfony\Component\DependencyInjection\Container;
 use Throwable;
@@ -54,7 +54,6 @@ use function Co\forked;
 use function Co\getSuspension;
 use function Co\promise;
 use function Co\wait;
-use function time;
 
 /**
  * 2024-07-13 principle
@@ -123,6 +122,12 @@ class Coroutine extends LibraryAbstract
     }
 
     /**
+     * This method is different from onReject, which allows accepting any type of rejected futures object.
+     * When await promise is rejected, an error will be thrown instead of returning the rejected value.
+     *
+     * If the rejected value is a non-Error object, it will be wrapped into a `PromiseRejectException` object,
+     * The `getReason` method of this object can obtain the rejected value
+     *
      * @param Promise $promise
      *
      * @return mixed
@@ -139,29 +144,21 @@ class Coroutine extends LibraryAbstract
         }
 
         if ($promise->getStatus() === Promise::REJECTED) {
-            throw $promise->getResult();
+            if ($promise->getResult() instanceof Throwable) {
+                throw $promise->getResult();
+            } else {
+                throw new PromiseRejectException($promise->getResult());
+            }
         }
 
         $suspension = getSuspension();
-        if (!$fiber = Fiber::getCurrent()) {
-            $promise->then(fn ($result) => Coroutine::resume($suspension, $result));
-            $promise->except(fn (mixed $e) => $suspension->throw($e));
-
-            $result = Coroutine::suspend($suspension);
-            if ($result instanceof Promise) {
-                return $this->await($result);
-            }
-            return $result;
-        }
-
         if (!$suspension instanceof Suspension) {
             $promise->then(static fn ($result) => Coroutine::resume($suspension, $result));
-            $promise->except(static function (mixed $e) use ($suspension) {
-                $e instanceof Throwable
-                    ? $suspension->throw($e)
-                    : $suspension->throw(new Exception('An exception occurred in the awaited Promise'));
+            $promise->except(static function (mixed $result) use ($suspension) {
+                $result instanceof Throwable
+                    ? $suspension->throw($result)
+                    : $suspension->throw(new PromiseRejectException($result));
             });
-
             $result = Coroutine::suspend($suspension);
             if ($result instanceof Promise) {
                 return $this->await($result);
@@ -173,59 +170,18 @@ class Coroutine extends LibraryAbstract
          * To determine your own control over preparing Fiber, you must be responsible for the subsequent status of Fiber.
          */
         // When the status of the awaited Promise is completed
-        $promise->then(static function (mixed $result) use ($fiber, $suspension) {
-            try {
+        $promise->then(
+            static function (mixed $result) use ($suspension) {
                 // Try to resume Fiber operation
                 Coroutine::resume($suspension, $result);
-
-                // Fiber has been terminated
-                if ($fiber->isTerminated()) {
-                    try {
-                        $suspension->resolve($fiber->getReturn());
-                        return;
-                    } catch (FiberError $e) {
-                        $suspension->reject($e);
-                        return;
-                    }
-                }
-            } catch (EscapeException $exception) {
-                // An escape exception occurs during recovery operation
-                $this->handleEscapeException($exception);
-            } catch (Throwable $e) {
-                // Unexpected exception occurred during recovery operation
-
-                $suspension->reject($e);
-                return;
-            }
-        });
-
-        // When rejected by the status of the awaited Promise
-        $promise->except(static function (mixed $e) use ($fiber, $suspension) {
-            try {
+            },
+            static function (mixed $result) use ($suspension) {
                 // Try to notice Fiber: An exception occurred in the awaited Promise
-                $e instanceof Throwable
-                    ? $fiber->throw($e)
-                    : $fiber->throw(new Exception('An exception occurred in the awaited Promise'));
-
-                // Fiber has been terminated
-                if ($fiber->isTerminated()) {
-                    try {
-                        $suspension->resolve($fiber->getReturn());
-                        return;
-                    } catch (FiberError $e) {
-                        $suspension->reject($e);
-                        return;
-                    }
-                }
-            } catch (EscapeException $exception) {
-                // An escape exception occurs during recovery operation
-                $this->handleEscapeException($exception);
-            } catch (Throwable $e) {
-                // Unexpected exception occurred during recovery operation
-                $suspension->reject($e);
-                return;
+                $result instanceof Throwable
+                    ? $suspension->throw($result)
+                    : $suspension->throw(new PromiseRejectException($result));
             }
-        });
+        );
 
         // Confirm that you have prepared to handle Fiber recovery and take over control of Fiber by suspending it
         $result = Coroutine::suspend($suspension);
@@ -267,18 +223,20 @@ class Coroutine extends LibraryAbstract
 
             try {
                 $result = $suspension->start();
+                if ($suspension->fiber->isTerminated()) {
+                    try {
+                        $resolve($result);
+                        return;
+                    } catch (FiberError $e) {
+                        $reject($e);
+                        return;
+                    }
+                }
             } catch (EscapeException $exception) {
                 $this->handleEscapeException($exception);
-            }
-
-            if ($suspension->fiber->isTerminated()) {
-                try {
-                    $resolve($result);
-                    return;
-                } catch (FiberError $e) {
-                    $reject($e);
-                    return;
-                }
+            } catch (Throwable $exception) {
+                $suspension->reject($exception);
+                return;
             }
         });
     }
@@ -291,51 +249,21 @@ class Coroutine extends LibraryAbstract
      */
     public function sleep(int|float $second): int
     {
-        $startTime = time();
-        if (!$fiber = Fiber::getCurrent()) {
-            //is Revolt
-            $suspension = getSuspension();
+        $suspension = getSuspension();
+        if (!$suspension instanceof Suspension) {
             delay(static fn () => Coroutine::resume($suspension, 0), $second);
             return Coroutine::suspend($suspension);
-
-        } elseif (!$suspension = ($this->fiber2suspension[$fiber] ?? null)?->get()) {
-            //is Revolt
-            $suspension = getSuspension();
-            delay(static fn () => Coroutine::resume($suspension, 0), $second);
-            return Coroutine::suspend($suspension);
-
         } else {
-            /*** @var Suspension $suspension */
-            delay(function () use ($fiber, $suspension) {
-                try {
-                    // Try to resume Fiber operation
-                    Coroutine::resume($suspension, 0);
-                } catch (Throwable $e) {
-                    // Unexpected exception occurred during recovery operation
-
-                    $suspension->reject($e);
-                    return;
-                }
-
-                if ($fiber->isTerminated()) {
-                    try {
-                        $suspension->resolve($fiber->getReturn());
-                        return;
-                    } catch (FiberError $e) {
-                        $suspension->reject($e);
-                        return;
-                    }
-                }
+            delay(static function () use ($suspension, $second) {
+                Coroutine::resume($suspension, 0);
             }, $second);
 
             try {
                 return Coroutine::suspend($suspension);
             } catch (Throwable $e) {
-                Output::exception($e);
+                throw new BadFunctionCallException("An unexpected error occurred: {$e->getMessage()}");
             }
         }
-
-        return time() - $startTime;
     }
 
     /**
@@ -361,23 +289,43 @@ class Coroutine extends LibraryAbstract
     }
 
     /**
+     *
+     * This method attempts to resume a suspended coroutine and take over the coroutine context.
+     * When the recovery fails or an exception occurs within the coroutine, an exception will be thrown.
+     * This method will not return any value yet
+     *
      * @param \Revolt\EventLoop\Suspension $suspension
      * @param mixed|null                   $result
      *
-     * @return void
+     * @return mixed
      * @throws Throwable
      */
-    public static function resume(EventLoop\Suspension $suspension, mixed $result = null): void
+    public static function resume(EventLoop\Suspension $suspension, mixed $result = null): mixed
     {
         try {
             $suspension->resume($result);
+            if ($suspension instanceof Suspension && $suspension->fiber->isTerminated()) {
+                try {
+                    $suspension->resolve($suspension->fiber->getReturn());
+                    return null;
+                } catch (FiberError $e) {
+                    $suspension->reject($e);
+                    return null;
+                }
+            }
         } catch (EscapeException $exception) {
             Coroutine::getInstance()->handleEscapeException($exception);
+        } catch (FiberError $exception) {
+            throw $exception;
+        } catch (Throwable $exception) {
+            $suspension instanceof Suspension || throw $exception;
+            $suspension->reject($exception);
         }
+        return null;
     }
 
     /**
-     * @param \Psc\Core\Coroutine\Suspension $suspension
+     * @param \Revolt\EventLoop\Suspension $suspension
      *
      * @return mixed
      * @throws Throwable
@@ -388,6 +336,12 @@ class Coroutine extends LibraryAbstract
             return $suspension->suspend();
         } catch (EscapeException $exception) {
             Coroutine::getInstance()->handleEscapeException($exception);
+        } catch (FiberError $exception) {
+            throw $exception;
+        } catch (Throwable $exception) {
+            $suspension instanceof Suspension || throw $exception;
+            $suspension->reject($exception);
         }
+        return null;
     }
 }

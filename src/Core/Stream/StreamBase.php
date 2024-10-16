@@ -105,7 +105,12 @@ class StreamBase implements StreamInterface
     {
         $content = @fread($this->stream, $length);
         if ($content === false) {
-            throw new ConnectionException('Unable to read from stream', ConnectionException::CONNECTION_READ_FAIL);
+            throw new ConnectionException(
+                'Unable to read from stream',
+                ConnectionException::CONNECTION_READ_FAIL,
+                null,
+                $this,
+            );
         }
         return $content;
     }
@@ -120,7 +125,12 @@ class StreamBase implements StreamInterface
     {
         $result = @fwrite($this->stream, $string);
         if ($result === false) {
-            throw new ConnectionException('Unable to write to stream', ConnectionException::CONNECTION_WRITE_FAIL);
+            throw new ConnectionException(
+                'Unable to write to stream',
+                ConnectionException::CONNECTION_WRITE_FAIL,
+                null,
+                $this
+            );
         }
         return $result;
     }

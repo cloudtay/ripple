@@ -32,89 +32,23 @@
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-namespace Psc\Core\Coroutine;
+namespace Psc\Core\Coroutine\Exception;
 
-use Closure;
-use Fiber;
-use Throwable;
-
-class Suspension implements \Revolt\EventLoop\Suspension
+class PromiseRejectException extends Exception
 {
-    /*** @var Fiber */
-    public readonly Fiber $fiber;
-
     /**
-     * @param Closure $main
-     * @param Closure $resolve
-     * @param Closure $reject
-     * @param Promise $promise
+     * @param mixed $result
      */
-    public function __construct(
-        public readonly Closure $main,
-        public readonly Closure $resolve,
-        public readonly Closure $reject,
-        public readonly Promise $promise
-    ) {
-        $this->fiber = new Fiber($this->main);
-    }
-
-    /**
-     * @param mixed|null $value
-     *
-     * @return void
-     * @throws Throwable
-     */
-    public function resume(mixed $value = null): void
+    public function __construct(public readonly mixed $result)
     {
-        $this->fiber->resume($value);
+        parent::__construct('Promise is rejected');
     }
 
     /**
      * @return mixed
-     * @throws Throwable
      */
-    public function suspend(): mixed
+    public function getResult(): mixed
     {
-        return Fiber::suspend();
-    }
-
-    /**
-     * @param Throwable $throwable
-     *
-     * @return void
-     * @throws Throwable
-     */
-    public function throw(Throwable $throwable): void
-    {
-        $this->fiber->throw($throwable);
-    }
-
-    /**
-     * @return mixed
-     * @throws Throwable
-     */
-    public function start(): mixed
-    {
-        return $this->fiber->start($this->resolve, $this->reject);
-    }
-
-    /**
-     * @param mixed $value
-     *
-     * @return void
-     */
-    public function resolve(mixed $value): void
-    {
-        ($this->resolve)($value);
-    }
-
-    /**
-     * @param mixed $throwable
-     *
-     * @return void
-     */
-    public function reject(mixed $throwable): void
-    {
-        ($this->reject)($throwable);
+        return $this->result;
     }
 }

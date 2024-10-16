@@ -38,6 +38,7 @@ use Closure;
 use Exception;
 use Psc\Core\Coroutine\Coroutine;
 use Psc\Core\Coroutine\Promise;
+use Psc\Core\Coroutine\Suspension;
 use Psc\Core\Stream\Exception\ConnectionException;
 use Psc\Utils\Output;
 use Revolt\EventLoop;
@@ -79,27 +80,27 @@ class Stream extends StreamBase
     /**
      * @var string
      */
-    private string $onReadable;
+    protected string $onReadable;
 
     /**
      * @var string
      */
-    private string $onWritable;
+    protected string $onWriteable;
 
     /**
      * @var array
      */
-    private array $onCloseCallbacks = array();
+    protected array $onCloseCallbacks = array();
 
     /**
      * @var int
      */
-    private int $index = 0;
+    protected int $index = 0;
 
     /**
      * @var Transaction
      */
-    private Transaction $transaction;
+    protected Transaction $transaction;
 
     /**
      * @param mixed $resource
@@ -109,13 +110,8 @@ class Stream extends StreamBase
         parent::__construct($resource);
 
         $this->onClose(function () {
-            if (isset($this->onReadable)) {
-                cancel($this->onReadable);
-            }
-
-            if (isset($this->onWritable)) {
-                cancel($this->onWritable);
-            }
+            $this->cancelReadable();
+            $this->cancelWritable();
         });
     }
 
@@ -149,17 +145,9 @@ class Stream extends StreamBase
     public function onReadable(Closure $closure): string
     {
         $this->cancelReadable();
-        return $this->onReadable = EventLoop::onReadable($this->stream, function (string $cancelId) use ($closure) {
+        return $this->onReadable = EventLoop::onReadable($this->stream, function () use ($closure) {
             try {
-                call_user_func_array($closure, [
-                    $this,
-                    function () use ($cancelId) {
-                        cancel($cancelId);
-                        unset($this->onReadable);
-                    }
-                ]);
-            } catch (ConnectionException) {
-                $this->close();
+                call_user_func_array($closure, [$this, fn () => $this->cancelReadable()]);
             } catch (Throwable $e) {
                 Output::error($e->getMessage());
             }
@@ -192,7 +180,12 @@ class Stream extends StreamBase
         $this->cancelWritable();
 
         if (isset($this->transaction)) {
-            $this->failTransaction(new ConnectionException('Stream has been closed', ConnectionException::CONNECTION_CLOSED));
+            $this->failTransaction(new ConnectionException(
+                'Stream has been closed',
+                ConnectionException::CONNECTION_CLOSED,
+                null,
+                $this
+            ));
         }
 
         foreach ($this->onCloseCallbacks as $callback) {
@@ -209,9 +202,9 @@ class Stream extends StreamBase
      */
     public function cancelWritable(): void
     {
-        if (isset($this->onWritable)) {
-            cancel($this->onWritable);
-            unset($this->onWritable);
+        if (isset($this->onWriteable)) {
+            cancel($this->onWriteable);
+            unset($this->onWriteable);
         }
     }
 
@@ -235,17 +228,9 @@ class Stream extends StreamBase
     public function onWritable(Closure $closure): string
     {
         $this->cancelWritable();
-        return $this->onWritable = EventLoop::onWritable($this->stream, function (string $cancelId) use ($closure) {
+        return $this->onWriteable = EventLoop::onWritable($this->stream, function () use ($closure) {
             try {
-                call_user_func_array($closure, [
-                    $this,
-                    function () use ($cancelId) {
-                        cancel($cancelId);
-                        unset($this->onWritable);
-                    }
-                ]);
-            } catch (ConnectionException) {
-                $this->close();
+                call_user_func_array($closure, [$this, fn () => $this->cancelWritable()]);
             } catch (Throwable $e) {
                 Output::error($e->getMessage());
             }
@@ -283,7 +268,7 @@ class Stream extends StreamBase
      *
      * @return void
      */
-    private function setTransaction(Transaction $transaction): void
+    protected function setTransaction(Transaction $transaction): void
     {
         if (isset($this->transaction)) {
             $this->completeTransaction();
@@ -330,8 +315,16 @@ class Stream extends StreamBase
     public function waitForReadable(bool $once = false): void
     {
         if (!isset($this->onReadable)) {
-            $suspension       = getSuspension();
-            $this->onReadable = $this->onReadable(static fn () => Coroutine::resume($suspension));
+            $suspension = getSuspension();
+            $this->onReadable(function () use ($suspension) {
+                try {
+                    Coroutine::resume($suspension);
+                } catch (Throwable) {
+                    $this->cancelReadable();
+                }
+            });
+
+            $suspension instanceof Suspension && $suspension->promise->finally(fn () => $this->cancelReadable());
             Coroutine::suspend($suspension);
         } else {
             try {
@@ -362,9 +355,17 @@ class Stream extends StreamBase
      */
     public function waitForWriteable(bool $once = false): bool
     {
-        if (!isset($this->onWritable)) {
-            $suspension       = getSuspension();
-            $this->onWritable = $this->onWritable(static fn () => Coroutine::resume($suspension));
+        if (!isset($this->onWriteable)) {
+            $suspension = getSuspension();
+            $this->onWritable(function () use ($suspension) {
+                try {
+                    Coroutine::resume($suspension);
+                } catch (Throwable $throwable) {
+                    $this->cancelWritable();
+                }
+            });
+
+            $suspension instanceof Suspension && $suspension->promise->finally(fn () => $this->cancelWritable());
             Coroutine::suspend($suspension);
         } else {
             try {

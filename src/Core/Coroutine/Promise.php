@@ -36,6 +36,7 @@ namespace Psc\Core\Coroutine;
 
 use Closure;
 use Psc\Core\Coroutine\Exception\Exception;
+use Psc\Core\Coroutine\Exception\PromiseAggregateError;
 use Psc\Utils\Output;
 use Throwable;
 
@@ -44,7 +45,6 @@ use function call_user_func;
 use function call_user_func_array;
 use function Co\async;
 use function Co\await;
-use function Co\promise;
 use function count;
 
 /**
@@ -160,7 +160,6 @@ class Promise
 
         $this->status = Promise::REJECTED;
         $this->result = $reason;
-
         foreach (array_reverse($this->onRejected) as $onRejected) {
             try {
                 call_user_func($onRejected, $reason);
@@ -286,6 +285,12 @@ class Promise
     }
 
     /**
+     * This method is different from onReject, which allows accepting any type of rejected futures object.
+     * When await promise is rejected, an error will be thrown instead of returning the rejected value.
+     *
+     * If the rejected value is a non-Error object, it will be wrapped into a `PromiseRejectException` object,
+     * The `getReason` method of this object can obtain the rejected value
+     *
      * @param bool $unwrap
      *
      * @return mixed
@@ -297,6 +302,12 @@ class Promise
     }
 
     /**
+     * This method is different from onReject, which allows accepting any type of rejected futures object.
+     * When await promise is rejected, an error will be thrown instead of returning the rejected value.
+     *
+     * If the rejected value is a non-Error object, it will be wrapped into a `PromiseRejectException` object,
+     * The `getReason` method of this object can obtain the rejected value
+     *
      * @return mixed
      * @throws Throwable
      */
@@ -327,29 +338,36 @@ class Promise
 
 
     /**
+     * This method returns a Promise object, which will only be triggered successfully when
+     * all promise objects in the iterable parameter object are successful.
+     *
      * @param Promise[] $promises
      *
      * @return \Psc\Core\Coroutine\Promise
      */
     public static function all(array $promises): Promise
     {
-        return promise(static function (Closure $resolve, Closure $reject) use ($promises) {
-            $results = [];
-
-            foreach ($promises as $promise) {
-                try {
-                    $results[] = $promise->await();
-                } catch (Throwable $exception) {
-                    $reject($exception);
-                    return;
-                }
-            }
-
-            $resolve($results);
+        return new Promise(static function (Closure $resolve, Closure $reject) use ($promises) {
+            Promise::allSettled($promises)
+                ->then(static function (array $results) use ($resolve, $reject) {
+                    $values = [];
+                    foreach ($results as $result) {
+                        if ($result->getStatus() === Promise::FULFILLED) {
+                            $values[] = $result->getResult();
+                        } else {
+                            $reject($result->getResult());
+                            return;
+                        }
+                    }
+                    $resolve($values);
+                });
         });
     }
 
     /**
+     * This method is used to wait for all Promises to be settled, whether fulfilled or rejected.
+     * The final callback function will receive an array containing all promises
+     *
      * @param Promise[] $promises
      *
      * @return \Psc\Core\Coroutine\Promise
@@ -369,6 +387,46 @@ class Promise
             $waitGroup->wait();
 
             $resolve($promises);
+        });
+    }
+
+    /**
+     * This new Promise will be completed when any of the
+     * passed Promise is completed (whether successful or failed)
+     *
+     * @param Promise[] $promises
+     *
+     * @return Promise
+     */
+    public static function race(array $promises): Promise
+    {
+        return new Promise(static function (Closure $resolve) use ($promises) {
+            foreach ($promises as $promise) {
+                $promise->finally(static function () use ($promise, $resolve) {
+                    $resolve($promise->getResult());
+                });
+            }
+        });
+    }
+
+    /**
+     * When any of the incoming Promise succeeds, this new Promise will succeed.
+     * If all Promises fail, the new Promise will fail with an AggregateError.
+     *
+     * @param Promise[] $promises
+     */
+    public static function any(array $promises): Promise
+    {
+        return async(static function (Closure $resolve, Closure $reject) use ($promises) {
+            $waitGroup = new WaitGroup(count($promises));
+            foreach ($promises as $item) {
+                $item
+                    ->then(static fn ($value) => $resolve($value))
+                    ->finally(static fn () => $waitGroup->done());
+            }
+
+            $waitGroup->wait();
+            $reject(new PromiseAggregateError('All promises were rejected'));
         });
     }
 

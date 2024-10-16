@@ -46,6 +46,7 @@ use Symfony\Component\DependencyInjection\Container;
 use Throwable;
 
 use function call_user_func;
+use function Co\async;
 use function Co\getSuspension;
 use function define;
 use function defined;
@@ -117,6 +118,12 @@ class Kernel
     }
 
     /**
+     * This method is different from onReject, which allows accepting any type of rejected futures object.
+     * When await promise is rejected, an error will be thrown instead of returning the rejected value.
+     *
+     * If the rejected value is a non-Error object, it will be wrapped into a `PromiseRejectException` object,
+     * The `getReason` method of this object can obtain the rejected value
+     *
      * @param Promise $promise
      *
      * @return mixed
@@ -176,23 +183,11 @@ class Kernel
     {
         $suspension = getSuspension();
         if (!$suspension instanceof Suspension) {
-            EventLoop::queue(static function () use ($closure) {
-                try {
-                    $closure();
-                } catch (Throwable $exception) {
-                    Output::exception($exception);
-                }
-            });
+            EventLoop::queue(static fn () => async($closure));
             return;
         }
 
-        $suspension->promise->finally(static fn () => EventLoop::queue(static function () use ($closure) {
-            try {
-                $closure();
-            } catch (Throwable $exception) {
-                Output::exception($exception);
-            }
-        }));
+        $suspension->promise->finally(static fn () => async($closure));
     }
 
     /**

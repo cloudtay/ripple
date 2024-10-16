@@ -265,7 +265,7 @@ abstract class Worker
             $this->parentSocket->onReadable(function (SocketStream $socketStream) {
                 $content = $socketStream->readContinuously(1024);
                 foreach ($this->zx7e->decodeStream($content) as $string) {
-                    $this->_onCommand(Command::fromString($string));
+                    $this->__onCommand(Command::fromString($string));
                 }
             });
         })->run();
@@ -330,7 +330,7 @@ abstract class Worker
      *
      * @return void
      */
-    private function _onCommand(Command $workerCommand): void
+    private function __onCommand(Command $workerCommand): void
     {
         switch ($workerCommand->name) {
             case Worker::COMMAND_RELOAD:

@@ -46,8 +46,16 @@ use RuntimeException;
 use Symfony\Component\DependencyInjection\Container;
 use Throwable;
 
+use function spl_object_hash;
+
 /**
- * @param Promise $promise
+ * This method is different from onReject, which allows accepting any type of rejected futures object.
+ * When await promise is rejected, an error will be thrown instead of returning the rejected value.
+ *
+ * If the rejected value is a non-Error object, it will be wrapped into a `PromiseRejectException` object,
+ * The `getReason` method of this object can obtain the rejected value
+ *
+ * @param \Psc\Core\Coroutine\Promise $promise
  *
  * @return mixed
  * @throws Throwable
@@ -60,6 +68,9 @@ function await(Promise $promise): mixed
 /**
  * The location of the exception thrown in the async closure may be the calling context/suspension recovery location,
  * so exceptions must be managed carefully.
+ *
+ * Since the function itself will end soon, there is no point in try-catching the function, so the exception will be thrown into the calling context
+ * You can catch exceptions by using the `->except` method, or use the `->await` method to wait for the asynchronous task to complete
  *
  * @param Closure $closure
  *
@@ -262,4 +273,12 @@ function cancelForkHandler(string $eventId): void
 function getSuspension(): EventLoop\Suspension
 {
     return Coroutine::Coroutine()->getSuspension();
+}
+
+/**
+ * @return string
+ */
+function getId(): string
+{
+    return spl_object_hash(getSuspension());
 }

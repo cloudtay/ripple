@@ -47,37 +47,37 @@ final class Transaction
     /**
      * @var string
      */
-    private string $onReadableId;
+    protected string $onReadableId;
 
     /**
      * @var string
      */
-    private string $onWriteableId;
+    protected string $onWriteableId;
 
     /**
      * @var string[]
      */
-    private array $onCloseIds = [];
+    protected array $onCloseIds = [];
 
     /**
      * @var Closure
      */
-    private Closure $resolve;
+    protected Closure $resolve;
 
     /**
      * @var Closure
      */
-    private Closure $reject;
+    protected Closure $reject;
 
     /**
      * @var Promise
      */
-    private Promise $promise;
+    protected Promise $promise;
 
     /**
      * @param Stream $stream
      */
-    public function __construct(private readonly Stream $stream)
+    public function __construct(protected readonly Stream $stream)
     {
         $this->promise = promise(function (Closure $resolve, Closure $reject) {
             $this->resolve = $resolve;
@@ -144,7 +144,7 @@ final class Transaction
     /**
      * @return void
      */
-    private function cancelAll(): void
+    protected function cancelAll(): void
     {
         foreach ($this->onCloseIds as $id) {
             $this->stream->cancelOnClose($id);
