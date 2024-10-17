@@ -5,9 +5,9 @@ namespace Tests;
 use Co\IO;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
-use Psc\Core\Socket\SocketStream;
-use Psc\Core\Stream\Exception\ConnectionException;
-use Psc\Utils\Output;
+use Ripple\Socket\SocketStream;
+use Ripple\Stream\Exception\ConnectionException;
+use Ripple\Utils\Output;
 use Throwable;
 
 use function Co\cancelAll;

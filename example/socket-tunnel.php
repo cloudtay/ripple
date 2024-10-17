@@ -2,9 +2,9 @@
 
 include __DIR__ . '/../vendor/autoload.php';
 
-use Psc\Core\Socket\Tunnel\Socks5;
-use Psc\Core\Stream\Exception\ConnectionException;
-use Psc\Utils\Output;
+use Ripple\Socket\Tunnel\Socks5;
+use Ripple\Stream\Exception\ConnectionException;
+use Ripple\Utils\Output;
 
 use function Co\wait;
 

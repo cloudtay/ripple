@@ -34,10 +34,10 @@
 
 namespace Co;
 
-use Psc\Core\Channel\ChannelLibrary;
-use Psc\Core\File\File;
-use Psc\Core\File\Lock\LockLibrary;
-use Psc\Core\Socket\Socket;
+use Ripple\Channel\ChannelLibrary;
+use Ripple\File\File;
+use Ripple\File\Lock\LockLibrary;
+use Ripple\Socket\Socket;
 
 /**
  * @Author cclilshy

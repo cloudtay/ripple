@@ -32,12 +32,12 @@
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-namespace Psc\Plugins\Guzzle;
+namespace Ripple\Plugins\Guzzle;
 
 use GuzzleHttp\Client;
-use Psc\Core\Http\Client\Client as HttpClient;
-use Psc\Core\LibraryAbstract;
-use Psc\Plugins\Guzzle\Handler\PHandler;
+use Ripple\App\Http\Client\Client as HttpClient;
+use Ripple\LibraryAbstract;
+use Ripple\Plugins\Guzzle\Handler\PHandler;
 
 use function array_merge;
 
