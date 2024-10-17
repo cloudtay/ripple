@@ -34,7 +34,7 @@
 
 namespace Co;
 
-use Psc\Plugins\Guzzle\Guzzle;
+use Ripple\Plugins\Guzzle\Guzzle;
 
 /**
  * @Description

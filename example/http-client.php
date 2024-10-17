@@ -3,7 +3,7 @@
 include __DIR__ . '/../vendor/autoload.php';
 
 use GuzzleHttp\Exception\GuzzleException;
-use Psc\Utils\Output;
+use Ripple\Utils\Output;
 
 $client = Co\Plugin::Guzzle()->newClient();
 try {

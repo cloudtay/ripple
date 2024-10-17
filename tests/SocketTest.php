@@ -5,7 +5,7 @@ namespace Tests;
 use Closure;
 use Co\IO;
 use PHPUnit\Framework\TestCase;
-use Psc\Core\Socket\SocketStream;
+use Ripple\Socket\SocketStream;
 use Throwable;
 
 use function Co\repeat;

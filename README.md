@@ -85,7 +85,7 @@ The following reproduction process is perfectly supported and explained in any I
 
 ```php
 use GuzzleHttp\Exception\GuzzleException;
-use Psc\Utils\Output;
+use Ripple\Utils\Output;
 
 $client = Co\Plugin::Guzzle()->newClient();
 
@@ -109,7 +109,7 @@ for ($i = 0; $i < 10; $i++) {
 
 ```php
 use GuzzleHttp\Exception\GuzzleException;
-use Psc\Core\Http\Client\Capture\ServerSentEvents;
+use Ripple\Core\Http\Client\Capture\ServerSentEvents;
 
 if (!$key = $argv[1] ?? null) {
     echo 'Please enter the key' .\PHP_EOL;
@@ -159,9 +159,9 @@ try {
 > Create an HTTP coroutine server through `Co\Net`, and process requests through the `onRequest` method of `Co\Net`
 
 ```php
-use Psc\Core\Http\Server\Chunk;
-use Psc\Core\Http\Server\Request;
-use Psc\Core\Http\Server\Response;
+use Ripple\Core\Http\Server\Chunk;
+use Ripple\Core\Http\Server\Request;
+use Ripple\Core\Http\Server\Response;
 
 $server = Co\Net::Http()->server('http://127.0.0.1:8008', \stream_context_create([
     'socket' => [

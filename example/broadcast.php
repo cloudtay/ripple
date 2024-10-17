@@ -2,7 +2,7 @@
 
 use Co\IO;
 use Co\Net;
-use Psc\Core\Http\Server\Request;
+use Ripple\App\Http\Server\Request;
 
 use function Co\async;
 use function Co\wait;

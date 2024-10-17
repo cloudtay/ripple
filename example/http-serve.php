@@ -3,8 +3,8 @@
 include __DIR__ . '/../vendor/autoload.php';
 
 use Co\Net;
-use Psc\Core\Http\Server\Chunk;
-use Psc\Core\Http\Server\Request;
+use Ripple\App\Http\Server\Chunk;
+use Ripple\App\Http\Server\Request;
 
 use function Co\wait;
 

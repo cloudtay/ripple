@@ -4,8 +4,8 @@ namespace Tests;
 
 use PHPUnit\Framework\Attributes\RunClassInSeparateProcess;
 use PHPUnit\Framework\TestCase;
-use Psc\Core\Parallel\Context;
-use Psc\Kernel;
+use Ripple\Kernel;
+use Ripple\Parallel\Context;
 use Throwable;
 
 use function Co\thread;

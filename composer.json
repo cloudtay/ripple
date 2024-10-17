@@ -4,7 +4,7 @@
   "license": "MIT",
   "autoload": {
     "psr-4": {
-      "Psc\\": "src/",
+      "Ripple\\": "src/",
       "Co\\": "src/Supports/"
     },
     "files": [

@@ -1,7 +1,7 @@
 <?php declare(strict_types=1);
 
 use Co\IO;
-use Psc\Core\File\Exception\FileException;
+use Ripple\File\Exception\FileException;
 
 include __DIR__ . '/../vendor/autoload.php';
 

@@ -32,13 +32,13 @@
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-namespace Psc\Plugins\Guzzle\Handler;
+namespace Ripple\Plugins\Guzzle\Handler;
 
 use GuzzleHttp\Exception\GuzzleException;
 use GuzzleHttp\Exception\TransferException;
 use GuzzleHttp\Promise\Promise;
 use GuzzleHttp\Promise\PromiseInterface;
-use Psc\Core\Http\Client\Client;
+use Ripple\App\Http\Client\Client;
 use Psr\Http\Message\RequestInterface;
 use Throwable;
 

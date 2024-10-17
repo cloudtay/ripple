@@ -80,7 +80,7 @@ ripple严格遵循最新强类型的编程规范, 对IDE非常友好
 
 ```php
 use GuzzleHttp\Exception\GuzzleException;
-use Psc\Utils\Output;
+use Ripple\Utils\Output;
 
 $client = Co\Plugin::Guzzle()->newClient();
 
@@ -104,7 +104,7 @@ for ($i = 0; $i < 10; $i++) {
 
 ```php
 use GuzzleHttp\Exception\GuzzleException;
-use Psc\Core\Http\Client\Capture\ServerSentEvents;
+use Ripple\Core\Http\Client\Capture\ServerSentEvents;
 
 if (!$key = $argv[1] ?? null) {
     echo 'Please enter the key' . \PHP_EOL;
@@ -154,9 +154,9 @@ try {
 > 通过`Co\Net`创建HTTP协程服务端, 通过`Co\Net`的`onRequest`方法处理请求
 
 ```php
-use Psc\Core\Http\Server\Chunk;
-use Psc\Core\Http\Server\Request;
-use Psc\Core\Http\Server\Response;
+use Ripple\Core\Http\Server\Chunk;
+use Ripple\Core\Http\Server\Request;
+use Ripple\Core\Http\Server\Response;
 
 $server = Co\Net::Http()->server('http://127.0.0.1:8008', \stream_context_create([
     'socket' => [

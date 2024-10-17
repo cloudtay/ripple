@@ -34,9 +34,9 @@
 
 namespace Co;
 
-use Psc\Core\Http\Http;
-use Psc\Core\WebSocket\WebSocket;
-use Psc\Plugins\Guzzle\Guzzle;
+use Ripple\App\Http\Http;
+use Ripple\App\WebSocket\WebSocket;
+use Ripple\Plugins\Guzzle\Guzzle;
 
 class App
 {

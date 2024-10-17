@@ -32,13 +32,13 @@
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-namespace Psc;
+namespace Ripple;
 
 use Closure;
 use Co\Coroutine;
 use Co\System;
-use Psc\Core\Coroutine\Promise;
-use Psc\Core\Coroutine\Suspension;
+use Ripple\Coroutine\Promise;
+use Ripple\Coroutine\Suspension;
 use Revolt\EventLoop;
 use Revolt\EventLoop\UnsupportedFeatureException;
 use Symfony\Component\DependencyInjection\Container;
@@ -254,7 +254,7 @@ class Kernel
 
         if (!$this->mainRunning) {
             try {
-                Core\Coroutine\Coroutine::resume($this->mainSuspension, $result);
+                \Ripple\Coroutine\Coroutine::resume($this->mainSuspension, $result);
             } catch (Throwable) {
                 exit(1);
             }
@@ -262,7 +262,7 @@ class Kernel
 
         try {
             $this->mainRunning = false;
-            $result            = Core\Coroutine\Coroutine::suspend($this->mainSuspension);
+            $result            = \Ripple\Coroutine\Coroutine::suspend($this->mainSuspension);
             $this->mainRunning = true;
             if ($result instanceof Closure) {
                 $result();

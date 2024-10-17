@@ -3,7 +3,7 @@
 include __DIR__ . '/../vendor/autoload.php';
 
 use GuzzleHttp\Exception\GuzzleException;
-use Psc\Core\Http\Client\Capture\ServerSentEvents;
+use Ripple\App\Http\Client\Capture\ServerSentEvents;
 
 if (!$key = $argv[1] ?? null) {
     echo 'Please enter the key' . \PHP_EOL;
