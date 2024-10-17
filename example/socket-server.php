@@ -3,7 +3,7 @@
 include __DIR__ . '/../vendor/autoload.php';
 
 use Co\IO;
-use Psc\Core\Socket\SocketStream;
+use Ripple\Socket\SocketStream;
 
 use function Co\wait;
 

@@ -36,10 +36,10 @@ namespace Co;
 
 use BadFunctionCallException;
 use Closure;
-use Psc\Core\Coroutine\Promise;
-use Psc\Core\Parallel\Thread;
-use Psc\Kernel;
-use Psc\Utils\Output;
+use Ripple\Coroutine\Promise;
+use Ripple\Kernel;
+use Ripple\Parallel\Thread;
+use Ripple\Utils\Output;
 use Revolt\EventLoop;
 use Revolt\EventLoop\UnsupportedFeatureException;
 use RuntimeException;
@@ -55,7 +55,7 @@ use function spl_object_hash;
  * If the rejected value is a non-Error object, it will be wrapped into a `PromiseRejectException` object,
  * The `getReason` method of this object can obtain the rejected value
  *
- * @param \Psc\Core\Coroutine\Promise $promise
+ * @param \Ripple\Coroutine\Promise $promise
  *
  * @return mixed
  * @throws Throwable

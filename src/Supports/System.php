@@ -34,9 +34,9 @@
 
 namespace Co;
 
-use Psc\Core\Parallel\Parallel;
-use Psc\Core\Proc\Proc;
-use Psc\Core\Process\Process;
+use Ripple\Parallel\Parallel;
+use Ripple\Proc\Proc;
+use Ripple\Process\Process;
 use RuntimeException;
 
 /**

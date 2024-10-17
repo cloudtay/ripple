@@ -2,8 +2,8 @@
 
 include __DIR__ . '/../vendor/autoload.php';
 
-use Psc\Kernel;
-use Psc\Utils\Output;
+use Ripple\Kernel;
+use Ripple\Utils\Output;
 
 use function Co\thread;
 

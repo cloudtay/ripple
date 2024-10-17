@@ -6,9 +6,9 @@ use Closure;
 use Exception;
 use PHPUnit\Framework\Attributes\RunClassInSeparateProcess;
 use PHPUnit\Framework\TestCase;
-use Psc\Core\Coroutine\Exception\PromiseAggregateError;
-use Psc\Core\Coroutine\Futures;
-use Psc\Core\Coroutine\Promise;
+use Ripple\Coroutine\Exception\PromiseAggregateError;
+use Ripple\Coroutine\Futures;
+use Ripple\Coroutine\Promise;
 
 use function Co\async;
 use function Co\wait;

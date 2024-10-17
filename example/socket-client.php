@@ -3,8 +3,8 @@
 include __DIR__ . '/../vendor/autoload.php';
 
 use Co\IO;
-use Psc\Core\Stream\Exception\ConnectionException;
-use Psc\Utils\Output;
+use Ripple\Stream\Exception\ConnectionException;
+use Ripple\Utils\Output;
 
 use function Co\wait;
 

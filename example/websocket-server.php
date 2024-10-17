@@ -1,7 +1,7 @@
 <?php declare(strict_types=1);
 
 use Co\Net;
-use Psc\Core\WebSocket\Server\Connection;
+use Ripple\Core\WebSocket\Server\Connection;
 use Symfony\Component\HttpFoundation\Request;
 
 use function Co\wait;

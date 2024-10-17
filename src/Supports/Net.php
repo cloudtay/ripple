@@ -34,8 +34,8 @@
 
 namespace Co;
 
-use Psc\Core\Http\Http;
-use Psc\Core\WebSocket\WebSocket;
+use Ripple\App\Http\Http;
+use Ripple\App\WebSocket\WebSocket;
 
 /**
  * @Deprecated
@@ -50,7 +50,7 @@ class Net
      */
     public static function Http(): Http
     {
-        return Http::getInstance();
+        return App::Http();
     }
 
     /**
@@ -59,6 +59,6 @@ class Net
      */
     public static function WebSocket(): WebSocket
     {
-        return WebSocket::getInstance();
+        return App::WebSocket();
     }
 }
