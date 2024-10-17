@@ -94,9 +94,9 @@ function promise(Closure $closure): Promise
 /**
  * @param int|float $second
  *
- * @return int
+ * @return int|float
  */
-function sleep(int|float $second): int
+function sleep(int|float $second): int|float
 {
     try {
         return Coroutine::Coroutine()->sleep($second);
