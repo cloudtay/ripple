@@ -36,17 +36,12 @@ namespace Co;
 
 use Psc\Core\Http\Http;
 use Psc\Core\WebSocket\WebSocket;
+use Psc\Plugins\Guzzle\Guzzle;
 
-/**
- * @Deprecated
- * @Author cclilshy
- * @Date   2024/8/16 09:35
- */
-class Net
+class App
 {
     /**
      * @return Http
-     * @deprecated 请使用\Co\App::Http()
      */
     public static function Http(): Http
     {
@@ -55,10 +50,19 @@ class Net
 
     /**
      * @return WebSocket
-     * @deprecated 请使用\Co\App::WebSocket()
      */
     public static function WebSocket(): WebSocket
     {
         return WebSocket::getInstance();
+    }
+
+    /**
+     * @Author cclilshy
+     * @Date   2024/8/31 11:41
+     * @return Guzzle
+     */
+    public static function Guzzle(): Guzzle
+    {
+        return Guzzle::getInstance();
     }
 }

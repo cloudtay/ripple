@@ -39,7 +39,6 @@ use Co\Coroutine;
 use Co\System;
 use Psc\Core\Coroutine\Promise;
 use Psc\Core\Coroutine\Suspension;
-use Psc\Utils\Output;
 use Revolt\EventLoop;
 use Revolt\EventLoop\UnsupportedFeatureException;
 use Symfony\Component\DependencyInjection\Container;
@@ -80,7 +79,7 @@ class Kernel
     private bool $processControl;
 
     /*** @var bool */
-    private bool $running = true;
+    private bool $mainRunning = true;
 
     /*** @var Container */
     private Container $container;
@@ -166,11 +165,7 @@ class Kernel
     public function delay(Closure $closure, int|float $second): string
     {
         return EventLoop::delay($second, static function () use ($closure) {
-            try {
-                $closure();
-            } catch (Throwable $exception) {
-                Output::exception($exception);
-            }
+            async($closure);
         });
     }
 
@@ -257,25 +252,24 @@ class Kernel
             $this->mainSuspension = getSuspension();
         }
 
-        if (!$this->running) {
-            Core\Coroutine\Coroutine::resume($this->mainSuspension, $result);
+        if (!$this->mainRunning) {
             try {
-                Core\Coroutine\Coroutine::suspend(getSuspension());
+                Core\Coroutine\Coroutine::resume($this->mainSuspension, $result);
             } catch (Throwable) {
                 exit(1);
             }
         }
 
         try {
-            $this->running = false;
-            $result        = Core\Coroutine\Coroutine::suspend($this->mainSuspension);
-            $this->running = true;
+            $this->mainRunning = false;
+            $result            = Core\Coroutine\Coroutine::suspend($this->mainSuspension);
+            $this->mainRunning = true;
             if ($result instanceof Closure) {
                 $result();
             }
 
             /**
-             * The Event object may be reset during the running of $result, so mainSuspension needs to be reacquired.
+             * The Event object may be reset during the mainRunning of $result, so mainSuspension needs to be reacquired.
              */
             $this->mainSuspension = getSuspension();
             return $this->wait();

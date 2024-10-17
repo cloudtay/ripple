@@ -37,14 +37,16 @@ namespace Co;
 use Psc\Plugins\Guzzle\Guzzle;
 
 /**
+ * @Description
  * @Author cclilshy
  * @Date   2024/8/31 11:42
  */
 class Plugin
 {
     /**
-     * @Author cclilshy
-     * @Date   2024/8/31 11:41
+     * @Description 请使用\Co\App::Guzzle()
+     * @Author      cclilshy
+     * @Date        2024/8/31 11:41
      * @return Guzzle
      */
     public static function Guzzle(): Guzzle

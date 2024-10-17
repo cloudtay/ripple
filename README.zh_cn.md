@@ -14,14 +14,9 @@ ripple是一个现代化的、高性能的原生PHP协程引擎, 旨在解决PHP
 
 ## 设计哲学
 
-极致的性能不是我们的主导方向
-
-是`Event`机制赋予了PHP火箭般的性能, 我们则为`Event`提供了最佳实践规范
-
-随着`PHP8`引入更轻量级的`Fiber`取代了`Generator`的协程模型,
-
-我们的设计理念得以通过PHP自举的方式实现,同时我们使用了`revolt`作为ripple的底层驱动库, 使得ripple完美兼容原有的PHP生态
-
+`EventLoop`机制赋予了PHP火箭般的性能, 我们则为`Event`提供了最佳实践规范  
+随着`PHP8`引入更轻量级的`Fiber`取代了`Generator`的协程模型  
+我们的设计理念得以通过PHP自举的方式实现,同时我们使用了`revolt`作为ripple的底层驱动库, 使得ripple完美兼容原有的PHP生态  
 彻底解放PHPer的双手, 无缝拥抱全新的PHP协程时代
 
 ### 🌟 群聊已开放加入~ 🌟
@@ -40,18 +35,18 @@ ripple是一个现代化的、高性能的原生PHP协程引擎, 旨在解决PHP
 composer require cloudtay/ripple
 ````
 
+## 最新文档
+
+你可以访问`ripple`的[文档](https://ripple.cloudtay.com/)开始阅读
+
+我们建议你从[手动安装](https://ripple.cloudtay.com/docs/install/professional)开始, 便于更好地理解ripple的工作流程
+
+如果你想快速部署并使用`ripple`的服务, 你可以直接访问[快速部署](https://ripple.cloudtay.com/docs/install/server)
+
 ## 基础用法
 
 ripple严格遵循最新强类型的编程规范, 对IDE非常友好  
 下述的复现过程在任何IDE中都能得到完美的支持和解释
-
-### 最新文档
-
-你可以访问ripple的[文档](https://ripple.cloudtay.com/)开始阅读
-
-我们建议你从[手动安装](https://ripple.cloudtay.com/docs/install/professional)开始, 便于更好地理解ripple的工作流程
-
-如果你想快速部署并使用ripple的服务, 你可以直接访问[快速部署](https://ripple.cloudtay.com/docs/install/server)
 
 ### 协程
 
@@ -239,7 +234,7 @@ pecl install ev
 ## 特别致谢
 
 <a href="https://www.jetbrains.com/?from=ripple" target="__blank">
-    <img src="https://www.jetbrains.com/company/brand/img/jetbrains_logo.png" width="200">
+    <img src="https://www.jetbrains.com/company/brand/img/jetbrains_logo.png" width="200" alt="jetbrains">
 </a>
 
 [Jetbrains](https://www.jetbrains.com/?from=ripple) 为本项目提供了免费的开发工具
