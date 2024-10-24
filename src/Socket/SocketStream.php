@@ -69,7 +69,7 @@ use const SOL_SOCKET;
  */
 class SocketStream extends Stream
 {
-    /*** @var \Ripple\Socket\Socket */
+    /*** @var Socket */
     public Socket $socket;
 
     /*** @var bool */
@@ -127,7 +127,7 @@ class SocketStream extends Stream
     /**
      * @param int|float $timeout
      *
-     * @return \Ripple\Core\Socket\SocketStream|false
+     * @return \Ripple\Socket\SocketStream|false
      */
     public function accept(int|float $timeout = 0): SocketStream|false
     {
@@ -225,11 +225,11 @@ class SocketStream extends Stream
             $this->storageCacheRead = IO::File()->open($tempFilePath, 'r+');
             $this->storageCacheRead->setBlocking(false);
 
-            $eventId = $this->onClose(function () use ($tempFilePath) {
+            $eventID = $this->onClose(function () use ($tempFilePath) {
                 $this->cleanupTempFiles($tempFilePath);
             });
 
-            $this->onWritable(function (SocketStream $_, Closure $cancel) use ($tempFilePath, $eventId) {
+            $this->onWriteable(function (SocketStream $_, Closure $cancel) use ($tempFilePath, $eventID) {
                 if ($buffer = $this->storageCacheRead->read($this->getOption(SOL_SOCKET, SO_SNDLOWAT))) {
                     try {
                         parent::write($buffer);
@@ -237,7 +237,7 @@ class SocketStream extends Stream
                         $this->blocking = false;
                         $this->cleanupTempFiles($tempFilePath);
                         $cancel();
-                        $this->cancelOnClose($eventId);
+                        $this->cancelOnClose($eventID);
 
                         if (isset($this->writePromise)) {
                             $this->writePromise->reject($e);
@@ -252,7 +252,7 @@ class SocketStream extends Stream
                     $this->blocking = false;
                     $this->cleanupTempFiles($tempFilePath);
                     $cancel();
-                    $this->cancelOnClose($eventId);
+                    $this->cancelOnClose($eventID);
 
                     if (isset($this->writePromise)) {
                         $this->writePromise->resolve(0);

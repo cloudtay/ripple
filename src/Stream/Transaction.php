@@ -47,17 +47,17 @@ final class Transaction
     /**
      * @var string
      */
-    protected string $onReadableId;
+    protected string $onReadableID;
 
     /**
      * @var string
      */
-    protected string $onWriteableId;
+    protected string $onWriteableID;
 
     /**
      * @var string[]
      */
-    protected array $onCloseIds = [];
+    protected array $onCloseIDs = [];
 
     /**
      * @var Closure
@@ -92,7 +92,7 @@ final class Transaction
      */
     public function onReadable(Closure $closure): string
     {
-        return $this->onReadableId = $this->stream->onReadable(function (Stream $stream, Closure $cancel) use ($closure) {
+        return $this->onReadableID = $this->stream->onReadable(function (Stream $stream, Closure $cancel) use ($closure) {
             try {
                 call_user_func_array($closure, [$stream, $cancel]);
             } catch (Throwable $exception) {
@@ -108,7 +108,7 @@ final class Transaction
      */
     public function onWriteable(Closure $closure): string
     {
-        return $this->onWriteableId = $this->stream->onWritable(function (Stream $stream, Closure $cancel) use ($closure) {
+        return $this->onWriteableID = $this->stream->onWriteable(function (Stream $stream, Closure $cancel) use ($closure) {
             try {
                 call_user_func_array($closure, [$stream, $cancel]);
             } catch (Throwable $exception) {
@@ -146,18 +146,18 @@ final class Transaction
      */
     protected function cancelAll(): void
     {
-        foreach ($this->onCloseIds as $id) {
+        foreach ($this->onCloseIDs as $id) {
             $this->stream->cancelOnClose($id);
         }
 
-        if (isset($this->onReadableId)) {
-            cancel($this->onReadableId);
-            unset($this->onReadableId);
+        if (isset($this->onReadableID)) {
+            cancel($this->onReadableID);
+            unset($this->onReadableID);
         }
 
-        if (isset($this->onWriteableId)) {
-            cancel($this->onWriteableId);
-            unset($this->onWriteableId);
+        if (isset($this->onWriteableID)) {
+            cancel($this->onWriteableID);
+            unset($this->onWriteableID);
         }
     }
 
@@ -169,7 +169,7 @@ final class Transaction
     public function onClose(Closure $closure): string
     {
         $id                 = $this->stream->onClose($closure);
-        $this->onCloseIds[] = $id;
+        $this->onCloseIDs[] = $id;
         return $id;
     }
 

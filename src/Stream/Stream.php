@@ -36,17 +36,20 @@ namespace Ripple\Stream;
 
 use Closure;
 use Exception;
+use Revolt\EventLoop;
 use Ripple\Coroutine\Coroutine;
 use Ripple\Coroutine\Promise;
 use Ripple\Coroutine\Suspension;
+use Ripple\Stream\Exception\ConnectionCloseException;
 use Ripple\Stream\Exception\ConnectionException;
+use Ripple\Stream\Exception\ConnectionTimeoutException;
 use Ripple\Utils\Output;
-use Revolt\EventLoop;
 use Throwable;
 
 use function call_user_func;
 use function call_user_func_array;
 use function Co\cancel;
+use function Co\delay;
 use function Co\getSuspension;
 use function int2string;
 use function is_resource;
@@ -64,7 +67,7 @@ use function stream_set_blocking;
  * Standards that are as safe and easy to use as possible should be followed, allowing some performance to be lost. For more
  * fine-grained control, please use the StreamBase class.
  *
- * Provide onReadable/onWriteable methods for monitoring readable and writable events, and any uncaught ConnectionException
+ * Provide onReadable/onWriteable methods for monitoring readable and writeable events, and any uncaught ConnectionException
  * that occurs in the event will cause the Stream to close
  *
  * Both the onReadable and onWritable methods will automatically cancel the previous monitoring.
@@ -111,7 +114,7 @@ class Stream extends StreamBase
 
         $this->onClose(function () {
             $this->cancelReadable();
-            $this->cancelWritable();
+            $this->cancelWriteable();
         });
     }
 
@@ -170,14 +173,15 @@ class Stream extends StreamBase
      */
     public function close(): void
     {
-        if (is_resource($this->stream) === false) {
+        if ($this->isClosed()) {
             return;
         }
 
+        // Effective closing of the stream should occur before any callbacks to prevent the close method from being called again in the callbacks.
         parent::close();
 
         $this->cancelReadable();
-        $this->cancelWritable();
+        $this->cancelWriteable();
 
         if (isset($this->transaction)) {
             $this->failTransaction(new ConnectionException(
@@ -200,7 +204,7 @@ class Stream extends StreamBase
     /**
      * @return void
      */
-    public function cancelWritable(): void
+    public function cancelWriteable(): void
     {
         if (isset($this->onWriteable)) {
             cancel($this->onWriteable);
@@ -225,12 +229,12 @@ class Stream extends StreamBase
      *
      * @return string
      */
-    public function onWritable(Closure $closure): string
+    public function onWriteable(Closure $closure): string
     {
-        $this->cancelWritable();
+        $this->cancelWriteable();
         return $this->onWriteable = EventLoop::onWritable($this->stream, function () use ($closure) {
             try {
-                call_user_func_array($closure, [$this, fn () => $this->cancelWritable()]);
+                call_user_func_array($closure, [$this, fn () => $this->cancelWriteable()]);
             } catch (Throwable $e) {
                 Output::error($e->getMessage());
             }
@@ -304,84 +308,109 @@ class Stream extends StreamBase
      *
      * After getting the result of this event, please do not perform other asynchronous suspension operations including \Co\sleep
      * in the current coroutine except the waitForReadable method.
-     * Please put other asynchronous operations in the new coroutine
+     * Please put other asynchronous operations in the new coroutine,
      *
-     * @param bool $once
+     * @param int $timeout
      *
      * @return bool
-     * @throws \Ripple\Coroutine\Exception\EscapeException
-     * @throws Throwable
+     * @throws ConnectionTimeoutException
+     * @throws ConnectionCloseException
      */
-    public function waitForReadable(bool $once = false): bool
+    public function waitForReadable(int $timeout = 0): bool
     {
+        $suspension = getSuspension();
         if (!isset($this->onReadable)) {
-            $suspension = getSuspension();
-            $this->onReadable(function () use ($suspension) {
-                try {
-                    Coroutine::resume($suspension);
-                } catch (Throwable) {
-                    $this->cancelReadable();
-                }
-            });
-
+            $this->onReadable(static fn () => Coroutine::resume($suspension, true));
             $suspension instanceof Suspension && $suspension->promise->finally(fn () => $this->cancelReadable());
-            Coroutine::suspend($suspension);
-        } else {
-            try {
-                Coroutine::suspend(getSuspension());
-            } catch (Throwable) {
-                $this->cancelReadable();
-                return false;
-            }
         }
 
-        if ($once) {
-            $this->cancelReadable();
+        // If the stream is closed, return false directly.
+        $closeOID = $this->onClose(static fn () => Coroutine::throw(
+            $suspension,
+            new ConnectionCloseException('Stream has been closed', null, $this)
+        ));
+        if ($timeout > 0) {
+            // If a timeout is set, the suspension will be canceled after the timeout
+            $timeoutOID = delay(static fn () => Coroutine::throw(
+                $suspension,
+                new ConnectionTimeoutException('Stream read timeout', null, $this, false)
+            ), $timeout);
         }
 
-        return true;
+        try {
+            $result = Coroutine::suspend($suspension);
+            $this->cancelOnClose($closeOID);
+            isset($timeoutOID) && cancel($timeoutOID);
+            return $result;
+        } catch (ConnectionTimeoutException $e) {
+            throw $e;
+        } catch (ConnectionCloseException $e) {
+            $this->close();
+            throw $e;
+        } catch (Throwable) {
+            //Generally speaking, no exception will be thrown here
+            $this->close();
+            return false;
+        }
     }
 
     /**
-     * Wait for writable events. This method is only valid when there is no writable event listener.
+     * Wait for writeable events. This method is only valid when there is no writeable event listener.
      * After enabling this method, it is forbidden to use the onWritable method elsewhere unless you know what you are doing.
      *
      * After getting the result of this event, please do not perform other asynchronous suspension operations including \Co\sleep
      * in the current coroutine except the waitForWriteable method.
      * Please put other asynchronous operations in the new coroutine
      *
-     * @param bool $once
+     * @param int $timeout
      *
      * @return bool
-     * @throws Throwable
+     * @throws ConnectionCloseException
+     * @throws ConnectionTimeoutException
      */
-    public function waitForWriteable(bool $once = false): bool
+    public function waitForWriteable(int $timeout = 0): bool
     {
+        $suspension = getSuspension();
         if (!isset($this->onWriteable)) {
-            $suspension = getSuspension();
-            $this->onWritable(function () use ($suspension) {
-                try {
-                    Coroutine::resume($suspension);
-                } catch (Throwable $throwable) {
-                    $this->cancelWritable();
-                }
-            });
-
-            $suspension instanceof Suspension && $suspension->promise->finally(fn () => $this->cancelWritable());
-            Coroutine::suspend($suspension);
-        } else {
-            try {
-                Coroutine::suspend(getSuspension());
-            } catch (Throwable) {
-                $this->cancelWritable();
-                return false;
-            }
+            $this->onWriteable(static fn () => Coroutine::resume($suspension, true));
+            $suspension instanceof Suspension && $suspension->promise->finally(fn () => $this->cancelWriteable());
         }
 
-        if ($once) {
-            $this->cancelWritable();
+        // If the stream is closed, return false directly.
+        $closeOID = $this->onClose(static fn () => Coroutine::throw(
+            $suspension,
+            new ConnectionCloseException('Stream has been closed', null, $this)
+        ));
+        if ($timeout > 0) {
+            // If a timeout is set, the suspension will be canceled after the timeout
+            $timeoutOID = delay(static fn () => Coroutine::throw(
+                $suspension,
+                new ConnectionTimeoutException('Stream write timeout', null, $this, false)
+            ), $timeout);
         }
 
-        return true;
+        try {
+            $result = Coroutine::suspend($suspension);
+            $this->cancelOnClose($closeOID);
+            isset($timeoutOID) && cancel($timeoutOID);
+            return $result;
+        } catch (ConnectionTimeoutException $e) {
+            throw $e;
+        } catch (ConnectionCloseException $e) {
+            $this->close();
+            throw $e;
+        } catch (Throwable) {
+            //Generally speaking, no exception will be thrown here
+            $this->close();
+            return false;
+        }
+    }
+
+    /**
+     * @return bool
+     */
+    public function isClosed(): bool
+    {
+        return !is_resource($this->stream);
     }
 }

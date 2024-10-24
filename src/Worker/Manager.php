@@ -69,7 +69,7 @@ class Manager
     /**
      * @var int
      */
-    private int $processId;
+    private int $processID;
 
     /**
      * @Author cclilshy
@@ -241,9 +241,9 @@ class Manager
     {
         /*** @compatible:Windows */
         if (!Kernel::getInstance()->supportProcessControl()) {
-            $this->processId = getmypid();
+            $this->processID = getmypid();
         } else {
-            $this->processId = posix_getpid();
+            $this->processID = posix_getpid();
         }
         $this->zx7e = new Zx7e();
         foreach ($this->workers as $worker) {
@@ -261,7 +261,7 @@ class Manager
         if (!Kernel::getInstance()->supportProcessControl()) {
             return;
         }
-        if (isset($this->processId) && $this->processId === posix_getpid()) {
+        if (isset($this->processID) && $this->processID === posix_getpid()) {
             $this->stop();
         }
     }

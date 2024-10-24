@@ -193,8 +193,8 @@ class Kernel
      */
     public function repeat(Closure $closure, int|float $second): string
     {
-        return EventLoop::repeat($second, function (string $cancelId) use ($closure) {
-            call_user_func($closure, fn () => $this->cancel($cancelId));
+        return EventLoop::repeat($second, function (string $cancelID) use ($closure) {
+            call_user_func($closure, fn () => $this->cancel($cancelID));
         });
     }
 
@@ -291,7 +291,7 @@ class Kernel
      */
     public function cancelAll(): void
     {
-        foreach (EventLoop::getIdentifiers() as $identifier) {
+        foreach (EventLoop::getIDentifiers() as $identifier) {
             $this->cancel($identifier);
         }
     }

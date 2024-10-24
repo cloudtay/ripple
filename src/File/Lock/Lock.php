@@ -59,7 +59,7 @@ class Lock
     private string $path;
 
     /*** @var string */
-    private string $forkHandlerEventId;
+    private string $forkHandlerEventID;
     /**
      * @var bool
      */
@@ -78,7 +78,7 @@ class Lock
 
         $this->resource = fopen($this->path, 'r');
 
-        $this->forkHandlerEventId = forked(function () {
+        $this->forkHandlerEventID = forked(function () {
             fclose($this->resource);
             $this->resource = fopen($this->path, 'r');
         });
@@ -115,7 +115,7 @@ class Lock
             fclose($this->resource);
         }
 
-        cancelForked($this->forkHandlerEventId);
+        cancelForked($this->forkHandlerEventID);
     }
 
     /**

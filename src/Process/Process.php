@@ -35,14 +35,14 @@
 namespace Ripple\Process;
 
 use Closure;
+use Revolt\EventLoop;
+use Revolt\EventLoop\UnsupportedFeatureException;
 use Ripple\Coroutine\Exception\EscapeException;
 use Ripple\Coroutine\Suspension;
 use Ripple\Kernel;
 use Ripple\LibraryAbstract;
 use Ripple\Process\Exception\ProcessException;
 use Ripple\Utils\Output;
-use Revolt\EventLoop;
-use Revolt\EventLoop\UnsupportedFeatureException;
 use Throwable;
 
 use function call_user_func;
@@ -85,13 +85,13 @@ class Process extends LibraryAbstract
     private array $onFork = array();
 
     /*** @var int */
-    private int $rootProcessId;
+    private int $rootProcessID;
 
     /*** @var int */
-    private int $processId;
+    private int $processID;
 
     /*** @var string */
-    private string $signalHandlerEventId;
+    private string $signalHandlerEventID;
 
     /*** @var int */
     private int $index = 0;
@@ -100,13 +100,13 @@ class Process extends LibraryAbstract
     {
         /*** @compatible:Windows */
         if (!Kernel::getInstance()->supportProcessControl()) {
-            $this->rootProcessId = getmypid();
-            $this->processId     = getmypid();
+            $this->rootProcessID = getmypid();
+            $this->processID     = getmypid();
             return;
         }
 
-        $this->rootProcessId = posix_getpid();
-        $this->processId     = posix_getpid();
+        $this->rootProcessID = posix_getpid();
+        $this->processID     = posix_getpid();
     }
 
     public function __destruct()
@@ -168,18 +168,18 @@ class Process extends LibraryAbstract
                 }), getmypid());
             }
 
-            $processId = pcntl_fork();
+            $processID = pcntl_fork();
 
-            if ($processId === -1) {
+            if ($processID === -1) {
                 Output::warning('Fork failed.');
                 return false;
             }
 
-            if ($processId === 0) {
+            if ($processID === 0) {
                 /**
                  * It is necessary to ensure that the final closure cannot be escaped by any means.
                  */
-                foreach (EventLoop::getIdentifiers() as $identifier) {
+                foreach (EventLoop::getIDentifiers() as $identifier) {
                     try {
                         EventLoop::cancel($identifier);
                     } catch (Throwable $e) {
@@ -213,8 +213,8 @@ class Process extends LibraryAbstract
                 $this->registerSignalHandler();
             }
 
-            $promise = promise(function (Closure $resolve, Closure $reject) use ($processId) {
-                $this->process2promiseCallback[$processId] = array(
+            $promise = promise(function (Closure $resolve, Closure $reject) use ($processID) {
+                $this->process2promiseCallback[$processID] = array(
                     'resolve' => $resolve,
                     'reject'  => $reject,
                 );
@@ -222,17 +222,16 @@ class Process extends LibraryAbstract
 
             $runtime = new Runtime(
                 $promise,
-                $processId,
+                $processID,
             );
 
-            $this->process2runtime[$processId] = $runtime;
+            $this->process2runtime[$processID] = $runtime;
             return $runtime;
         });
     }
 
     /**
      * @return void
-     * @throws UnsupportedFeatureException|Throwable
      */
     public function forkedTick(): void
     {
@@ -251,7 +250,7 @@ class Process extends LibraryAbstract
 
         $this->process2promiseCallback = array();
         $this->process2runtime         = array();
-        $this->processId               = posix_getpid();
+        $this->processID               = Kernel::getInstance()->supportProcessControl() ? posix_getpid() : getmypid();
     }
 
     /**
@@ -259,7 +258,7 @@ class Process extends LibraryAbstract
      */
     private function unregisterSignalHandler(): void
     {
-        cancel($this->signalHandlerEventId);
+        cancel($this->signalHandlerEventID);
     }
 
     /**
@@ -273,7 +272,7 @@ class Process extends LibraryAbstract
             return;
         }
 
-        $this->signalHandlerEventId = $this->onSignal(SIGCHLD, fn () => $this->signalSIGCHLDHandler());
+        $this->signalHandlerEventID = $this->onSignal(SIGCHLD, fn () => $this->signalSIGCHLDHandler());
     }
 
     /**
@@ -294,26 +293,26 @@ class Process extends LibraryAbstract
     private function signalSIGCHLDHandler(): void
     {
         while (1) {
-            $childrenId = pcntl_wait($status, WNOHANG | WUNTRACED);
+            $childrenID = pcntl_wait($status, WNOHANG | WUNTRACED);
 
-            if ($childrenId <= 0) {
+            if ($childrenID <= 0) {
                 break;
             }
 
-            $this->onProcessExit($childrenId, $status);
+            $this->onProcessExit($childrenID, $status);
         }
     }
 
     /**
-     * @param int $processId
+     * @param int $processID
      * @param int $status
      *
      * @return void
      */
-    private function onProcessExit(int $processId, int $status): void
+    private function onProcessExit(int $processID, int $status): void
     {
         $exit            = pcntl_wifexited($status) ? pcntl_wexitstatus($status) : -1;
-        $promiseCallback = $this->process2promiseCallback[$processId] ?? null;
+        $promiseCallback = $this->process2promiseCallback[$processID] ?? null;
         if (!$promiseCallback) {
             return;
         }
@@ -324,8 +323,8 @@ class Process extends LibraryAbstract
             call_user_func($promiseCallback['resolve'], $exit);
         }
 
-        unset($this->process2promiseCallback[$processId]);
-        unset($this->process2runtime[$processId]);
+        unset($this->process2promiseCallback[$processID]);
+        unset($this->process2runtime[$processID]);
 
         if (empty($this->process2runtime)) {
             $this->unregisterSignalHandler();
@@ -335,8 +334,8 @@ class Process extends LibraryAbstract
     /**
      * @return int
      */
-    public function getRootProcessId(): int
+    public function getRootProcessID(): int
     {
-        return $this->rootProcessId;
+        return $this->rootProcessID;
     }
 }

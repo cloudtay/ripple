@@ -73,7 +73,7 @@ class Channel
     private bool $blocking = true;
 
     /*** @var string */
-    private string $forkHandlerId;
+    private string $forkHandlerID;
 
     /*** @var Stream */
     private Stream $stream;
@@ -119,7 +119,7 @@ class Channel
         $this->zx7e   = new Zx7e();
 
         // Re-open the stream resource after registering the process fork
-        $this->forkHandlerId = forked(function () {
+        $this->forkHandlerID = forked(function () {
             $this->owner = false;
             $this->stream->close();
 
@@ -156,7 +156,7 @@ class Channel
 
         $this->closed = true;
 
-        cancelForked($this->forkHandlerId);
+        cancelForked($this->forkHandlerID);
     }
 
     /**

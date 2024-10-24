@@ -52,12 +52,12 @@ use const SIGTERM;
 class Runtime
 {
     /**
-     * @param int     $processId
+     * @param int     $processID
      * @param Promise $promise
      */
     public function __construct(
         private readonly Promise $promise,
-        private readonly int     $processId,
+        private readonly int     $processID,
     ) {
     }
 
@@ -87,7 +87,7 @@ class Runtime
         }
 
 
-        posix_kill($this->processId, SIGKILL);
+        posix_kill($this->processID, SIGKILL);
     }
 
     /**
@@ -102,18 +102,18 @@ class Runtime
             return;
         }
 
-        posix_kill($this->processId, $signal);
+        posix_kill($this->processID, $signal);
     }
 
     /*** @return int */
-    public function getProcessId(): int
+    public function getProcessID(): int
     {
         /*** @compatible:Windows */
         if (!Kernel::getInstance()->supportProcessControl()) {
             return getmypid();
         }
 
-        return $this->processId;
+        return $this->processID;
     }
 
     /**

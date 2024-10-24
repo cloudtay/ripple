@@ -34,11 +34,9 @@
 
 namespace Ripple\Coroutine\Exception;
 
-use Exception as ExceptionNative;
-
 /**
  * @configure Exception
  */
-class Exception extends ExceptionNative
+class Exception extends \Exception
 {
 }

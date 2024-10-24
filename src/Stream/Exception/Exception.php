@@ -34,11 +34,9 @@
 
 namespace Ripple\Stream\Exception;
 
-use Exception as ExceptionNative;
-
 /**
  * @class Exception Socket transfer exception
  */
-class Exception extends ExceptionNative
+class Exception extends \Exception
 {
 }

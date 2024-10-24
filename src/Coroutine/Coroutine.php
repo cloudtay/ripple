@@ -155,8 +155,8 @@ class Coroutine extends LibraryAbstract
             $promise->then(static fn ($result) => Coroutine::resume($suspension, $result));
             $promise->except(static function (mixed $result) use ($suspension) {
                 $result instanceof Throwable
-                    ? $suspension->throw($result)
-                    : $suspension->throw(new PromiseRejectException($result));
+                    ? Coroutine::throw($suspension, $result)
+                    : Coroutine::throw($suspension, new PromiseRejectException($result));
             });
             $result = Coroutine::suspend($suspension);
             if ($result instanceof Promise) {
@@ -173,8 +173,8 @@ class Coroutine extends LibraryAbstract
             ->then(static fn (mixed $result) => Coroutine::resume($suspension, $result))
             ->except(static function (mixed $result) use ($suspension) {
                 $result instanceof Throwable
-                    ? $suspension->throw($result)
-                    : $suspension->throw(new PromiseRejectException($result));
+                    ? Coroutine::throw($suspension, $result)
+                    : Coroutine::throw($suspension, new PromiseRejectException($result));
             });
 
         // Confirm that you have prepared to handle Fiber recovery and take over control of Fiber by suspending it
@@ -326,5 +326,16 @@ class Coroutine extends LibraryAbstract
             $suspension instanceof Suspension && $suspension->reject($exception);
             throw $exception;
         }
+    }
+
+    /**
+     * @param \Revolt\EventLoop\Suspension $suspension
+     * @param Throwable                    $throwable
+     *
+     * @return void
+     */
+    public static function throw(EventLoop\Suspension $suspension, Throwable $throwable): void
+    {
+        $suspension->throw($throwable);
     }
 }

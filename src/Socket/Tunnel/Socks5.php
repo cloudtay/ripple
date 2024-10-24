@@ -54,7 +54,7 @@ use function substr;
 class Socks5 extends Tunnel
 {
     private int    $step   = 0;
-    private string $readEventId;
+    private string $readEventID;
     private string $buffer = '';
 
     /**
@@ -67,7 +67,7 @@ class Socks5 extends Tunnel
             $this->sendInitialHandshake();
 
             // Wait for handshake response
-            $this->readEventId = $this->proxy->onReadable(function () use ($resolve, $reject) {
+            $this->readEventID = $this->proxy->onReadable(function () use ($resolve, $reject) {
                 try {
                     $this->buffer .= $this->proxy->readContinuously(1024);
                     $this->processBuffer($resolve, $reject);
@@ -76,9 +76,9 @@ class Socks5 extends Tunnel
                 }
             });
         })->finally(function () {
-            if (isset($this->readEventId)) {
-                cancel($this->readEventId);
-                unset($this->readEventId);
+            if (isset($this->readEventID)) {
+                cancel($this->readEventID);
+                unset($this->readEventID);
             }
         })->await();
     }
@@ -199,9 +199,9 @@ class Socks5 extends Tunnel
         $this->buffer = substr($this->buffer, 10);
 
         if ($response[1] === "\x00") {
-            if (isset($this->readEventId)) {
-                cancel($this->readEventId);
-                unset($this->readEventId);
+            if (isset($this->readEventID)) {
+                cancel($this->readEventID);
+                unset($this->readEventID);
             }
             $resolve();
         } else {

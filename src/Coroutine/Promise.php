@@ -343,7 +343,7 @@ class Promise
      *
      * @param Promise[] $promises
      *
-     * @return \Ripple\Core\Coroutine\Promise
+     * @return \Ripple\Coroutine\Promise
      */
     public static function all(array $promises): Promise
     {
@@ -370,7 +370,7 @@ class Promise
      *
      * @param Promise[] $promises
      *
-     * @return \Ripple\Core\Coroutine\Promise
+     * @return \Ripple\Coroutine\Promise
      */
     public static function allSettled(array $promises): Promise
     {

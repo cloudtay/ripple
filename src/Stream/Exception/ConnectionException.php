@@ -57,9 +57,10 @@ class ConnectionException extends Exception
         string               $message = "",
         int                  $code = 0,
         Throwable|null       $previous = null,
-        StreamInterface|null $streamBase = null
+        StreamInterface|null $streamBase = null,
+        bool                 $close = true
     ) {
         parent::__construct($message, $code, $previous);
-        $streamBase?->close();
+        $close && $streamBase?->close();
     }
 }

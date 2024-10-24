@@ -173,13 +173,13 @@ function cancel(string $id): void
 }
 
 /**
- * @param string $eventId
+ * @param string $eventID
  *
  * @return void
  */
-function cancelForked(string $eventId): void
+function cancelForked(string $eventID): void
 {
-    Kernel::getInstance()->cancelForked($eventId);
+    Kernel::getInstance()->cancelForked($eventID);
 }
 
 /**
@@ -255,14 +255,14 @@ function registerForkHandler(Closure $closure): string
 /**
  * @Description please use cancelForked instead.
  *
- * @param string $eventId
+ * @param string $eventID
  *
  * @return void
  */
-function cancelForkHandler(string $eventId): void
+function cancelForkHandler(string $eventID): void
 {
     Output::warning('cancelForkHandler is deprecated, please use cancelForked instead.');
-    Kernel::getInstance()->cancelForked($eventId);
+    Kernel::getInstance()->cancelForked($eventID);
 }
 
 /**
@@ -278,7 +278,7 @@ function getSuspension(): EventLoop\Suspension
 /**
  * @return string
  */
-function getId(): string
+function getID(): string
 {
     return spl_object_hash(getSuspension());
 }

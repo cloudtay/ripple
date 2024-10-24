@@ -173,7 +173,7 @@ abstract class Worker
      * @Date   2024/8/17 17:32
      * @return int|false
      */
-    public function syncId(): int|false
+    public function syncID(): int|false
     {
         try {
             return promise(function (Closure $resolve, Closure $reject) {

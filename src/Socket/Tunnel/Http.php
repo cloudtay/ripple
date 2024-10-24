@@ -55,7 +55,7 @@ use function substr;
 class Http extends Tunnel
 {
     private int    $step   = 0;
-    private string $readEventId;
+    private string $readEventID;
     private string $buffer = '';
 
     /**
@@ -68,7 +68,7 @@ class Http extends Tunnel
             $this->sendConnectRequest();
 
             // Wait for handshake response
-            $this->readEventId = $this->proxy->onReadable(function () use ($resolve, $reject) {
+            $this->readEventID = $this->proxy->onReadable(function () use ($resolve, $reject) {
                 try {
                     $this->buffer .= $this->proxy->readContinuously(8192);
                     $this->processBuffer($resolve, $reject);
@@ -77,9 +77,9 @@ class Http extends Tunnel
                 }
             });
         })->finally(function () {
-            if (isset($this->readEventId)) {
-                cancel($this->readEventId);
-                unset($this->readEventId);
+            if (isset($this->readEventID)) {
+                cancel($this->readEventID);
+                unset($this->readEventID);
             }
         })->await();
     }

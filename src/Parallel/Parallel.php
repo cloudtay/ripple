@@ -121,7 +121,7 @@ class Parallel extends LibraryAbstract
     private Sync $eventScalar;
 
     /*** @var string */
-    private string $signalHandlerId;
+    private string $signalHandlerID;
 
     /**
      * Parallel constructor.
@@ -181,9 +181,9 @@ class Parallel extends LibraryAbstract
             $eventScalar(fn () => $eventScalar->wait());
             /*** @compatible:Windows */
             if (!Kernel::getInstance()->supportProcessControl()) {
-                $processId = getmypid();
+                $processID = getmypid();
             } else {
-                $processId = posix_getpid();
+                $processID = posix_getpid();
             }
             $count = 0;
             while ($number = $channel->recv()) {
@@ -195,7 +195,7 @@ class Parallel extends LibraryAbstract
                     if (!Kernel::getInstance()->supportProcessControl()) {
                         break;
                     }
-                    posix_kill($processId, SIGUSR2);
+                    posix_kill($processID, SIGUSR2);
                 } elseif ($count === -1) {
                     break;
                 } elseif ($count === 0) {
@@ -206,7 +206,7 @@ class Parallel extends LibraryAbstract
         }, [$this->counterChannel->channel, $this->eventScalar]);
 
         try {
-            $this->signalHandlerId = onSignal(SIGUSR2, fn () => $this->poll());
+            $this->signalHandlerID = onSignal(SIGUSR2, fn () => $this->poll());
         } catch (EventLoop\UnsupportedFeatureException) {
         }
 
@@ -239,9 +239,9 @@ class Parallel extends LibraryAbstract
      */
     public function run(Thread $thread, ...$argv): Future
     {
-        if (!isset($this->signalHandlerId)) {
+        if (!isset($this->signalHandlerID)) {
             try {
-                $this->signalHandlerId = onSignal(SIGUSR2, fn () => $this->poll());
+                $this->signalHandlerID = onSignal(SIGUSR2, fn () => $this->poll());
                 defer(function () {
                     $this->eventScalar->notify();
                 });
@@ -293,8 +293,8 @@ class Parallel extends LibraryAbstract
         }
 
         if (empty($this->futures)) {
-            cancel($this->signalHandlerId);
-            unset($this->signalHandlerId);
+            cancel($this->signalHandlerID);
+            unset($this->signalHandlerID);
         }
     }
 
