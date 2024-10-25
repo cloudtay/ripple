@@ -42,9 +42,7 @@ class ProcessTest extends TestCase
         $async    = async(function () use ($code) {
             $task    = System::Process()->task(function () use ($code) {
                 \Co\sleep(1);
-                defer(function () use ($code) {
-                    exit($code);
-                });
+                exit($code);
             });
             $runtime = $task->run();
             return await($runtime->getPromise());

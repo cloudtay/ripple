@@ -1,6 +1,6 @@
 {
   "name": "cloudtay/ripple",
-  "version": "v0.6.2",
+  "version": "v0.8",
   "license": "MIT",
   "autoload": {
     "psr-4": {

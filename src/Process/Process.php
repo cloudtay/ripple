@@ -200,12 +200,8 @@ class Process extends LibraryAbstract
                 // Whether it belongs to the ripple coroutine space
                 // forked and user actions need to be deferred because they clear the coroutine hash table
                 // If you don't do this, fiber escape will occur
-
-                EventLoop::defer(function () use ($closure, $args) {
-                    $this->forkedTick();
-                    call_user_func($closure, ...$args);
-                });
-
+                $this->forkedTick();
+                call_user_func($closure, ...$args);
                 throw new EscapeException('The process is abnormal.');
             }
 

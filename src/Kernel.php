@@ -37,12 +37,13 @@ namespace Ripple;
 use Closure;
 use Co\Coroutine;
 use Co\System;
-use Ripple\Coroutine\Promise;
-use Ripple\Coroutine\Suspension;
 use Revolt\EventLoop;
 use Revolt\EventLoop\UnsupportedFeatureException;
+use Ripple\Coroutine\Promise;
+use Ripple\Coroutine\Suspension;
 use Symfony\Component\DependencyInjection\Container;
 use Throwable;
+use Fiber;
 
 use function call_user_func;
 use function Co\async;
@@ -244,7 +245,6 @@ class Kernel
      * @param Closure|null $result
      *
      * @return bool
-     * @throws Throwable
      */
     public function wait(Closure|null $result = null): bool
     {
@@ -255,6 +255,7 @@ class Kernel
         if (!$this->mainRunning) {
             try {
                 \Ripple\Coroutine\Coroutine::resume($this->mainSuspension, $result);
+                Fiber::suspend();
             } catch (Throwable) {
                 exit(1);
             }
