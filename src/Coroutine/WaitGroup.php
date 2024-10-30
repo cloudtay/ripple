@@ -50,8 +50,11 @@ class WaitGroup
     /*** @var \Revolt\EventLoop\Suspension[] */
     protected array $waiters = [];
 
+    /*** @var int */
+    protected int $count = 0;
+
     /*** @param int $count */
-    public function __construct(protected int $count = 0)
+    public function __construct(int $count = 0)
     {
         $this->add($count);
     }
