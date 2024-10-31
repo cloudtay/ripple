@@ -36,6 +36,7 @@ namespace Ripple\Coroutine;
 
 use BadMethodCallException;
 use LogicException;
+use Ripple\Coroutine;
 use Ripple\Utils\Output;
 use Throwable;
 

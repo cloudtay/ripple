@@ -35,7 +35,8 @@
 namespace Ripple\Stream;
 
 use Closure;
-use Ripple\Coroutine\Promise;
+use Ripple\Promise;
+use Ripple\Stream;
 use Throwable;
 
 use function call_user_func_array;

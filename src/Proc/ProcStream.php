@@ -34,7 +34,7 @@
 
 namespace Ripple\Proc;
 
-use Ripple\Stream\Stream;
+use Ripple\Stream;
 
 /**
  * @Author cclilshy

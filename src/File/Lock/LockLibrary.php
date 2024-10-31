@@ -34,14 +34,14 @@
 
 namespace Ripple\File\Lock;
 
-use Ripple\LibraryAbstract;
+use Co\Base;
 
-class LockLibrary extends LibraryAbstract
+class LockLibrary extends Base
 {
     /**
-     * @var LibraryAbstract
+     * @var Base
      */
-    protected static LibraryAbstract $instance;
+    protected static Base $instance;
 
     /**
      * @param string $name

@@ -12,24 +12,6 @@ Ripple is a modern, high-performance native PHP coroutine engine designed to sol
 The engine uses an innovative architecture and efficient programming model to provide powerful and flexible backend support for modern web and web applications.
 By using ripple, you will experience the advantages of managing tasks from a global view of the system and efficiently handling network traffic and data. </p>
 
-## Design Philosophy
-
-The `EventLoop` mechanism gives PHP rocket-like performance, and we provide best practices for `Event`
-With the introduction of `PHP8`, the more lightweight `Fiber` replaces the `Generator` coroutine model.
-Our design concept can be realized through PHP bootstrapping. At the same time, we use `revolt` as the underlying driver
-library of ripple, making ripple perfectly compatible with the original PHP ecosystem.
-Completely free the hands of PHPer and seamlessly embrace the new era of PHP coroutines
-
-### 🌟 群聊已开放加入~ 🌟
-
-`🔥 交流群的大门已为各位先行者打开,加入ripple的交流群,一起探讨PHP协程的未来`
-
-**`🎉 加入方式`** 通过以下方式添加作者微信即可加入交流群
-
-| 微信二维码                                                                                                                |
-|----------------------------------------------------------------------------------------------------------------------|
-| <img src="https://raw.githubusercontent.com/cloudtay/ripple/refs/heads/main/assets/images/wechat.jpg" width="380" /> |
-
 ## Install
 
 ````bash
@@ -45,162 +27,6 @@ understand the workflow of ripple
 
 If you want to quickly deploy and use `ripple` services, you can directly
 visit [Quick Deployment](https://ripple.cloudtay.com/docs/install/server)
-
-## Basic usage
-
-ripple strictly follows the latest strongly typed programming standards and is very IDE-friendly
-The following reproduction process is perfectly supported and explained in any IDE
-
-### Coroutine
-
-> Create coroutines through the `async` method of the `Co` class, and simulate IO operations through the `sleep` method
-> of the `Co` class
-
-```php
-\Co\async(static function (){
-    \Co\sleep(1);
-    
-    echo 'Coroutine 1' , PHP_EOL;
-});
-
-\Co\async(static function (){
-    \Co\sleep(1);
-    
-    echo 'Coroutine 2' , PHP_EOL;
-});
-
-\Co\async(static function (){
-    \Co\sleep(1);
-    
-    echo 'Coroutine 3' , PHP_EOL;
-});
-
-\Co\sleep(2); // Wait for all coroutines to complete execution
-```
-
-### HTTP client
-
-> Create HTTP coroutine client through `Guzzle`, which perfectly supports functions such as proxy, redirection, timeout,
-> upload and download, etc.
-
-```php
-use GuzzleHttp\Exception\GuzzleException;
-use Ripple\Utils\Output;
-
-$client = Co\Plugin::Guzzle()->newClient();
-
-for ($i = 0; $i < 10; $i++) {
-    \Co\async(static function (){
-        try {
-            $response = $client->get('https://www.google.com/');
-            echo $response->getStatusCode(), \PHP_EOL;
-        } catch (GuzzleException $e) {
-            Output::exception($e);
-        }
-    });
-}
-
-\Co\wait();
-```
-
-### HTTP Client - AI development using SSE
-
-> Taking Alibaba Cloud Bailian as an example, obtaining AI-generated text through SSE is so simple.
-
-```php
-use GuzzleHttp\Exception\GuzzleException;
-use Ripple\Core\Http\Client\Capture\ServerSentEvents;
-
-if (!$key = $argv[1] ?? null) {
-    echo 'Please enter the key' .\PHP_EOL;
-    exit(1);
-}
-
-//Create interceptor
-$sse = new ServerSentEvents();
-$sse->onEvent(function ($event) {
-    \var_dump($event);
-});
-
-// Refer to the documentation and ask questions
-$client = Co\Plugin::Guzzle()->newClient();
-$header = [];
-$header['Content-Type'] = 'application/json';
-$header['Accept'] = 'text/event-stream';
-$header['Authorization'] = 'Bearer ' . $key;
-$body = [
-    'model' => 'qwen-max',
-    'input' => [
-        'messages' => [
-            ['role' => 'system', 'content' => 'Your name is ripple knowledge base'],
-            ['role' => 'user', 'content' => 'Who are you?'],
-        ],
-    ],
-];
-
-try {
-    $response = $client->post('https://dashscope.aliyuncs.com/api/v1/services/aigc/text-generation/generation', [
-        'headers' => $header,
-        'body' => \json_encode($body, \JSON_UNESCAPED_UNICODE),
-
-        'timeout' => 10,
-
-        //Injection interceptor
-        'capture_write' => $sse->getWriteCapture(),
-        'capture_read' => $sse->getReadCapture(),
-    ]);
-} catch (GuzzleException $e) {
-    echo $e->getMessage();
-}
-```
-
-### HTTP server
-
-> Create an HTTP coroutine server through `Co\Net`, and process requests through the `onRequest` method of `Co\Net`
-
-```php
-use Ripple\Core\Http\Server\Chunk;
-use Ripple\Core\Http\Server\Request;
-use Ripple\Core\Http\Server\Response;
-
-$server = Co\Net::Http()->server('http://127.0.0.1:8008', \stream_context_create([
-    'socket' => [
-        'so_reuseport' => true,
-        'so_reuseaddr' => true,
-    ]
-]));
-
-$server->onRequest(static function (Request $request, Response $response) {
-    switch (\trim($request->getRequestUri(), '/')) {
-        case 'sse':
-            $response->headers->set('Transfer-Encoding', 'chunked');
-            $generator = static function () {
-                foreach (\range(1, 10) as $i) {
-                    Co\sleep(0.1);
-                    yield Chunk::event('message', \json_encode(['id' => $i, 'content' => 'content']));
-                }
-                yield '';
-            };
-            $response->setContent($generator());
-            $response->respond();
-            break;
-        default:
-            $response->setContent('Hello, World!')->respond();
-            break;
-    }
-});
-
-$server->listen();
-
-Co\wait();
-```
-
-### More
-
-> Want to know about WebSocket server and client, TCP server and client, UDP server and client, Unix server and client,
-> etc...
-
-You can visit ripple’s [documentation](https://ripple.cloudtay.com/) to start reading
 
 ## Appendix
 
@@ -226,18 +52,11 @@ Provides standard coroutine architecture and tools for rapid development or pack
 
 ### Event Library Guide
 
-|    Extension Types     | Recommended Use | Compatibility |                                            Description                                            |
-|:----------------------:|:---------------:|:-------------:|:-------------------------------------------------------------------------------------------------:|
-|        `libev`         |       🏅️       |      🟢️      |   `Ev` is a more efficient event extension that performs consistently in various systems and is   |
-| recommended to be used |                 |               |                                                                                                   |
-|        `Native`        |        ️        |      🟢       |                        Support the use of PHP's built-in select mechanism                         |
-|        `event`         |                 |      🌗       | The event characteristics under different systems are not uniform, and its use is not recommended |
-
-### Ev extension installation
-
-```bash
-pecl install ev
-```
+| Extension Types | Recommended Use | Compatibility |                                                     Description                                                      |
+|:---------------:|:---------------:|:-------------:|:--------------------------------------------------------------------------------------------------------------------:|
+|     `libev`     |       🏅️       |      🟢️      | `Ev` is a more efficient event extension that performs consistently in various systems and is recommended to be used |
+|    `Native`     |        ️        |      🟢       |                                  Support the use of PHP's built-in select mechanism                                  |
+|     `event`     |                 |      🌗       |         The event characteristics under different systems are not uniform, and their use is not recommended          |
 
 ## Special thanks
 

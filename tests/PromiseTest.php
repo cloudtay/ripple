@@ -8,7 +8,7 @@ use PHPUnit\Framework\Attributes\RunClassInSeparateProcess;
 use PHPUnit\Framework\TestCase;
 use Ripple\Coroutine\Exception\PromiseAggregateError;
 use Ripple\Coroutine\Futures;
-use Ripple\Coroutine\Promise;
+use Ripple\Promise;
 
 use function Co\async;
 use function Co\wait;

@@ -37,13 +37,11 @@ namespace Ripple;
 use Closure;
 use Co\Coroutine;
 use Co\System;
+use Fiber;
 use Revolt\EventLoop;
 use Revolt\EventLoop\UnsupportedFeatureException;
-use Ripple\Coroutine\Promise;
 use Ripple\Coroutine\Suspension;
-use Symfony\Component\DependencyInjection\Container;
 use Throwable;
-use Fiber;
 
 use function call_user_func;
 use function Co\async;
@@ -82,9 +80,6 @@ class Kernel
     /*** @var bool */
     private bool $mainRunning = true;
 
-    /*** @var Container */
-    private Container $container;
-
     /*** @var int */
     private int $memorySize;
 
@@ -103,7 +98,6 @@ class Kernel
         $this->mainSuspension = EventLoop::getSuspension();
         $this->parallel       = extension_loaded('parallel');
         $this->processControl = extension_loaded('pcntl') && extension_loaded('posix');
-        $this->container      = new Container();
     }
 
     /**
@@ -254,7 +248,7 @@ class Kernel
 
         if (!$this->mainRunning) {
             try {
-                \Ripple\Coroutine\Coroutine::resume($this->mainSuspension, $result);
+                \Ripple\Coroutine::resume($this->mainSuspension, $result);
                 Fiber::suspend();
             } catch (Throwable) {
                 exit(1);
@@ -263,7 +257,7 @@ class Kernel
 
         try {
             $this->mainRunning = false;
-            $result            = \Ripple\Coroutine\Coroutine::suspend($this->mainSuspension);
+            $result            = \Ripple\Coroutine::suspend($this->mainSuspension);
             $this->mainRunning = true;
             if ($result instanceof Closure) {
                 $result();
@@ -348,15 +342,5 @@ class Kernel
         }
 
         return $this->memorySize = 0;
-    }
-
-    /**
-     * @Author cclilshy
-     * @Date   2024/9/30 09:58
-     * @return Container
-     */
-    public function getContainer(): Container
-    {
-        return $this->container;
     }
 }

@@ -38,6 +38,7 @@ use Ripple\Kernel;
 use Ripple\Stream\Exception\ConnectionException;
 use Ripple\Utils\Output;
 use Ripple\Utils\Serialization\Zx7e;
+use Ripple\Worker;
 
 use function getmypid;
 use function posix_getpid;

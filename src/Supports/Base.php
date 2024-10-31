@@ -32,16 +32,16 @@
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-namespace Ripple;
+namespace Co;
 
 /**
  * @Author cclilshy
  * @Date   2024/8/16 09:35
  */
-abstract class LibraryAbstract
+abstract class Base
 {
-    /*** @var LibraryAbstract */
-    protected static LibraryAbstract $instance;
+    /*** @var Base */
+    protected static Base $instance;
 
     /**
      * @return static

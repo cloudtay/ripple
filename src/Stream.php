@@ -32,17 +32,17 @@
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-namespace Ripple\Stream;
+namespace Ripple;
 
 use Closure;
 use Exception;
 use Revolt\EventLoop;
-use Ripple\Coroutine\Coroutine;
-use Ripple\Coroutine\Promise;
 use Ripple\Coroutine\Suspension;
 use Ripple\Stream\Exception\ConnectionCloseException;
 use Ripple\Stream\Exception\ConnectionException;
 use Ripple\Stream\Exception\ConnectionTimeoutException;
+use Ripple\Stream\StreamBase;
+use Ripple\Stream\Transaction;
 use Ripple\Utils\Output;
 use Throwable;
 

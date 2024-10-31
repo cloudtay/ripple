@@ -36,9 +36,9 @@ namespace Ripple\Socket;
 
 use Closure;
 use Co\IO;
-use Ripple\Coroutine\Promise;
+use Ripple\Promise;
+use Ripple\Stream;
 use Ripple\Stream\Exception\ConnectionException;
-use Ripple\Stream\Stream;
 use RuntimeException;
 use Socket;
 use Throwable;

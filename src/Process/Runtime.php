@@ -35,8 +35,8 @@
 namespace Ripple\Process;
 
 use Closure;
-use Ripple\Coroutine\Promise;
 use Ripple\Kernel;
+use Ripple\Promise;
 use Throwable;
 
 use function getmypid;

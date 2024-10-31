@@ -34,7 +34,7 @@
 
 namespace Co;
 
-use Ripple\Coroutine\Coroutine as CoroutineLibrary;
+use Ripple\Coroutine as CoroutineLibrary;
 
 /**
  * @Author cclilshy

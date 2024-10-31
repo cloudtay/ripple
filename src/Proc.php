@@ -32,37 +32,53 @@
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-namespace Co;
+namespace Ripple;
 
-use Ripple\App\Http\Http;
-use Ripple\App\WebSocket\WebSocket;
-use Ripple\Plugins\Guzzle\Guzzle;
+use Co\Base;
+use Ripple\Proc\Session;
 
-class App
+use function implode;
+use function is_array;
+use function is_resource;
+use function proc_open;
+
+/**
+ * @Author cclilshy
+ * @Date   2024/8/16 09:36
+ */
+class Proc extends Base
 {
     /**
-     * @return Http
+     * @var Base
      */
-    public static function Http(): Http
-    {
-        return Http::getInstance();
-    }
+    protected static Base $instance;
 
     /**
-     * @return WebSocket
+     * @param string|array $entrance
+     *
+     * @return Session|false
      */
-    public static function WebSocket(): WebSocket
+    public function open(string|array $entrance = '/bin/sh'): Session|false
     {
-        return WebSocket::getInstance();
-    }
+        if (is_array($entrance)) {
+            $entrance = implode(' ', $entrance);
+        }
 
-    /**
-     * @Author cclilshy
-     * @Date   2024/8/31 11:41
-     * @return Guzzle
-     */
-    public static function Guzzle(): Guzzle
-    {
-        return Guzzle::getInstance();
+        $process = proc_open($entrance, array(
+            0 => ['pipe', 'r'],
+            1 => ['pipe', 'w'],
+            2 => ['pipe', 'w'],
+        ), $pipes);
+
+        if (is_resource($process)) {
+            return new Session(
+                $process,
+                $pipes[0],
+                $pipes[1],
+                $pipes[2],
+            );
+        }
+
+        return false;
     }
 }

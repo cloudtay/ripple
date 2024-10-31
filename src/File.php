@@ -32,12 +32,12 @@
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-namespace Ripple\File;
+namespace Ripple;
 
 use Closure;
+use Co\Base;
 use Ripple\File\Exception\FileException;
-use Ripple\LibraryAbstract;
-use Ripple\Stream\Stream;
+use Ripple\File\Monitor;
 use Throwable;
 
 use function array_shift;
@@ -49,12 +49,12 @@ use function fopen;
  * @Author cclilshy
  * @Date   2024/8/16 09:35
  */
-class File extends LibraryAbstract
+class File extends Base
 {
     /**
-     * @var LibraryAbstract
+     * @var Base
      */
-    protected static LibraryAbstract $instance;
+    protected static Base $instance;
     /**
      * @var Monitor[]
      */

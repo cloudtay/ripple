@@ -32,11 +32,13 @@
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-namespace Ripple\Coroutine;
+namespace Ripple;
 
 use Closure;
 use Ripple\Coroutine\Exception\Exception;
 use Ripple\Coroutine\Exception\PromiseAggregateError;
+use Ripple\Coroutine\Futures;
+use Ripple\Coroutine\WaitGroup;
 use Ripple\Utils\Output;
 use Throwable;
 
@@ -104,7 +106,7 @@ class Promise
             try {
                 $this->reject($exception);
             } catch (Throwable $e) {
-                Output::error($e->getMessage());
+                Output::warning($e->getMessage());
             }
         }
     }
@@ -139,7 +141,7 @@ class Promise
             try {
                 call_user_func($onFulfilled, $value);
             } catch (Throwable $exception) {
-                Output::error($exception->getMessage());
+                Output::warning($exception->getMessage());
             }
         }
     }
@@ -164,7 +166,7 @@ class Promise
             try {
                 call_user_func($onRejected, $reason);
             } catch (Throwable $reason) {
-                Output::error($reason->getMessage());
+                Output::warning($reason->getMessage());
             }
         }
     }
@@ -185,7 +187,7 @@ class Promise
                 try {
                     call_user_func($onFulfilled, $this->result);
                 } catch (Throwable $exception) {
-                    Output::error($exception->getMessage());
+                    Output::warning($exception->getMessage());
                 }
                 return $this;
             } else {
@@ -213,7 +215,7 @@ class Promise
             try {
                 call_user_func($onRejected, $this->result);
             } catch (Throwable $exception) {
-                Output::error($exception->getMessage());
+                Output::warning($exception->getMessage());
             }
             return $this;
         } else {
@@ -235,7 +237,7 @@ class Promise
             try {
                 call_user_func($onFinally, $this->result);
             } catch (Throwable $exception) {
-                Output::error($exception->getMessage());
+                Output::warning($exception->getMessage());
             }
             return $this;
         } else {
@@ -343,7 +345,7 @@ class Promise
      *
      * @param Promise[] $promises
      *
-     * @return \Ripple\Coroutine\Promise
+     * @return \Ripple\Promise
      */
     public static function all(array $promises): Promise
     {
@@ -370,7 +372,7 @@ class Promise
      *
      * @param Promise[] $promises
      *
-     * @return \Ripple\Coroutine\Promise
+     * @return \Ripple\Promise
      */
     public static function allSettled(array $promises): Promise
     {

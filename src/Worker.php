@@ -32,17 +32,18 @@
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-namespace Ripple\Worker;
+namespace Ripple;
 
 use Closure;
 use Co\System;
 use JetBrains\PhpStorm\NoReturn;
-use Ripple\Kernel;
 use Ripple\Process\Runtime;
 use Ripple\Socket\SocketStream;
 use Ripple\Stream\Exception\ConnectionException;
 use Ripple\Utils\Output;
 use Ripple\Utils\Serialization\Zx7e;
+use Ripple\Worker\Command;
+use Ripple\Worker\Manager;
 use Throwable;
 
 use function Co\delay;

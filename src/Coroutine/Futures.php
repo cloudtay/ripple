@@ -35,6 +35,8 @@
 namespace Ripple\Coroutine;
 
 use Iterator;
+use Ripple\Coroutine;
+use Ripple\Promise;
 use Throwable;
 
 use function array_shift;
@@ -52,7 +54,7 @@ class Futures implements Iterator
     /*** @var \Revolt\EventLoop\Suspension[] */
     protected array $waiters = [];
 
-    /*** @param \Ripple\Coroutine\Promise[] $promises */
+    /*** @param \Ripple\Promise[] $promises */
     public function __construct(protected readonly array $promises)
     {
         foreach ($promises as $promise) {

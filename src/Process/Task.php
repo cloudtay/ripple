@@ -36,7 +36,7 @@ namespace Ripple\Process;
 
 use Closure;
 use Ripple\Kernel;
-use Ripple\Parallel\Parallel;
+use Ripple\Parallel;
 
 use function call_user_func;
 

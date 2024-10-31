@@ -34,15 +34,16 @@
 
 namespace Ripple\Channel;
 
+use Co\Base;
+use Ripple\Channel;
 use Ripple\Channel\Exception\ChannelException;
-use Ripple\LibraryAbstract;
 
-class ChannelLibrary extends LibraryAbstract
+class ChannelLibrary extends Base
 {
     /**
-     * @var LibraryAbstract
+     * @var Base
      */
-    protected static LibraryAbstract $instance;
+    protected static Base $instance;
 
     /**
      * @param string $name

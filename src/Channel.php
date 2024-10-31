@@ -32,14 +32,12 @@
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-namespace Ripple\Channel;
+namespace Ripple;
 
 use Co\IO;
 use Exception;
 use Ripple\Channel\Exception\ChannelException;
 use Ripple\File\Lock\Lock;
-use Ripple\Kernel;
-use Ripple\Stream\Stream;
 use Ripple\Utils\Serialization\Zx7e;
 
 use function chr;

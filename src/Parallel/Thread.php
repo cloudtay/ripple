@@ -36,6 +36,7 @@ namespace Ripple\Parallel;
 
 use Closure;
 use parallel\Runtime;
+use Ripple\Parallel;
 
 class Thread
 {

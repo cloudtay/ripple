@@ -32,17 +32,19 @@
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-namespace Ripple\Parallel;
+namespace Ripple;
 
 use Closure;
+use Co\Base;
 use Composer\Autoload\ClassLoader;
 use parallel\Events;
 use parallel\Runtime;
 use parallel\Sync;
-use Ripple\Kernel;
-use Ripple\LibraryAbstract;
 use ReflectionClass;
 use Revolt\EventLoop;
+use Ripple\Parallel\Channel;
+use Ripple\Parallel\Future;
+use Ripple\Parallel\Thread;
 use RuntimeException;
 use Throwable;
 
@@ -70,10 +72,10 @@ use const SIGUSR2;
  *
  * PHP version 8.3.0-8.3.8 has memory leak
  */
-class Parallel extends LibraryAbstract
+class Parallel extends Base
 {
-    /*** @var LibraryAbstract */
-    public static LibraryAbstract $instance;
+    /*** @var Base */
+    public static Base $instance;
 
     /*** @var int */
     public static int $cpuCount;

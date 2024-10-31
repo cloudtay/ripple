@@ -34,9 +34,9 @@
 
 namespace Co;
 
-use Ripple\Parallel\Parallel;
-use Ripple\Proc\Proc;
-use Ripple\Process\Process;
+use Ripple\Parallel;
+use Ripple\Proc;
+use Ripple\Process;
 use RuntimeException;
 
 /**

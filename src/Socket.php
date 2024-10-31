@@ -32,12 +32,12 @@
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-namespace Ripple\Socket;
+namespace Ripple;
 
 use Closure;
+use Co\Base;
 use Ripple\Coroutine\Exception\Exception;
-use Ripple\Coroutine\Promise;
-use Ripple\LibraryAbstract;
+use Ripple\Socket\SocketStream;
 use Ripple\Stream\Exception\ConnectionException;
 use Throwable;
 
@@ -62,10 +62,10 @@ use const STREAM_SERVER_LISTEN;
  * @Author cclilshy
  * @Date   2024/8/16 09:36
  */
-class Socket extends LibraryAbstract
+class Socket extends Base
 {
-    /*** @var LibraryAbstract */
-    protected static LibraryAbstract $instance;
+    /*** @var Base */
+    protected static Base $instance;
 
     /**
      * @param string     $address

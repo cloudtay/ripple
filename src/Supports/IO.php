@@ -35,9 +35,9 @@
 namespace Co;
 
 use Ripple\Channel\ChannelLibrary;
-use Ripple\File\File;
+use Ripple\File;
 use Ripple\File\Lock\LockLibrary;
-use Ripple\Socket\Socket;
+use Ripple\Socket;
 
 /**
  * @Author cclilshy

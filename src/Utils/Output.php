@@ -61,18 +61,18 @@ final class Output
     {
         /*** @compatible:Windows */
         if (Kernel::getInstance()->supportProcessControl()) {
-            fwrite(STDOUT, "\033[1;31mProcess: " . posix_getpid() . '=>' . posix_getppid() . "\033[0m\n");
+            fwrite(STDOUT, "\033[31mProcess: " . posix_getpid() . '=>' . posix_getppid() . "\033[0m\n");
         }
 
-        fwrite(STDOUT, "\033[1;31mException: " . get_class($exception) . "\033[0m\n");
-        fwrite(STDOUT, "\033[1;33mMessage: " . $exception->getMessage() . "\033[0m\n");
-        fwrite(STDOUT, "\033[1;34mFile: " . $exception->getFile() . "\033[0m\n");
-        fwrite(STDOUT, "\033[1;34mLine: " . $exception->getLine() . "\033[0m\n");
+        fwrite(STDOUT, "\033[31mException: " . get_class($exception) . "\033[0m\n");
+        fwrite(STDOUT, "\033[33mMessage: " . $exception->getMessage() . "\033[0m\n");
+        fwrite(STDOUT, "\033[34mFile: " . $exception->getFile() . "\033[0m\n");
+        fwrite(STDOUT, "\033[34mLine: " . $exception->getLine() . "\033[0m\n");
         fwrite(STDOUT, "\033[0;32mStack trace:\033[0m\n");
         $trace      = $exception->getTraceAsString();
         $traceLines = explode("\n", $trace);
         foreach ($traceLines as $line) {
-            fwrite(STDOUT, "\033[0;32m" . $line . "\033[0m\n");
+            fwrite(STDOUT, "\033[0;32m{$line}\033[0m\n");
         }
         fwrite(STDOUT, PHP_EOL);
     }
@@ -85,7 +85,7 @@ final class Output
      */
     public static function info(string $title, string ...$contents): void
     {
-        Output::writeln("\033[1;32m" . $title . "\033[0m \033[1;33m" . implode(' ', $contents) . "\033[0m");
+        Output::writeln("\033[32m{$title}\033[0m \033[33m" . implode(' ', $contents) . "\033[0m");
     }
 
     /**
@@ -106,7 +106,7 @@ final class Output
      */
     public static function warning(string $title, string ...$contents): void
     {
-        Output::writeln("\033[1;33m" . $title . "\033[0m \033[1;33m" . implode(' ', $contents) . "\033[0m");
+        Output::writeln("\033[33m{$title}\033[0m \033[33m" . implode(' ', $contents) . "\033[0m");
     }
 
     /**
@@ -117,6 +117,6 @@ final class Output
      */
     public static function error(string $title, string ...$contents): void
     {
-        Output::writeln("\033[1;31m" . $title . "\033[0m \033[1;33m" . implode(' ', $contents) . "\033[0m");
+        Output::writeln("\033[31m{$title}\033[0m \033[33m" . implode(' ', $contents) . "\033[0m");
     }
 }

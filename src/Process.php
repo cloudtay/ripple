@@ -32,16 +32,17 @@
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-namespace Ripple\Process;
+namespace Ripple;
 
 use Closure;
+use Co\Base;
 use Revolt\EventLoop;
 use Revolt\EventLoop\UnsupportedFeatureException;
 use Ripple\Coroutine\Exception\EscapeException;
 use Ripple\Coroutine\Suspension;
-use Ripple\Kernel;
-use Ripple\LibraryAbstract;
 use Ripple\Process\Exception\ProcessException;
+use Ripple\Process\Runtime;
+use Ripple\Process\Task;
 use Ripple\Utils\Output;
 use Throwable;
 
@@ -70,10 +71,10 @@ use const WUNTRACED;
  * @Author    cclilshy
  * @Date      2024/8/16 09:36
  */
-class Process extends LibraryAbstract
+class Process extends Base
 {
-    /*** @var LibraryAbstract */
-    protected static LibraryAbstract $instance;
+    /*** @var Base */
+    protected static Base $instance;
 
     /*** @var array */
     private array $process2promiseCallback = array();

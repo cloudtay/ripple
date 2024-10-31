@@ -36,14 +36,13 @@ namespace Co;
 
 use BadFunctionCallException;
 use Closure;
-use Ripple\Coroutine\Promise;
-use Ripple\Kernel;
-use Ripple\Parallel\Thread;
-use Ripple\Utils\Output;
 use Revolt\EventLoop;
 use Revolt\EventLoop\UnsupportedFeatureException;
+use Ripple\Kernel;
+use Ripple\Parallel\Thread;
+use Ripple\Promise;
+use Ripple\Utils\Output;
 use RuntimeException;
-use Symfony\Component\DependencyInjection\Container;
 use Throwable;
 
 use function spl_object_hash;
@@ -55,7 +54,7 @@ use function spl_object_hash;
  * If the rejected value is a non-Error object, it will be wrapped into a `PromiseRejectException` object,
  * The `getReason` method of this object can obtain the rejected value
  *
- * @param \Ripple\Coroutine\Promise $promise
+ * @param \Ripple\Promise $promise
  *
  * @return mixed
  * @throws Throwable
@@ -227,16 +226,6 @@ function wait(Closure|null $closure = null): void
 function stop(): void
 {
     Kernel::getInstance()->stop();
-}
-
-/**
- * @Author cclilshy
- * @Date   2024/9/30 10:54
- * @return Container
- */
-function container(): Container
-{
-    return Coroutine::Coroutine()->getContainer();
 }
 
 /**

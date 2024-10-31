@@ -32,18 +32,17 @@
  * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
  */
 
-namespace Ripple\Coroutine;
+namespace Ripple;
 
 use Closure;
+use Co\Base;
 use Fiber;
 use FiberError;
 use JetBrains\PhpStorm\NoReturn;
 use Revolt\EventLoop;
 use Ripple\Coroutine\Exception\EscapeException;
 use Ripple\Coroutine\Exception\PromiseRejectException;
-use Ripple\Kernel;
-use Ripple\LibraryAbstract;
-use Symfony\Component\DependencyInjection\Container;
+use Ripple\Coroutine\Suspension;
 use Throwable;
 use WeakMap;
 use WeakReference;
@@ -62,22 +61,18 @@ use function Co\wait;
  *
  * 2024-07-13 Compatible with Process module
  */
-class Coroutine extends LibraryAbstract
+class Coroutine extends Base
 {
-    /*** @var LibraryAbstract */
-    protected static LibraryAbstract $instance;
+    /*** @var Base */
+    protected static Base $instance;
 
     /*** @var WeakMap<object,WeakReference<Suspension>> */
     private WeakMap $fiber2suspension;
-
-    /*** @var WeakMap<object,WeakReference<Container>> */
-    private WeakMap $containers;
 
     public function __construct()
     {
         $this->registerOnFork();
 
-        $this->containers       = new WeakMap();
         $this->fiber2suspension = new WeakMap();
     }
 
@@ -246,28 +241,6 @@ class Coroutine extends LibraryAbstract
         $suspension = getSuspension();
         delay(static fn () => Coroutine::resume($suspension, $second), $second);
         return Coroutine::suspend($suspension);
-    }
-
-    /**
-     * @Author cclilshy
-     * @Date   2024/9/30 10:03
-     * @return Container
-     */
-    public function getContainer(): Container
-    {
-        if (!$fiber = Fiber::getCurrent()) {
-            Kernel::getInstance()->getContainer();
-        }
-
-        $container = ($this->containers[$fiber] ?? null)?->get();
-
-        if ($container) {
-            return $container;
-        }
-
-        $containerOg              = new Container();
-        $this->containers[$fiber] = WeakReference::create($containerOg);
-        return $containerOg;
     }
 
     /**

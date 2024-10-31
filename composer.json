@@ -1,6 +1,5 @@
 {
   "name": "cloudtay/ripple",
-  "version": "v0.8",
   "license": "MIT",
   "autoload": {
     "psr-4": {
@@ -27,13 +26,8 @@
     "php": ">=8.1",
     "ext-sockets": "*",
     "ext-openssl": "*",
-    "psr/http-message": "*",
     "revolt/event-loop": "^1.0",
-    "cloudtay/ripple-http": "*",
-    "cloudtay/ripple-websocket": "*",
-    "symfony/http-foundation": "*",
-    "symfony/dependency-injection": "*",
-    "guzzlehttp/guzzle": "*"
+    "psr/http-message": "*"
   },
   "require-dev": {
     "ext-posix": "*",
@@ -42,9 +36,18 @@
     "ext-parallel": "*",
     "ext-zlib": "*",
     "phpunit/phpunit": "*",
-    "friendsofphp/php-cs-fixer": "*",
-    "cloudtay/ripple-http": "dev-main",
-    "cloudtay/ripple-websocket": "dev-main"
+    "friendsofphp/php-cs-fixer": "*"
+  },
+  "suggest": {
+    "ext-posix": "For better signal handling",
+    "ext-pcntl": "For better signal handling",
+    "ext-curl": "For better http client",
+    "ext-parallel": "For better parallel processing",
+    "ext-zlib": "For better compression",
+    "cloudtay/ripple-http": "For better http client",
+    "cloudtay/ripple-websocket": "For better websocket client",
+    "cloudtay/ripple-mysql": "For better mysql client",
+    "cloudtay/ripple-guzzle": "For better guzzle client"
   },
   "minimum-stability": "dev",
   "prefer-stable": true

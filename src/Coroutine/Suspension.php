@@ -36,6 +36,7 @@ namespace Ripple\Coroutine;
 
 use Closure;
 use Fiber;
+use Ripple\Promise;
 use Throwable;
 
 class Suspension implements \Revolt\EventLoop\Suspension
