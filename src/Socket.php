@@ -95,7 +95,7 @@ class Socket extends Base
     {
         try {
             return promise(static function (Closure $resolve, Closure $reject) use ($address, $timeout, $context) {
-                $connection = stream_socket_client(
+                $connection = @stream_socket_client(
                     $address,
                     $_,
                     $_,
@@ -150,7 +150,7 @@ class Socket extends Base
                     $promise->finally(static fn () => cancel($timeoutEventID));
                 }
 
-                $handshakeResult = stream_socket_enable_crypto(
+                $handshakeResult = @stream_socket_enable_crypto(
                     $stream->stream,
                     true,
                     STREAM_CRYPTO_METHOD_SSLv23_CLIENT | STREAM_CRYPTO_METHOD_TLS_CLIENT
@@ -170,7 +170,7 @@ class Socket extends Base
                 if ($handshakeResult === 0) {
                     $stream->onReadable(static function (SocketStream $stream, Closure $cancel) use ($resolve, $reject) {
                         try {
-                            $handshakeResult = stream_socket_enable_crypto(
+                            $handshakeResult = @stream_socket_enable_crypto(
                                 $stream->stream,
                                 true,
                                 STREAM_CRYPTO_METHOD_SSLv23_CLIENT | STREAM_CRYPTO_METHOD_TLS_CLIENT

@@ -37,12 +37,12 @@ namespace Ripple;
 use Closure;
 use Co\Base;
 use Fiber;
-use FiberError;
 use JetBrains\PhpStorm\NoReturn;
 use Revolt\EventLoop;
 use Ripple\Coroutine\Exception\EscapeException;
 use Ripple\Coroutine\Exception\PromiseRejectException;
 use Ripple\Coroutine\Suspension;
+use Ripple\Utils\Output;
 use Throwable;
 use WeakMap;
 use WeakReference;
@@ -72,7 +72,6 @@ class Coroutine extends Base
     public function __construct()
     {
         $this->registerOnFork();
-
         $this->fiber2suspension = new WeakMap();
     }
 
@@ -185,7 +184,6 @@ class Coroutine extends Base
      *
      * @return void
      * @throws EscapeException
-     * @throws Throwable
      */
     #[NoReturn]
     public function handleEscapeException(EscapeException $exception): void
@@ -207,26 +205,18 @@ class Coroutine extends Base
     public function async(Closure $closure): Promise
     {
         return promise(function (Closure $resolve, Closure $reject, Promise $promise) use ($closure) {
-            $suspension                                 = new Suspension($closure, $resolve, $reject, $promise);
-            $this->fiber2suspension[$suspension->fiber] = WeakReference::create($suspension);
-
-            try {
-                $result = $suspension->start();
-                if ($suspension->fiber->isTerminated()) {
-                    try {
-                        $resolve($result);
-                        return;
-                    } catch (FiberError $e) {
-                        $reject($e);
-                        return;
-                    }
+            $suspension = new Suspension(function () use ($closure, $resolve, $reject) {
+                try {
+                    $resolve($closure($resolve, $reject));
+                } catch (EscapeException $exception) {
+                    $this->handleEscapeException($exception);
+                } catch (Throwable $exception) {
+                    $reject($exception);
+                    return;
                 }
-            } catch (EscapeException $exception) {
-                $this->handleEscapeException($exception);
-            } catch (Throwable $exception) {
-                $suspension->reject($exception);
-                return;
-            }
+            }, $resolve, $reject, $promise);
+            $this->fiber2suspension[$suspension->fiber] = WeakReference::create($suspension);
+            $suspension->start();
         });
     }
 
@@ -262,21 +252,10 @@ class Coroutine extends Base
     {
         try {
             $suspension->resume($result);
-            if ($suspension instanceof Suspension && $suspension->fiber->isTerminated()) {
-                try {
-                    $suspension->resolve($suspension->fiber->getReturn());
-                    return null;
-                } catch (FiberError $e) {
-                    $suspension->reject($e);
-                    return null;
-                }
-            }
         } catch (EscapeException $exception) {
             Coroutine::getInstance()->handleEscapeException($exception);
-        } catch (FiberError $exception) {
-            throw $exception;
         } catch (Throwable $exception) {
-            $suspension instanceof Suspension && $suspension->reject($exception);
+            Output::warning($exception->getMessage());
             throw $exception;
         }
 
@@ -296,19 +275,22 @@ class Coroutine extends Base
         } catch (EscapeException $exception) {
             Coroutine::getInstance()->handleEscapeException($exception);
         } catch (Throwable $exception) {
-            $suspension instanceof Suspension && $suspension->reject($exception);
+            Output::warning($exception->getMessage());
             throw $exception;
         }
     }
 
     /**
      * @param \Revolt\EventLoop\Suspension $suspension
-     * @param Throwable                    $throwable
+     * @param Throwable $exception
      *
      * @return void
      */
-    public static function throw(EventLoop\Suspension $suspension, Throwable $throwable): void
+    public static function throw(EventLoop\Suspension $suspension, Throwable $exception): void
     {
-        $suspension->throw($throwable);
+        try {
+            $suspension->throw($exception);
+        } catch (Throwable $exception) {
+        }
     }
 }

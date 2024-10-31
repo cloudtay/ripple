@@ -313,45 +313,33 @@ class Stream extends StreamBase
      * @param int $timeout
      *
      * @return bool
-     * @throws ConnectionTimeoutException
-     * @throws ConnectionCloseException
+     * @throws Throwable
      */
     public function waitForReadable(int $timeout = 0): bool
     {
         $suspension = getSuspension();
         if (!isset($this->onReadable)) {
-            $this->onReadable(static fn () => Coroutine::resume($suspension, true));
+            $this->onReadable(fn () => Coroutine::resume($suspension, true));
             $suspension instanceof Suspension && $suspension->promise->finally(fn () => $this->cancelReadable());
         }
 
         // If the stream is closed, return false directly.
-        $closeOID = $this->onClose(static fn () => Coroutine::throw(
+        $closeOID = $this->onClose(fn () => Coroutine::throw(
             $suspension,
             new ConnectionCloseException('Stream has been closed', null, $this)
         ));
         if ($timeout > 0) {
             // If a timeout is set, the suspension will be canceled after the timeout
-            $timeoutOID = delay(static fn () => Coroutine::throw(
+            $timeoutOID = delay(fn () => Coroutine::throw(
                 $suspension,
                 new ConnectionTimeoutException('Stream read timeout', null, $this, false)
             ), $timeout);
         }
 
-        try {
-            $result = Coroutine::suspend($suspension);
-            $this->cancelOnClose($closeOID);
-            isset($timeoutOID) && cancel($timeoutOID);
-            return $result;
-        } catch (ConnectionTimeoutException $e) {
-            throw $e;
-        } catch (ConnectionCloseException $e) {
-            $this->close();
-            throw $e;
-        } catch (Throwable) {
-            //Generally speaking, no exception will be thrown here
-            $this->close();
-            return false;
-        }
+        $result = Coroutine::suspend($suspension);
+        $this->cancelOnClose($closeOID);
+        isset($timeoutOID) && cancel($timeoutOID);
+        return $result;
     }
 
     /**
@@ -367,43 +355,33 @@ class Stream extends StreamBase
      * @return bool
      * @throws ConnectionCloseException
      * @throws ConnectionTimeoutException
+     * @throws Throwable
      */
     public function waitForWriteable(int $timeout = 0): bool
     {
         $suspension = getSuspension();
         if (!isset($this->onWriteable)) {
-            $this->onWriteable(static fn () => Coroutine::resume($suspension, true));
+            $this->onWriteable(fn () => Coroutine::resume($suspension, true));
             $suspension instanceof Suspension && $suspension->promise->finally(fn () => $this->cancelWriteable());
         }
 
         // If the stream is closed, return false directly.
-        $closeOID = $this->onClose(static fn () => Coroutine::throw(
+        $closeOID = $this->onClose(fn () => Coroutine::throw(
             $suspension,
             new ConnectionCloseException('Stream has been closed', null, $this)
         ));
         if ($timeout > 0) {
             // If a timeout is set, the suspension will be canceled after the timeout
-            $timeoutOID = delay(static fn () => Coroutine::throw(
+            $timeoutOID = delay(fn () => Coroutine::throw(
                 $suspension,
                 new ConnectionTimeoutException('Stream write timeout', null, $this, false)
             ), $timeout);
         }
 
-        try {
-            $result = Coroutine::suspend($suspension);
-            $this->cancelOnClose($closeOID);
-            isset($timeoutOID) && cancel($timeoutOID);
-            return $result;
-        } catch (ConnectionTimeoutException $e) {
-            throw $e;
-        } catch (ConnectionCloseException $e) {
-            $this->close();
-            throw $e;
-        } catch (Throwable) {
-            //Generally speaking, no exception will be thrown here
-            $this->close();
-            return false;
-        }
+        $result = Coroutine::suspend($suspension);
+        $this->cancelOnClose($closeOID);
+        isset($timeoutOID) && cancel($timeoutOID);
+        return $result;
     }
 
     /**

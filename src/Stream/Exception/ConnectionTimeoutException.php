@@ -13,6 +13,12 @@ class ConnectionTimeoutException extends ConnectionException
         StreamInterface $streamBase = null,
         bool            $close = true
     ) {
-        parent::__construct($message, ConnectionException::CONNECTION_TIMEOUT, $previous, $streamBase, $close);
+        parent::__construct(
+            $message,
+            ConnectionException::CONNECTION_TIMEOUT,
+            $previous,
+            $streamBase,
+            $close
+        );
     }
 }

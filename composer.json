@@ -46,8 +46,7 @@
     "ext-zlib": "For better compression",
     "cloudtay/ripple-http": "For better http client",
     "cloudtay/ripple-websocket": "For better websocket client",
-    "cloudtay/ripple-mysql": "For better mysql client",
-    "cloudtay/ripple-guzzle": "For better guzzle client"
+    "cloudtay/ripple-rdo": "For better mysql client"
   },
   "minimum-stability": "dev",
   "prefer-stable": true
