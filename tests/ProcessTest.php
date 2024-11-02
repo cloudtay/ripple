@@ -4,10 +4,10 @@ namespace Tests;
 
 use Co\System;
 use PHPUnit\Framework\TestCase;
+use Ripple\Process\Exception\ProcessException;
 use Throwable;
 
 use function Co\async;
-use function Co\await;
 use function Co\thread;
 use function mt_rand;
 use function sleep;
@@ -40,11 +40,11 @@ class ProcessTest extends TestCase
         $code     = mt_rand(0, 255);
         $async    = async(function () use ($code) {
             $task    = System::Process()->task(function () use ($code) {
-                \Co\sleep(1);
+                \Co\sleep(0.1);
                 exit($code);
             });
             $runtime = $task->run();
-            return await($runtime->getPromise());
+            return $runtime->getPromise()->await();
         });
         $exitCode = $async->await();
         $this->assertEquals($code, $exitCode, 'Process exit code');
@@ -63,13 +63,17 @@ class ProcessTest extends TestCase
                 return $context->argv[1];
             });
             $future = $thread->run(1, $code);
-            $future->onValue(function ($value) {
+            $future->onValue(function ($value = null) {
                 exit($value);
             });
         });
         $runtime = $task->run();
-        $runtime->finally(function ($exitCode) use ($code) {
+        $runtime->then(function ($exitCode) use ($code) {
             $this->assertEquals($code, $exitCode, 'Process exit code');
+        });
+
+        $runtime->except(function (ProcessException $exception) {
+            $this->fail($exception->getMessage());
         });
         $runtime->await();
     }

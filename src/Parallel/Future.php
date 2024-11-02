@@ -46,7 +46,7 @@ class Future
     private Closure $onError;
 
     /*** @var mixed */
-    private mixed $result;
+    public mixed $result;
 
     /*** @var Closure */
     private Closure $onValue;

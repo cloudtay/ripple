@@ -34,6 +34,16 @@
 
 namespace Ripple\Coroutine\Exception;
 
-class EscapeException extends Exception
+use Closure;
+use RuntimeException;
+
+class EscapeException extends RuntimeException
 {
+    /**
+     * @param Closure $lastWords
+     */
+    public function __construct(public readonly Closure $lastWords)
+    {
+        parent::__construct('Escape from coroutine');
+    }
 }

@@ -36,6 +36,7 @@ namespace Ripple;
 
 use Closure;
 use Co\Base;
+use Fiber;
 use Revolt\EventLoop;
 use Revolt\EventLoop\UnsupportedFeatureException;
 use Ripple\Coroutine\Exception\EscapeException;
@@ -47,6 +48,7 @@ use Ripple\Utils\Output;
 use Throwable;
 
 use function call_user_func;
+use function call_user_func_array;
 use function Co\cancel;
 use function Co\getSuspension;
 use function Co\promise;
@@ -177,33 +179,10 @@ class Process extends Base
             }
 
             if ($processID === 0) {
-                /**
-                 * It is necessary to ensure that the final closure cannot be escaped by any means.
-                 */
-                foreach (EventLoop::getIDentifiers() as $identifier) {
-                    try {
-                        EventLoop::cancel($identifier);
-                    } catch (Throwable $e) {
-                        Output::error($e->getMessage());
-                    }
-                }
-
-                $suspension = getSuspension();
-                if (!$suspension instanceof Suspension) {
-                    // Whether it belongs to the PHP space
-
-                    $this->forkedTick();
-                    call_user_func($closure, ...$args);
-                    wait();
-                    exit(0);
-                }
-
-                // Whether it belongs to the ripple coroutine space
-                // forked and user actions need to be deferred because they clear the coroutine hash table
-                // If you don't do this, fiber escape will occur
-                $this->forkedTick();
-                call_user_func($closure, ...$args);
-                throw new EscapeException('The process is abnormal.');
+                $this->processedInMain(function () use ($closure, $args) {
+                    $this->forgetEvents();
+                    call_user_func_array($closure, $args);
+                });
             }
 
             if (empty($this->process2runtime)) {
@@ -230,7 +209,7 @@ class Process extends Base
     /**
      * @return void
      */
-    public function forkedTick(): void
+    public function distributeForked(): void
     {
         if (!empty($this->process2runtime)) {
             $this->unregisterSignalHandler();
@@ -334,5 +313,42 @@ class Process extends Base
     public function getRootProcessID(): int
     {
         return $this->rootProcessID;
+    }
+
+    /**
+     * @return void
+     */
+    public function forgetEvents(): void
+    {
+        foreach (EventLoop::getIDentifiers() as $identifier) {
+            @cancel($identifier);
+        }
+        EventLoop::run();
+        EventLoop::setDriver((new EventLoop\DriverFactory())->create());
+        $this->distributeForked();
+    }
+
+    /**
+     * @param Closure $closure
+     *
+     * @return void
+     */
+    public function processedInMain(Closure $closure): void
+    {
+        $suspension = getSuspension();
+        if ($suspension instanceof Suspension) {
+            throw new EscapeException($closure);
+        } else {
+            // this is main
+            if (!Fiber::getCurrent()) {
+                $closure();
+                wait();
+                exit(0);
+            }
+
+            // in fiber
+            wait($closure);
+            exit(0);
+        }
     }
 }

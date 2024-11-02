@@ -137,7 +137,7 @@ class Promise
         $this->status = Promise::FULFILLED;
         $this->result = $value;
 
-        foreach (array_reverse($this->onFulfilled) as $onFulfilled) {
+        foreach (($this->onFulfilled) as $onFulfilled) {
             try {
                 call_user_func($onFulfilled, $value);
             } catch (Throwable $exception) {
@@ -162,7 +162,7 @@ class Promise
 
         $this->status = Promise::REJECTED;
         $this->result = $reason;
-        foreach (array_reverse($this->onRejected) as $onRejected) {
+        foreach (($this->onRejected) as $onRejected) {
             try {
                 call_user_func($onRejected, $reason);
             } catch (Throwable $reason) {

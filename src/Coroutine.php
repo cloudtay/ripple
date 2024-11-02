@@ -51,7 +51,6 @@ use function Co\delay;
 use function Co\forked;
 use function Co\getSuspension;
 use function Co\promise;
-use function Co\wait;
 
 /**
  * 2024-07-13 principle
@@ -183,18 +182,11 @@ class Coroutine extends Base
      * @param EscapeException $exception
      *
      * @return void
-     * @throws EscapeException
      */
     #[NoReturn]
     public function handleEscapeException(EscapeException $exception): void
     {
-        if (!Fiber::getCurrent() || !$this->hasCallback()) {
-            $this->fiber2suspension = new WeakMap();
-            wait();
-            exit(0);
-        } else {
-            throw $exception;
-        }
+        Process::getInstance()->processedInMain($exception->lastWords);
     }
 
     /**
@@ -209,14 +201,20 @@ class Coroutine extends Base
                 try {
                     $resolve($closure($resolve, $reject));
                 } catch (EscapeException $exception) {
-                    $this->handleEscapeException($exception);
+                    throw $exception;
                 } catch (Throwable $exception) {
                     $reject($exception);
                     return;
                 }
             }, $resolve, $reject, $promise);
+
             $this->fiber2suspension[$suspension->fiber] = WeakReference::create($suspension);
-            $suspension->start();
+
+            try {
+                $suspension->start();
+            } catch (EscapeException $exception) {
+                $this->handleEscapeException($exception);
+            }
         });
     }
 
@@ -234,6 +232,21 @@ class Coroutine extends Base
     }
 
     /**
+     * @param \Revolt\EventLoop\Suspension $suspension
+     *
+     * @return mixed
+     * @throws Throwable
+     */
+    public static function suspend(EventLoop\Suspension $suspension): mixed
+    {
+        try {
+            return $suspension->suspend();
+        } catch (EscapeException $exception) {
+            Coroutine::getInstance()->handleEscapeException($exception);
+        }
+    }
+
+    /**
      *
      * The coroutine that cannot be restored can only throw an exception.
      * If it is a ripple type exception, it will be caught and the contract will be rejected.
@@ -246,7 +259,6 @@ class Coroutine extends Base
      * @param mixed|null                   $result
      *
      * @return mixed
-     * @throws Throwable
      */
     public static function resume(EventLoop\Suspension $suspension, mixed $result = null): mixed
     {
@@ -256,28 +268,9 @@ class Coroutine extends Base
             Coroutine::getInstance()->handleEscapeException($exception);
         } catch (Throwable $exception) {
             Output::warning($exception->getMessage());
-            throw $exception;
         }
 
         return null;
-    }
-
-    /**
-     * @param \Revolt\EventLoop\Suspension $suspension
-     *
-     * @return mixed
-     * @throws Throwable
-     */
-    public static function suspend(EventLoop\Suspension $suspension): mixed
-    {
-        try {
-            return $suspension->suspend();
-        } catch (EscapeException $exception) {
-            Coroutine::getInstance()->handleEscapeException($exception);
-        } catch (Throwable $exception) {
-            Output::warning($exception->getMessage());
-            throw $exception;
-        }
     }
 
     /**

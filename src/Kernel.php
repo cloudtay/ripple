@@ -46,6 +46,7 @@ use Throwable;
 use function call_user_func;
 use function Co\async;
 use function Co\getSuspension;
+use function Co\wait;
 use function define;
 use function defined;
 use function extension_loaded;
@@ -95,7 +96,6 @@ class Kernel
             define('STDOUT', fopen('php://stdout', 'w'));
         }
 
-        $this->mainSuspension = EventLoop::getSuspension();
         $this->parallel       = extension_loaded('parallel');
         $this->processControl = extension_loaded('pcntl') && extension_loaded('posix');
     }
@@ -238,9 +238,9 @@ class Kernel
     /**
      * @param Closure|null $result
      *
-     * @return bool
+     * @return void
      */
-    public function wait(Closure|null $result = null): bool
+    public function wait(Closure|null $result = null): void
     {
         if (!isset($this->mainSuspension)) {
             $this->mainSuspension = getSuspension();
@@ -249,9 +249,15 @@ class Kernel
         if (!$this->mainRunning) {
             try {
                 \Ripple\Coroutine::resume($this->mainSuspension, $result);
-                Fiber::suspend();
+                if (Fiber::getCurrent()) {
+                    Fiber::suspend();
+                }
             } catch (Throwable) {
-                exit(1);
+                exit(0);
+            }
+        } else {
+            if ($result instanceof Closure) {
+                $result();
             }
         }
 
@@ -259,17 +265,18 @@ class Kernel
             $this->mainRunning = false;
             $result            = \Ripple\Coroutine::suspend($this->mainSuspension);
             $this->mainRunning = true;
+
             if ($result instanceof Closure) {
-                $result();
+                try {
+                    $result();
+                } catch (Throwable) {
+                }
             }
 
-            /**
-             * The Event object may be reset during the mainRunning of $result, so mainSuspension needs to be reacquired.
-             */
-            $this->mainSuspension = getSuspension();
-            return $this->wait();
+            /*** The Event object may be reset during the mainRunning of $result, so mainSuspension needs to be reacquired.*/
+            unset($this->mainSuspension);
+            wait();
         } catch (Throwable) {
-            return false;
         }
     }
 
