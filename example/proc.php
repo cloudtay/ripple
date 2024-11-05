@@ -2,11 +2,10 @@
 
 include __DIR__ . '/../vendor/autoload.php';
 
-use Co\System;
-
+use function Co\proc;
 use function Co\wait;
 
-$session = System::Proc()->open(\PHP_BINARY);
+$session = proc(\PHP_BINARY);
 
 $session->onMessage = static function (string $message) {
     echo $message, \PHP_EOL;

@@ -44,6 +44,7 @@ use Ripple\Coroutine\Suspension;
 use Ripple\Process\Exception\ProcessException;
 use Ripple\Process\Runtime;
 use Ripple\Process\Task;
+use Ripple\Utils\Format;
 use Ripple\Utils\Output;
 use Throwable;
 
@@ -54,7 +55,6 @@ use function Co\getSuspension;
 use function Co\promise;
 use function Co\wait;
 use function getmypid;
-use function int2string;
 use function pcntl_fork;
 use function pcntl_wait;
 use function pcntl_wexitstatus;
@@ -134,7 +134,7 @@ class Process extends Base
      */
     public function forked(Closure $closure): string
     {
-        $this->onFork[$key = int2string($this->index++)] = $closure;
+        $this->onFork[$key = Format::int2string($this->index++)] = $closure;
         return $key;
     }
 

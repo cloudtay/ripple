@@ -35,7 +35,6 @@
 namespace Ripple;
 
 use Closure;
-use Co\Coroutine;
 use Co\System;
 use Fiber;
 use Revolt\EventLoop;
@@ -125,7 +124,7 @@ class Kernel
      */
     public function await(Promise $promise): mixed
     {
-        return Coroutine::Coroutine()->await($promise);
+        return \Ripple\Coroutine::getInstance()->await($promise);
     }
 
     /**
@@ -138,7 +137,7 @@ class Kernel
      */
     public function async(Closure $closure): Promise
     {
-        return Coroutine::Coroutine()->async($closure);
+        return \Ripple\Coroutine::getInstance()->async($closure);
     }
 
     /**

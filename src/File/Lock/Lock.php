@@ -34,6 +34,8 @@
 
 namespace Ripple\File\Lock;
 
+use Ripple\Utils\Utils;
+
 use function Co\cancelForked;
 use function Co\forked;
 use function fclose;
@@ -41,8 +43,6 @@ use function file_exists;
 use function flock;
 use function fopen;
 use function is_resource;
-use function md5;
-use function sys_get_temp_dir;
 use function touch;
 
 use const LOCK_EX;
@@ -60,9 +60,8 @@ class Lock
 
     /*** @var string */
     private string $forkHandlerEventID;
-    /**
-     * @var bool
-     */
+
+    /*** @var bool */
     private bool $closed = false;
 
     /**
@@ -70,7 +69,7 @@ class Lock
      */
     public function __construct(private readonly string $name = 'default')
     {
-        $this->path = Lock::generateFilePathByChannelName($this->name);
+        $this->path = Utils::tempPath($this->name, 'lock');
 
         if (!file_exists($this->path)) {
             touch($this->path);
@@ -82,17 +81,6 @@ class Lock
             fclose($this->resource);
             $this->resource = fopen($this->path, 'r');
         });
-    }
-
-    /**
-     * @param string $name
-     *
-     * @return string
-     */
-    private static function generateFilePathByChannelName(string $name): string
-    {
-        $name = md5($name);
-        return sys_get_temp_dir() . '/' . $name . '.lock';
     }
 
     public function __destruct()
@@ -119,11 +107,22 @@ class Lock
     }
 
     /**
+     * @param int $flag
      * @param bool $blocking
      *
      * @return bool
      */
-    public function lock(bool $blocking = true): bool
+    public function lock(int $flag = LOCK_EX, bool $blocking = true): bool
+    {
+        return flock($this->resource, $blocking ? $flag : $flag | LOCK_NB);
+    }
+
+    /**
+     * @param bool $blocking
+     *
+     * @return bool
+     */
+    public function exclusiveLock(bool $blocking = true): bool
     {
         return flock($this->resource, $blocking ? LOCK_EX : LOCK_EX | LOCK_NB);
     }

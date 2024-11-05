@@ -34,8 +34,8 @@
 
 namespace Ripple\Channel\Exception;
 
-use Exception;
+use RuntimeException;
 
-class ChannelException extends Exception
+class ChannelException extends RuntimeException
 {
 }

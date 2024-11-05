@@ -34,21 +34,20 @@
 
 namespace Ripple;
 
-use Co\IO;
 use Exception;
 use Ripple\Channel\Exception\ChannelException;
 use Ripple\File\Lock\Lock;
 use Ripple\Utils\Serialization\Zx7e;
+use Ripple\Utils\Utils;
+use Throwable;
 
 use function chr;
 use function Co\cancelForked;
 use function Co\forked;
 use function file_exists;
 use function fopen;
-use function md5;
 use function posix_mkfifo;
 use function serialize;
-use function sys_get_temp_dir;
 use function touch;
 use function unlink;
 use function unpack;
@@ -60,45 +59,42 @@ use function unserialize;
  */
 class Channel
 {
-    private const FRAME_HEADER = 0x7E;
+    protected const FRAME_HEADER = 0x7E;
 
-    private const FRAME_FOOTER = 0x7E;
+    protected const FRAME_FOOTER = 0x7E;
 
     /*** @var Zx7e */
-    private Zx7e $zx7e;
-
-    /*** @var bool */
-    private bool $blocking = true;
+    protected Zx7e $zx7e;
 
     /*** @var string */
-    private string $forkHandlerID;
+    protected string $forkHandlerID;
 
     /*** @var Stream */
-    private Stream $stream;
+    protected Stream $stream;
 
     /*** @var Lock */
-    private Lock $readLock;
+    protected Lock $readLock;
 
     /*** @var Lock */
-    private Lock $writeLock;
+    protected Lock $writeLock;
 
     /*** @var string */
-    private string $path;
+    protected string $path;
 
     /*** @var bool */
-    private bool $closed = false;
+    protected bool $closed = false;
 
     /**
      * @param string $name
      * @param bool   $owner
-     *
-     * @throws ChannelException
      */
-    public function __construct(private readonly string $name, private bool $owner = false)
-    {
-        $this->path      = Channel::generateFilePathByChannelName($name);
-        $this->readLock  = IO::Lock()->access("{$this->name}.read");
-        $this->writeLock = IO::Lock()->access("{$this->name}.write");
+    public function __construct(
+        protected readonly string $name,
+        protected bool            $owner = false
+    ) {
+        $this->path      = Utils::tempPath($this->name, 'channel');
+        $this->readLock  = \Co\lock("{$this->name}.read");
+        $this->writeLock = \Co\lock("{$this->name}.write");
 
         if (!file_exists($this->path)) {
             if (!$this->owner) {
@@ -113,83 +109,31 @@ class Channel
             }
         }
 
-        $this->stream = new Stream(fopen($this->path, 'r+'));
-        $this->zx7e   = new Zx7e();
+        $this->openStream();
 
         // Re-open the stream resource after registering the process fork
         $this->forkHandlerID = forked(function () {
             $this->owner = false;
             $this->stream->close();
 
-            $this->stream = new Stream(fopen($this->path, 'r+'));
-            $this->zx7e   = new Zx7e();
+            $this->openStream();
         });
     }
 
     /**
      * @param string $name
      *
-     * @return string
-     */
-    private static function generateFilePathByChannelName(string $name): string
-    {
-        $name = md5($name);
-        return sys_get_temp_dir() . '/' . $name . '.channel';
-    }
-
-    /*** @return void */
-    public function close(): void
-    {
-        if ($this->closed) {
-            return;
-        }
-
-        $this->stream->close();
-        $this->readLock->close();
-        $this->writeLock->close();
-
-        if ($this->owner) {
-            file_exists($this->path) && unlink($this->path);
-        }
-
-        $this->closed = true;
-
-        cancelForked($this->forkHandlerID);
-    }
-
-    /**
-     * @param string $name
-     *
      * @return Channel
-     * @throws ChannelException
      */
     public static function make(string $name): Channel
     {
-        return new self($name, true);
-    }
-
-    /**
-     * @param string $name
-     *
-     * @return Channel
-     * @throws ChannelException
-     */
-    public static function open(string $name): Channel
-    {
-        $path = Channel::generateFilePathByChannelName($name);
-
-        if (!file_exists($path)) {
-            throw new ChannelException('Channel does not exist.');
-        }
-
-        return new self($name);
+        return new Channel($name, true);
     }
 
     /**
      * @param mixed $data
      *
      * @return bool
-     * @throws ChannelException
      */
     public function send(mixed $data): bool
     {
@@ -198,7 +142,6 @@ class Channel
         }
 
         $this->writeLock->lock();
-        $this->stream->setBlocking(true);
 
         try {
             $this->stream->write($this->zx7e->encodeFrame(serialize($data)));
@@ -211,61 +154,60 @@ class Channel
     }
 
     /**
-     * @param bool $blocking
-     *
      * @return void
      */
-    public function setBlocking(bool $blocking): void
+    protected function openStream(): void
     {
-        $this->blocking = $blocking;
+        $this->stream = new Stream(fopen($this->path, 'r+'));
+        $this->stream->setBlocking(false);
+        $this->zx7e = new Zx7e();
     }
 
     /**
+     * @param bool $blocking
+     *
      * @return mixed
-     * @throws ChannelException
      */
-    public function receive(): mixed
+    public function receive(bool $blocking = true): mixed
     {
         if (!file_exists($this->path)) {
             throw new ChannelException('Unable to receive data from a closed channel');
         }
 
-        try {
-            if ($this->blocking) {
-                $this->readLock->lock();
-                $this->stream->setBlocking(true);
-            } else {
-                if (!$this->readLock->lock(false)) {
-                    throw new Exception('Failed to acquire lock.');
+        while (1) {
+            try {
+                $blocking && $this->stream->waitForReadable();
+            } catch (Throwable $e) {
+                throw new ChannelException($e->getMessage());
+            }
+
+            if ($this->readLock->lock(blocking: false)) {
+                try {
+                    if ($this->stream->read(1) === chr(Channel::FRAME_HEADER)) {
+                        break;
+                    } else {
+                        throw new Stream\Exception\ConnectionException('Failed to read frame header.');
+                    }
+                } catch (Stream\Exception\ConnectionException) {
+                    $this->readLock->unlock();
                 }
-                $this->stream->setBlocking(false);
             }
+        }
 
-            $header = $this->stream->read(1);
-
-            if ($header !== chr(Channel::FRAME_HEADER)) {
-                $this->readLock->unlock();
-                return null;
-            }
-
-            $this->stream->setBlocking(true);
-
+        try {
             $length   = $this->stream->read(2);
             $data     = $this->stream->read(unpack('n', $length)[1]);
             $checksum = $this->stream->read(1);
             $footer   = $this->stream->read(1);
 
             if ($footer !== chr(Channel::FRAME_FOOTER)) {
-                $this->readLock->unlock();
                 throw new Exception('Failed to read frame footer.');
             }
 
             if ($checksum !== chr($this->zx7e->calculateChecksum($data))) {
-                $this->readLock->unlock();
                 throw new Exception('Failed to verify checksum.');
             }
 
-            $this->readLock->unlock();
             return unserialize($data);
         } catch (Exception $e) {
             throw new ChannelException($e->getMessage());
@@ -284,6 +226,25 @@ class Channel
     public function getPath(): string
     {
         return $this->path;
+    }
+
+    /*** @return void */
+    public function close(): void
+    {
+        if ($this->closed) {
+            return;
+        }
+
+        $this->stream->close();
+        $this->readLock->close();
+        $this->writeLock->close();
+
+        if ($this->owner) {
+            file_exists($this->path) && unlink($this->path);
+        }
+
+        $this->closed = true;
+        cancelForked($this->forkHandlerID);
     }
 
     public function __destruct()

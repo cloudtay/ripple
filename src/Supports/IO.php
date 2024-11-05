@@ -34,9 +34,7 @@
 
 namespace Co;
 
-use Ripple\Channel\ChannelLibrary;
 use Ripple\File;
-use Ripple\File\Lock\LockLibrary;
 use Ripple\Socket;
 
 /**
@@ -59,21 +57,5 @@ class IO
     public static function Socket(): Socket
     {
         return Socket::getInstance();
-    }
-
-    /**
-     * @return ChannelLibrary
-     */
-    public static function Channel(): ChannelLibrary
-    {
-        return ChannelLibrary::getInstance();
-    }
-
-    /**
-     * @return LockLibrary
-     */
-    public static function Lock(): LockLibrary
-    {
-        return LockLibrary::getInstance();
     }
 }

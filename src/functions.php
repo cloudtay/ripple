@@ -38,8 +38,13 @@ use BadFunctionCallException;
 use Closure;
 use Revolt\EventLoop;
 use Revolt\EventLoop\UnsupportedFeatureException;
+use Ripple\Channel;
+use Ripple\File\Lock\Lock;
 use Ripple\Kernel;
+use Ripple\Parallel;
 use Ripple\Parallel\Thread;
+use Ripple\Proc;
+use Ripple\Proc\Session;
 use Ripple\Promise;
 use Ripple\Utils\Output;
 use RuntimeException;
@@ -98,7 +103,7 @@ function promise(Closure $closure): Promise
 function sleep(int|float $second): int|float
 {
     try {
-        return Coroutine::Coroutine()->sleep($second);
+        return \Ripple\Coroutine::getInstance()->sleep($second);
     } catch (Throwable $e) {
         throw new BadFunctionCallException($e->getMessage(), $e->getCode(), $e);
     }
@@ -158,7 +163,7 @@ function defer(Closure $closure): void
  */
 function thread(Closure $closure): Thread
 {
-    return System::Parallel()->thread($closure);
+    return Parallel::getInstance()->thread($closure);
 }
 
 /**
@@ -261,7 +266,7 @@ function cancelForkHandler(string $eventID): void
  */
 function getSuspension(): EventLoop\Suspension
 {
-    return Coroutine::Coroutine()->getSuspension();
+    return \Ripple\Coroutine::getInstance()->getSuspension();
 }
 
 /**
@@ -270,4 +275,34 @@ function getSuspension(): EventLoop\Suspension
 function getID(): string
 {
     return spl_object_hash(getSuspension());
+}
+
+/**
+ * @param string $name
+ *
+ * @return \Ripple\Channel
+ */
+function channel(string $name): Channel
+{
+    return Channel::make($name);
+}
+
+/**
+ * @param string $name
+ *
+ * @return \Ripple\File\Lock\Lock
+ */
+function lock(string $name): Lock
+{
+    return new Lock($name);
+}
+
+/**
+ * @param string|array $entrance
+ *
+ * @return \Ripple\Proc\Session|false
+ */
+function proc(string|array $entrance = '/bin/sh'): Session|false
+{
+    return Proc::getInstance()->open($entrance);
 }

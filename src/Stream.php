@@ -43,6 +43,7 @@ use Ripple\Stream\Exception\ConnectionException;
 use Ripple\Stream\Exception\ConnectionTimeoutException;
 use Ripple\Stream\StreamBase;
 use Ripple\Stream\Transaction;
+use Ripple\Utils\Format;
 use Ripple\Utils\Output;
 use Throwable;
 
@@ -51,7 +52,6 @@ use function call_user_func_array;
 use function Co\cancel;
 use function Co\delay;
 use function Co\getSuspension;
-use function int2string;
 use function is_resource;
 use function stream_set_blocking;
 
@@ -125,7 +125,7 @@ class Stream extends StreamBase
      */
     public function onClose(Closure $closure): string
     {
-        $this->onCloseCallbacks[$key = int2string($this->index++)] = $closure;
+        $this->onCloseCallbacks[$key = Format::int2string($this->index++)] = $closure;
         return $key;
     }
 

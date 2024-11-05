@@ -101,9 +101,11 @@ class WaitGroup
     }
 
     /**
+     * @param int|float $timeout
+     *
      * @return void
      */
-    public function wait(): void
+    public function wait(int|float $timeout = 0): void
     {
         if ($this->done) {
             return;

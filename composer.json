@@ -7,8 +7,7 @@
       "Co\\": "src/Supports/"
     },
     "files": [
-      "src/functions.php",
-      "src/functions-root.php"
+      "src/functions.php"
     ]
   },
   "autoload-dev": {

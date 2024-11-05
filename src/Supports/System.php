@@ -34,10 +34,7 @@
 
 namespace Co;
 
-use Ripple\Parallel;
-use Ripple\Proc;
 use Ripple\Process;
-use RuntimeException;
 
 /**
  * @Author cclilshy
@@ -51,23 +48,5 @@ class System
     public static function Process(): Process
     {
         return Process::getInstance();
-    }
-
-    /**
-     * @return Proc
-     */
-    public static function Proc(): Proc
-    {
-        return Proc::getInstance();
-    }
-
-    /**
-     * @Description failed test
-     * @return Parallel
-     * @throws RuntimeException
-     */
-    public static function Parallel(): Parallel
-    {
-        return Parallel::getInstance();
     }
 }
