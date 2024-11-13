@@ -2,8 +2,8 @@
 
 include __DIR__ . '/../vendor/autoload.php';
 
-use Ripple\Socket\Tunnel\Socks5;
 use Ripple\Stream\Exception\ConnectionException;
+use Ripple\Tunnel\Socks5;
 use Ripple\Utils\Output;
 
 use function Co\wait;
@@ -15,7 +15,7 @@ try {
         'port' => 443
     ]);
 
-    $googleStream = $googleSocks5->getSocketStream();
+    $googleStream = $googleSocks5->getSocket();
     $googleStream->enableSSL();
     $googleStream->write("GET / HTTP/1.1\r\nHost: www.google.com\r\nConnection: close\r\n\r\n");
     $googleStream->onReadable(function () use ($googleStream) {
@@ -42,7 +42,7 @@ try {
         ]
     );
 
-    $connection = $google->getSocketStream();
+    $connection = $google->getSocket();
     $connection->enableSSL();
     $connection->write("GET / HTTP/1.1\r\nHost: www.google.com\r\nConnection: close\r\n\r\n");
     $connection->onReadable(function () use ($connection) {

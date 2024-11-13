@@ -1,4 +1,14 @@
 <?php declare(strict_types=1);
+/**
+ * Copyright © 2024 cclilshy
+ * Email: jingnigg@gmail.com
+ *
+ * This software is licensed under the MIT License.
+ * For full license details, please visit: https://opensource.org/licenses/MIT
+ *
+ * By using this software, you agree to the terms of the license.
+ * Contributions, suggestions, and feedback are always welcome!
+ */
 
 namespace Ripple\Stream\Exception;
 
@@ -7,13 +17,13 @@ use Throwable;
 
 class ConnectionCloseException extends ConnectionException
 {
-    public function __construct(string $message = "", Throwable|null $previous = null, StreamInterface|null $streamBase = null)
+    public function __construct(string $message = "", Throwable|null $previous = null, StreamInterface|null $stream = null)
     {
         parent::__construct(
             $message,
             ConnectionException::CONNECTION_CLOSED,
             $previous,
-            $streamBase
+            $stream
         );
     }
 }

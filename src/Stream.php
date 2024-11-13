@@ -1,48 +1,24 @@
 <?php declare(strict_types=1);
-/*
- * Copyright (c) 2023-2024.
+/**
+ * Copyright © 2024 cclilshy
+ * Email: jingnigg@gmail.com
  *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
+ * This software is licensed under the MIT License.
+ * For full license details, please visit: https://opensource.org/licenses/MIT
  *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
- *
- * 特此免费授予任何获得本软件及相关文档文件（“软件”）副本的人，不受限制地处理
- * 本软件，包括但不限于使用、复制、修改、合并、出版、发行、再许可和/或销售
- * 软件副本的权利，并允许向其提供本软件的人做出上述行为，但须符合以下条件：
- *
- * 上述版权声明和本许可声明应包含在本软件的所有副本或主要部分中。
- *
- * 本软件按“原样”提供，不提供任何形式的保证，无论是明示或暗示的，
- * 包括但不限于适销性、特定目的的适用性和非侵权性的保证。在任何情况下，
- * 无论是合同诉讼、侵权行为还是其他方面，作者或版权持有人均不对
- * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
+ * By using this software, you agree to the terms of the license.
+ * Contributions, suggestions, and feedback are always welcome!
  */
 
 namespace Ripple;
 
 use Closure;
-use Exception;
 use Revolt\EventLoop;
+use Ripple\Coroutine\Coroutine;
 use Ripple\Coroutine\Suspension;
 use Ripple\Stream\Exception\ConnectionCloseException;
-use Ripple\Stream\Exception\ConnectionException;
 use Ripple\Stream\Exception\ConnectionTimeoutException;
-use Ripple\Stream\StreamBase;
-use Ripple\Stream\Transaction;
+use Ripple\Stream\Stream as StreamBase;
 use Ripple\Utils\Format;
 use Ripple\Utils\Output;
 use Throwable;
@@ -101,21 +77,11 @@ class Stream extends StreamBase
     protected int $index = 0;
 
     /**
-     * @var Transaction
-     */
-    protected Transaction $transaction;
-
-    /**
      * @param mixed $resource
      */
     public function __construct(mixed $resource)
     {
         parent::__construct($resource);
-
-        $this->onClose(function () {
-            $this->cancelReadable();
-            $this->cancelWriteable();
-        });
     }
 
     /**
@@ -127,34 +93,6 @@ class Stream extends StreamBase
     {
         $this->onCloseCallbacks[$key = Format::int2string($this->index++)] = $closure;
         return $key;
-    }
-
-    /**
-     * @param string $key
-     *
-     * @return void
-     */
-    public function cancelOnClose(string $key): void
-    {
-        unset($this->onCloseCallbacks[$key]);
-    }
-
-    /**
-     *
-     * @param Closure $closure
-     *
-     * @return string
-     */
-    public function onReadable(Closure $closure): string
-    {
-        $this->cancelReadable();
-        return $this->onReadable = EventLoop::onReadable($this->stream, function () use ($closure) {
-            try {
-                call_user_func_array($closure, [$this, fn () => $this->cancelReadable()]);
-            } catch (Throwable $e) {
-                Output::error($e->getMessage());
-            }
-        });
     }
 
     /**
@@ -171,74 +109,12 @@ class Stream extends StreamBase
     /**
      * @return void
      */
-    public function close(): void
-    {
-        if ($this->isClosed()) {
-            return;
-        }
-
-        // Effective closing of the stream should occur before any callbacks to prevent the close method from being called again in the callbacks.
-        parent::close();
-
-        $this->cancelReadable();
-        $this->cancelWriteable();
-
-        if (isset($this->transaction)) {
-            $this->failTransaction(new ConnectionException(
-                'Stream has been closed',
-                ConnectionException::CONNECTION_CLOSED,
-                null,
-                $this
-            ));
-        }
-
-        foreach ($this->onCloseCallbacks as $callback) {
-            try {
-                call_user_func($callback);
-            } catch (Throwable $e) {
-                Output::error($e->getMessage());
-            }
-        }
-    }
-
-    /**
-     * @return void
-     */
     public function cancelWriteable(): void
     {
         if (isset($this->onWriteable)) {
             cancel($this->onWriteable);
             unset($this->onWriteable);
         }
-    }
-
-    /**
-     * @param Throwable $exception
-     *
-     * @return void
-     */
-    public function failTransaction(Throwable $exception): void
-    {
-        if (isset($this->transaction)) {
-            $this->transaction->fail($exception);
-        }
-    }
-
-    /**
-     * @param Closure $closure
-     *
-     * @return string
-     */
-    public function onWriteable(Closure $closure): string
-    {
-        $this->cancelWriteable();
-        return $this->onWriteable = EventLoop::onWritable($this->stream, function () use ($closure) {
-            try {
-                call_user_func_array($closure, [$this, fn () => $this->cancelWriteable()]);
-            } catch (Throwable $e) {
-                Output::error($e->getMessage());
-            }
-        });
     }
 
     /**
@@ -249,57 +125,6 @@ class Stream extends StreamBase
     public function setBlocking(bool $bool): bool
     {
         return stream_set_blocking($this->stream, $bool);
-    }
-
-    /**
-     * @param Closure $closure
-     *
-     * @return void
-     * @throws Throwable
-     */
-    public function transaction(Closure $closure): void
-    {
-        if (isset($this->transaction) && $this->transaction->getPromise()->getStatus() === Promise::PENDING) {
-            throw new Exception('Transaction has been completed');
-        }
-
-        $this->setTransaction(new Transaction($this));
-        call_user_func_array($closure, [$this->getTransaction()]);
-    }
-
-    /**
-     * @param Transaction $transaction
-     *
-     * @return void
-     */
-    protected function setTransaction(Transaction $transaction): void
-    {
-        if (isset($this->transaction)) {
-            $this->completeTransaction();
-            unset($this->transaction);
-        }
-        $this->transaction = $transaction;
-    }
-
-    /**
-     * @return void
-     */
-    public function completeTransaction(): void
-    {
-        if (isset($this->transaction)) {
-            $this->transaction->complete();
-        }
-    }
-
-    /**
-     * @return Transaction|null
-     */
-    public function getTransaction(): Transaction|null
-    {
-        if (isset($this->transaction)) {
-            return $this->transaction;
-        }
-        return null;
     }
 
     /**
@@ -319,27 +144,91 @@ class Stream extends StreamBase
     {
         $suspension = getSuspension();
         if (!isset($this->onReadable)) {
-            $this->onReadable(fn () => Coroutine::resume($suspension, true));
+            $this->onReadable(static fn () => Coroutine::resume($suspension, true));
             $suspension instanceof Suspension && $suspension->promise->finally(fn () => $this->cancelReadable());
         }
 
         // If the stream is closed, return false directly.
-        $closeOID = $this->onClose(fn () => Coroutine::throw(
-            $suspension,
-            new ConnectionCloseException('Stream has been closed', null, $this)
-        ));
+        $closeOID = $this->onClose(function () use ($suspension) {
+            Coroutine::throw(
+                $suspension,
+                new ConnectionCloseException('Stream has been closed', null)
+            );
+            $this->close();
+        });
+
         if ($timeout > 0) {
             // If a timeout is set, the suspension will be canceled after the timeout
-            $timeoutOID = delay(fn () => Coroutine::throw(
-                $suspension,
-                new ConnectionTimeoutException('Stream read timeout', null, $this, false)
-            ), $timeout);
+            $timeoutOID = delay(static function () use ($suspension) {
+                Coroutine::throw($suspension, new ConnectionTimeoutException('Stream read timeout', null));
+                $this->close();
+            }, $timeout);
         }
 
         $result = Coroutine::suspend($suspension);
         $this->cancelOnClose($closeOID);
         isset($timeoutOID) && cancel($timeoutOID);
         return $result;
+    }
+
+    /**
+     *
+     * @param Closure $closure
+     *
+     * @return string
+     */
+    public function onReadable(Closure $closure): string
+    {
+        $this->cancelReadable();
+        return $this->onReadable = EventLoop::onReadable($this->stream, function () use ($closure) {
+            try {
+                call_user_func_array($closure, [$this, fn () => $this->cancelReadable()]);
+            } catch (Throwable $exception) {
+                Output::error($exception->getMessage());
+            }
+        });
+    }
+
+    /**
+     * @return void
+     */
+    public function close(): void
+    {
+        if ($this->isClosed()) {
+            return;
+        }
+
+        // Effective closing of the stream should occur before any callbacks to prevent the close method from being called again in the callbacks.
+        parent::close();
+
+        $this->cancelReadable();
+        $this->cancelWriteable();
+
+        foreach ($this->onCloseCallbacks as $callback) {
+            try {
+                call_user_func($callback);
+            } catch (Throwable $exception) {
+                Output::error($exception->getMessage());
+            }
+        }
+    }
+
+    /**
+     * @return bool
+     */
+    public function isClosed(): bool
+    {
+        return !is_resource($this->stream);
+    }
+
+    /**
+     * @param string $key
+     *
+     * @return void
+     */
+    public function cancelOnClose(string $key): void
+    {
+        unset($this->onCloseCallbacks[$key]);
     }
 
     /**
@@ -361,21 +250,21 @@ class Stream extends StreamBase
     {
         $suspension = getSuspension();
         if (!isset($this->onWriteable)) {
-            $this->onWriteable(fn () => Coroutine::resume($suspension, true));
+            $this->onWriteable(static fn () => Coroutine::resume($suspension, true));
             $suspension instanceof Suspension && $suspension->promise->finally(fn () => $this->cancelWriteable());
         }
 
         // If the stream is closed, return false directly.
-        $closeOID = $this->onClose(fn () => Coroutine::throw(
-            $suspension,
-            new ConnectionCloseException('Stream has been closed', null, $this)
-        ));
+        $closeOID = $this->onClose(function () use ($suspension) {
+            Coroutine::throw($suspension, new ConnectionCloseException('Stream has been closed'));
+            $this->close();
+        });
+
         if ($timeout > 0) {
             // If a timeout is set, the suspension will be canceled after the timeout
-            $timeoutOID = delay(fn () => Coroutine::throw(
-                $suspension,
-                new ConnectionTimeoutException('Stream write timeout', null, $this, false)
-            ), $timeout);
+            $timeoutOID = delay(static function () use ($suspension) {
+                Coroutine::throw($suspension, new ConnectionTimeoutException('Stream write timeout'));
+            }, $timeout);
         }
 
         $result = Coroutine::suspend($suspension);
@@ -385,10 +274,19 @@ class Stream extends StreamBase
     }
 
     /**
-     * @return bool
+     * @param Closure $closure
+     *
+     * @return string
      */
-    public function isClosed(): bool
+    public function onWriteable(Closure $closure): string
     {
-        return !is_resource($this->stream);
+        $this->cancelWriteable();
+        return $this->onWriteable = EventLoop::onWritable($this->stream, function () use ($closure) {
+            try {
+                call_user_func_array($closure, [$this, fn () => $this->cancelWriteable()]);
+            } catch (Throwable $exception) {
+                Output::error($exception->getMessage());
+            }
+        });
     }
 }

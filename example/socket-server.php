@@ -2,16 +2,15 @@
 
 include __DIR__ . '/../vendor/autoload.php';
 
-use Co\IO;
-use Ripple\Socket\SocketStream;
+use Ripple\Socket;
 
 use function Co\wait;
 
-$onMessage = static function (string $data, SocketStream $stream) {
+$onMessage = static function (string $data, Socket $stream) {
     $stream->write("Received: $data");
 };
 
-$listenClient = static function (SocketStream $stream) use ($onMessage) {
+$listenClient = static function (Socket $stream) use ($onMessage) {
     $stream->setBlocking(false);
     $stream->onReadable(static function () use ($stream, $onMessage) {
         $data = $stream->read(1024);
@@ -23,7 +22,7 @@ $listenClient = static function (SocketStream $stream) use ($onMessage) {
     });
 };
 
-$server = IO::Socket()->server('tcp://127.0.0.1:9080');
+$server = Socket::server('tcp://127.0.0.1:9080');
 $server->setBlocking(false);
 $server->setOption(\SOL_SOCKET, \SO_KEEPALIVE, 1);
 $server->onReadable(fn () => $listenClient($server->accept()));

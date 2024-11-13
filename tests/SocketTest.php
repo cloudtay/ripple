@@ -3,9 +3,8 @@
 namespace Tests;
 
 use Closure;
-use Co\IO;
 use PHPUnit\Framework\TestCase;
-use Ripple\Socket\SocketStream;
+use Ripple\Socket;
 use Throwable;
 
 use function Co\repeat;
@@ -26,14 +25,14 @@ class SocketTest extends TestCase
     {
         $size    = 1024 * 1024 * 20;
         $current = 0;
-        $listen  = IO::Socket()->server('tcp://127.0.0.1:8002', stream_context_create([
+        $listen = Socket::server('tcp://127.0.0.1:8002', stream_context_create([
             'socket' => [
                 'so_reuseport' => 1,
                 'so_reuseaddr' => 1
             ],
         ]));
 
-        $listen->onReadable(function (SocketStream $listen) use ($size, &$current) {
+        $listen->onReadable(function (Socket $listen) use ($size, &$current) {
             $client = $listen->accept();
             $client->setBlocking(false);
             $listen->close();
@@ -50,7 +49,7 @@ class SocketTest extends TestCase
             }, 0.1);
         });
 
-        $server = IO::Socket()->connect('tcp://127.0.0.1:8002');
+        $server = Socket::connect('tcp://127.0.0.1:8002');
         $server->setBlocking(false);
         $data = str_repeat('A', $size);
         $server->writeInternal($data, false);

@@ -3,8 +3,7 @@
   "license": "MIT",
   "autoload": {
     "psr-4": {
-      "Ripple\\": "src/",
-      "Co\\": "src/Supports/"
+      "Ripple\\": "src/"
     },
     "files": [
       "src/functions.php"
@@ -25,8 +24,8 @@
     "php": ">=8.1",
     "ext-sockets": "*",
     "ext-openssl": "*",
-    "revolt/event-loop": "^1.0",
-    "psr/http-message": "*"
+    "psr/http-message": "*",
+    "revolt/event-loop": "^1.0"
   },
   "require-dev": {
     "ext-posix": "*",

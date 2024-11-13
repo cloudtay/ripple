@@ -1,35 +1,13 @@
 <?php declare(strict_types=1);
-/*
- * Copyright (c) 2023-2024.
+/**
+ * Copyright © 2024 cclilshy
+ * Email: jingnigg@gmail.com
  *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
+ * This software is licensed under the MIT License.
+ * For full license details, please visit: https://opensource.org/licenses/MIT
  *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
- *
- * 特此免费授予任何获得本软件及相关文档文件（“软件”）副本的人，不受限制地处理
- * 本软件，包括但不限于使用、复制、修改、合并、出版、发行、再许可和/或销售
- * 软件副本的权利，并允许向其提供本软件的人做出上述行为，但须符合以下条件：
- *
- * 上述版权声明和本许可声明应包含在本软件的所有副本或主要部分中。
- *
- * 本软件按“原样”提供，不提供任何形式的保证，无论是明示或暗示的，
- * 包括但不限于适销性、特定目的的适用性和非侵权性的保证。在任何情况下，
- * 无论是合同诉讼、侵权行为还是其他方面，作者或版权持有人均不对
- * 由于软件或软件的使用或其他交易而引起的任何索赔、损害或其他责任承担责任。
+ * By using this software, you agree to the terms of the license.
+ * Contributions, suggestions, and feedback are always welcome!
  */
 
 namespace Ripple\Worker;
@@ -38,7 +16,6 @@ use Ripple\Kernel;
 use Ripple\Stream\Exception\ConnectionException;
 use Ripple\Utils\Output;
 use Ripple\Utils\Serialization\Zx7e;
-use Ripple\Worker;
 
 use function getmypid;
 use function posix_getpid;
@@ -55,22 +32,22 @@ class Manager
     /**
      * @var Worker[]
      */
-    private array $workers = [];
+    protected array $workers = [];
 
     /**
      * @var Zx7e
      */
-    private Zx7e $zx7e;
+    protected Zx7e $zx7e;
 
     /**
      * @var int
      */
-    private int $index = 1;
+    protected int $index = 1;
 
     /**
      * @var int
      */
-    private int $processID;
+    protected int $processID;
 
     /**
      * @Author cclilshy
@@ -82,11 +59,12 @@ class Manager
      */
     public function addWorker(Worker $worker): void
     {
-        if (isset($this->workers[$worker->getName()])) {
-            Output::warning('Worker name already exists');
+        $workerName = $worker->getName();
+        if (isset($this->workers[$workerName])) {
+            Output::warning("Worker {$workerName} already exists");
             return;
         }
-        $this->workers[$worker->getName()] = $worker;
+        $this->workers[$workerName] = $worker;
     }
 
     /**
@@ -135,6 +113,14 @@ class Manager
         foreach ($this->workers as $worker) {
             $this->stopWorker($worker->getName());
         }
+    }
+
+    /**
+     * @return \Ripple\Worker\Worker[]
+     */
+    public function getWorkers(): array
+    {
+        return $this->workers;
     }
 
     /**
