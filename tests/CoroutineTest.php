@@ -22,7 +22,7 @@ class CoroutineTest extends TestCase
     public function test_coroutineStability(): void
     {
         $concurrentCoroutines = 200;
-        $channel = channel('coroutine');
+        $channel = channel('coroutine', true);
 
         $coroutines           = [];
         for ($i = 0; $i < $concurrentCoroutines; $i++) {

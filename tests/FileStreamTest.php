@@ -2,9 +2,9 @@
 
 namespace Tests;
 
-use Co\IO;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
+use Ripple\File\File;
 use Throwable;
 
 use function md5;
@@ -26,7 +26,7 @@ class FileStreamTest extends TestCase
     public function test_fileStream(): void
     {
         $hash    = md5_file(__FILE__);
-        $content = IO::File()->getContents(__FILE__);
+        $content = File::getContents(__FILE__);
         $this->assertEquals($hash, md5($content));
     }
 }

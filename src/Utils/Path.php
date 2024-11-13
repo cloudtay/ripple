@@ -10,14 +10,21 @@
  * Contributions, suggestions, and feedback are always welcome!
  */
 
-namespace Ripple\Process\Exception;
+namespace Ripple\Utils;
 
-use Exception;
+use function md5;
+use function sys_get_temp_dir;
 
-/**
- * @Author cclilshy
- * @Date   2024/8/16 09:36
- */
-class ProcessException extends Exception
+class Path
 {
+    /**
+     * @param string $seed
+     * @param string $ext
+     *
+     * @return string
+     */
+    public static function temp(string $seed, string $ext = 'rip'): string
+    {
+        return sys_get_temp_dir() . '/' . md5($seed) . '.' . $ext;
+    }
 }

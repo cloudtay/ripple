@@ -2,10 +2,9 @@
 
 namespace Tests;
 
-use Co\IO;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
-use Ripple\Socket\SocketStream;
+use Ripple\Socket;
 use Ripple\Stream\Exception\ConnectionException;
 use Ripple\Utils\Output;
 use Throwable;
@@ -33,13 +32,13 @@ class UnixTest extends TestCase
     public function test_unix(): void
     {
         $path   = sys_get_temp_dir() . '/' . md5(uniqid()) . '.sock';
-        $server = IO::Socket()->server('unix://' . $path);
+        $server = Socket::server('unix://' . $path);
         $server->setBlocking(false);
 
-        $server->onReadable(function (SocketStream $stream) {
+        $server->onReadable(function (Socket $stream) {
             $client = $stream->accept();
             $client->setBlocking(false);
-            $client->onReadable(function (SocketStream $stream) {
+            $client->onReadable(function (Socket $stream) {
                 $data = $stream->read(1024);
                 $stream->write($data);
             });
@@ -66,11 +65,11 @@ class UnixTest extends TestCase
      */
     private function call(string $path): void
     {
-        $client = IO::Socket()->connect('unix://' . $path);
+        $client = Socket::connect('unix://' . $path);
         $client->setBlocking(false);
 
         $client->write('hello');
-        $client->onReadable(function (SocketStream $stream) {
+        $client->onReadable(function (Socket $stream) {
             $data = $stream->read(1024);
             $this->assertEquals('hello', $data);
             cancelAll();

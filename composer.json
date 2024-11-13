@@ -25,8 +25,8 @@
     "php": ">=8.1",
     "ext-sockets": "*",
     "ext-openssl": "*",
-    "revolt/event-loop": "^1.0",
-    "psr/http-message": "*"
+    "psr/http-message": "*",
+    "revolt/event-loop": "^1.0"
   },
   "require-dev": {
     "ext-posix": "*",

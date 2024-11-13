@@ -3,7 +3,7 @@
 namespace Tests;
 
 use PHPUnit\Framework\TestCase;
-use Ripple\Coroutine;
+use Ripple\Coroutine\Coroutine;
 use Ripple\Stream\Exception\Exception;
 use Throwable;
 
