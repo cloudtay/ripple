@@ -24,6 +24,7 @@ use Ripple\Parallel\Parallel;
 use Ripple\Parallel\Thread;
 use Ripple\Proc\Proc;
 use Ripple\Proc\Session;
+use Ripple\Process\Process;
 use Ripple\Process\Task;
 use Ripple\Promise;
 use Ripple\Utils\Output;
@@ -283,9 +284,9 @@ function proc(string|array $entrance = '/bin/sh'): Session|false
  *
  * @return \Ripple\Process\Task
  */
-function fork(Closure $closure): Task
+function process(Closure $closure): Task
 {
-    return System::Process()->task($closure);
+    return Process::getInstance()->task($closure);
 }
 
 /**

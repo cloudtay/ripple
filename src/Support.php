@@ -10,21 +10,33 @@
  * Contributions, suggestions, and feedback are always welcome!
  */
 
-namespace Co;
-
-use Ripple\Process\Process;
+namespace Ripple;
 
 /**
  * @Author cclilshy
  * @Date   2024/8/16 09:35
  */
-class System
+abstract class Support
 {
+    /*** @var Support */
+    protected static Support $instance;
+
     /**
-     * @return Process
+     * @return static
      */
-    public static function Process(): Process
+    public static function getInstance(): static
     {
-        return Process::getInstance();
+        if (!isset(static::$instance)) {
+            static::$instance = new static();
+        }
+        return static::$instance;
+    }
+
+    /**
+     * @return bool
+     */
+    public static function hasInstance(): bool
+    {
+        return isset(static::$instance);
     }
 }

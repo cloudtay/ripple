@@ -12,6 +12,9 @@
 
 namespace Ripple;
 
+/**
+ * @Description
+ */
 abstract class Worker extends Worker\Worker
 {
 }

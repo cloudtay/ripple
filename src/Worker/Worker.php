@@ -13,7 +13,6 @@
 namespace Ripple\Worker;
 
 use Closure;
-use Co\System;
 use JetBrains\PhpStorm\NoReturn;
 use Ripple\Kernel;
 use Ripple\Process\Runtime;
@@ -24,6 +23,7 @@ use Ripple\Utils\Serialization\Zx7e;
 use Throwable;
 
 use function Co\delay;
+use function Co\process;
 use function Co\promise;
 use function socket_create_pair;
 use function socket_export_stream;
@@ -234,7 +234,7 @@ abstract class Worker
             }
         });
 
-        $this->runtimes[$index] = $runtime = System::Process()->task(function () use ($streamB) {
+        $this->runtimes[$index] = $runtime = process(function () use ($streamB) {
             $this->parent       = false;
             $this->parentSocket = $streamB;
             $this->boot();

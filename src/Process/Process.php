@@ -13,7 +13,6 @@
 namespace Ripple\Process;
 
 use Closure;
-use Co\Base;
 use Fiber;
 use Revolt\EventLoop;
 use Revolt\EventLoop\UnsupportedFeatureException;
@@ -21,6 +20,7 @@ use Ripple\Coroutine\Exception\EscapeException;
 use Ripple\Coroutine\Suspension;
 use Ripple\Kernel;
 use Ripple\Process\Exception\ProcessException;
+use Ripple\Support;
 use Ripple\Utils\Format;
 use Ripple\Utils\Output;
 use Throwable;
@@ -50,10 +50,10 @@ use const WUNTRACED;
  * @Author    cclilshy
  * @Date      2024/8/16 09:36
  */
-class Process extends Base
+class Process extends Support
 {
-    /*** @var Base */
-    protected static Base $instance;
+    /*** @var Support */
+    protected static Support $instance;
 
     /*** @var array */
     private array $process2promiseCallback = array();

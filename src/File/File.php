@@ -13,9 +13,9 @@
 namespace Ripple\File;
 
 use Closure;
-use Co\Base;
 use Ripple\File\Exception\FileException;
 use Ripple\Stream;
+use Ripple\Support;
 use Throwable;
 
 use function array_shift;
@@ -27,10 +27,10 @@ use function fopen;
  * @Author cclilshy
  * @Date   2024/8/16 09:35
  */
-class File extends Base
+class File extends Support
 {
-    /*** @var Base */
-    protected static Base $instance;
+    /*** @var Support */
+    protected static Support $instance;
 
     /*** @var Monitor[] */
     private array $monitors = array();

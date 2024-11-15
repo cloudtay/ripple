@@ -3,8 +3,7 @@
   "license": "MIT",
   "autoload": {
     "psr-4": {
-      "Ripple\\": "src/",
-      "Co\\": "src/Supports/"
+      "Ripple\\": "src/"
     },
     "files": [
       "src/functions.php"

@@ -13,7 +13,6 @@
 namespace Ripple\Coroutine;
 
 use Closure;
-use Co\Base;
 use Fiber;
 use JetBrains\PhpStorm\NoReturn;
 use Revolt\EventLoop;
@@ -21,6 +20,7 @@ use Ripple\Coroutine\Exception\EscapeException;
 use Ripple\Coroutine\Exception\PromiseRejectException;
 use Ripple\Process\Process;
 use Ripple\Promise;
+use Ripple\Support;
 use Ripple\Utils\Output;
 use Throwable;
 use WeakMap;
@@ -39,10 +39,10 @@ use function Co\promise;
  *
  * 2024-07-13 Compatible with Process module
  */
-class Coroutine extends Base
+class Coroutine extends Support
 {
-    /*** @var Base */
-    protected static Base $instance;
+    /*** @var Support */
+    protected static Support $instance;
 
     /*** @var WeakMap<object,WeakReference<Suspension>> */
     private WeakMap $fiber2suspension;
@@ -62,22 +62,6 @@ class Coroutine extends Base
             $this->fiber2suspension = new WeakMap();
             $this->registerOnFork();
         });
-    }
-
-    /**
-     * @return bool
-     */
-    public function hasCallback(): bool
-    {
-        if (!$fiber = Fiber::getCurrent()) {
-            return false;
-        }
-
-        if (!isset($this->fiber2suspension[$fiber])) {
-            return false;
-        }
-
-        return true;
     }
 
     /**
@@ -158,73 +142,6 @@ class Coroutine extends Base
     }
 
     /**
-     *
-     * The coroutine that cannot be restored can only throw an exception.
-     * If it is a ripple type exception, it will be caught and the contract will be rejected.
-     *
-     * This method attempts to resume a suspended coroutine and take over the coroutine context.
-     * When the recovery fails or an exception occurs within the coroutine, an exception will be thrown.
-     * This method will not return any value yet
-     *
-     * @param \Revolt\EventLoop\Suspension $suspension
-     * @param mixed|null                   $result
-     *
-     * @return mixed
-     */
-    public static function resume(EventLoop\Suspension $suspension, mixed $result = null): mixed
-    {
-        try {
-            $suspension->resume($result);
-        } catch (EscapeException $exception) {
-            Coroutine::getInstance()->handleEscapeException($exception);
-        } catch (Throwable $exception) {
-            Output::warning($exception->getMessage());
-        }
-
-        return null;
-    }
-
-    /**
-     * @param EscapeException $exception
-     *
-     * @return void
-     */
-    #[NoReturn]
-    public function handleEscapeException(EscapeException $exception): void
-    {
-        Process::getInstance()->processedInMain($exception->lastWords);
-    }
-
-    /**
-     * @param \Revolt\EventLoop\Suspension $suspension
-     * @param Throwable $exception
-     *
-     * @return void
-     */
-    public static function throw(EventLoop\Suspension $suspension, Throwable $exception): void
-    {
-        try {
-            $suspension->throw($exception);
-        } catch (Throwable $exception) {
-        }
-    }
-
-    /**
-     * @param \Revolt\EventLoop\Suspension $suspension
-     *
-     * @return mixed
-     * @throws Throwable
-     */
-    public static function suspend(EventLoop\Suspension $suspension): mixed
-    {
-        try {
-            return $suspension->suspend();
-        } catch (EscapeException $exception) {
-            Coroutine::getInstance()->handleEscapeException($exception);
-        }
-    }
-
-    /**
      * @param Closure $closure
      *
      * @return Promise
@@ -264,5 +181,74 @@ class Coroutine extends Base
         $suspension = getSuspension();
         delay(static fn () => Coroutine::resume($suspension, $second), $second);
         return Coroutine::suspend($suspension);
+    }
+
+    /**
+     * @param EscapeException $exception
+     *
+     * @return void
+     */
+    #[NoReturn]
+    public function handleEscapeException(EscapeException $exception): void
+    {
+        Process::getInstance()->processedInMain($exception->lastWords);
+    }
+
+    /**
+     *
+     * The coroutine that cannot be restored can only throw an exception.
+     * If it is a ripple type exception, it will be caught and the contract will be rejected.
+     *
+     * This method attempts to resume a suspended coroutine and take over the coroutine context.
+     * When the recovery fails or an exception occurs within the coroutine, an exception will be thrown.
+     * This method will not return any value yet
+     *
+     * @param \Revolt\EventLoop\Suspension $suspension
+     * @param mixed|null                   $result
+     *
+     * @return mixed
+     */
+    public static function resume(EventLoop\Suspension $suspension, mixed $result = null): mixed
+    {
+        try {
+            $suspension->resume($result);
+        } catch (EscapeException $exception) {
+            Coroutine::getInstance()->handleEscapeException($exception);
+        } catch (Throwable $exception) {
+            Output::warning($exception->getMessage());
+        }
+
+        return null;
+    }
+
+    /**
+     * @param \Revolt\EventLoop\Suspension $suspension
+     * @param Throwable $exception
+     *
+     * @return void
+     */
+    public static function throw(EventLoop\Suspension $suspension, Throwable $exception): void
+    {
+        try {
+            $suspension->throw($exception);
+        } catch (Throwable $exception) {
+        }
+    }
+
+    /**
+     * @param \Revolt\EventLoop\Suspension|null $suspension
+     *
+     * @return mixed
+     */
+    public static function suspend(EventLoop\Suspension $suspension = null): mixed
+    {
+        if (!$suspension) {
+            $suspension = getSuspension();
+        }
+        try {
+            return $suspension->suspend();
+        } catch (EscapeException $exception) {
+            Coroutine::getInstance()->handleEscapeException($exception);
+        }
     }
 }

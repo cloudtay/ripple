@@ -2,11 +2,11 @@
 
 include __DIR__ . '/../vendor/autoload.php';
 
-use Co\System;
 use Ripple\Kernel;
 use Ripple\Utils\Output;
 
 use function Co\forked;
+use function Co\process;
 use function Co\wait;
 
 // Check if process control is supported
@@ -22,17 +22,17 @@ forked(static function () {
     echo "Forked ", \posix_getpid(), \PHP_EOL;
 });
 
-$runtimes[] = System::Process()->task(static function () {
+$runtimes[] = process(static function () {
     \sleep(1);
     exit(1);
 })->run();
 
-$runtimes[] = System::Process()->task(static function () {
+$runtimes[] = process(static function () {
     \sleep(2);
     exit(2);
 })->run();
 
-$runtimes[] = System::Process()->task(static function () {
+$runtimes[] = process(static function () {
     \sleep(3);
     exit(3);
 })->run();
