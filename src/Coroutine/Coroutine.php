@@ -151,7 +151,7 @@ class Coroutine extends Support
         return promise(function (Closure $resolve, Closure $reject, Promise $promise) use ($closure) {
             $suspension = new Suspension(function () use ($closure, $resolve, $reject) {
                 try {
-                    $resolve($closure($resolve, $reject));
+                    $resolve($closure());
                 } catch (EscapeException $exception) {
                     throw $exception;
                 } catch (Throwable $exception) {

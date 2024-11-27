@@ -13,15 +13,12 @@
 namespace Ripple;
 
 use Closure;
-use Exception;
 use Revolt\EventLoop;
 use Ripple\Coroutine\Coroutine;
 use Ripple\Coroutine\Suspension;
 use Ripple\Stream\Exception\ConnectionCloseException;
-use Ripple\Stream\Exception\ConnectionException;
 use Ripple\Stream\Exception\ConnectionTimeoutException;
 use Ripple\Stream\Stream as StreamBase;
-use Ripple\Stream\Transaction;
 use Ripple\Utils\Format;
 use Ripple\Utils\Output;
 use Throwable;
@@ -80,21 +77,11 @@ class Stream extends StreamBase
     protected int $index = 0;
 
     /**
-     * @var Transaction
-     */
-    protected Transaction $transaction;
-
-    /**
      * @param mixed $resource
      */
     public function __construct(mixed $resource)
     {
         parent::__construct($resource);
-
-        $this->onClose(function () {
-            $this->cancelReadable();
-            $this->cancelWriteable();
-        });
     }
 
     /**
@@ -141,57 +128,6 @@ class Stream extends StreamBase
     }
 
     /**
-     * @param Closure $closure
-     *
-     * @return void
-     * @throws Throwable
-     */
-    public function transaction(Closure $closure): void
-    {
-        if (isset($this->transaction) && $this->transaction->getPromise()->getStatus() === Promise::PENDING) {
-            throw new Exception('Transaction has been completed');
-        }
-
-        $this->setTransaction(new Transaction($this));
-        call_user_func_array($closure, [$this->getTransaction()]);
-    }
-
-    /**
-     * @return Transaction|null
-     */
-    public function getTransaction(): Transaction|null
-    {
-        if (isset($this->transaction)) {
-            return $this->transaction;
-        }
-        return null;
-    }
-
-    /**
-     * @param Transaction $transaction
-     *
-     * @return void
-     */
-    protected function setTransaction(Transaction $transaction): void
-    {
-        if (isset($this->transaction)) {
-            $this->completeTransaction();
-            unset($this->transaction);
-        }
-        $this->transaction = $transaction;
-    }
-
-    /**
-     * @return void
-     */
-    public function completeTransaction(): void
-    {
-        if (isset($this->transaction)) {
-            $this->transaction->complete();
-        }
-    }
-
-    /**
      * Wait for readable events. This method is only valid when there are no readable events to listen for.
      * After enabling this method, it is forbidden to use the onReadable method elsewhere unless you know what you are doing.
      *
@@ -208,7 +144,7 @@ class Stream extends StreamBase
     {
         $suspension = getSuspension();
         if (!isset($this->onReadable)) {
-            $this->onReadable(fn () => Coroutine::resume($suspension, true));
+            $this->onReadable(static fn () => Coroutine::resume($suspension, true));
             $suspension instanceof Suspension && $suspension->promise->finally(fn () => $this->cancelReadable());
         }
 
@@ -268,15 +204,6 @@ class Stream extends StreamBase
         $this->cancelReadable();
         $this->cancelWriteable();
 
-        if (isset($this->transaction)) {
-            $this->failTransaction(new ConnectionException(
-                'Stream has been closed',
-                ConnectionException::CONNECTION_CLOSED,
-                null,
-                $this
-            ));
-        }
-
         foreach ($this->onCloseCallbacks as $callback) {
             try {
                 call_user_func($callback);
@@ -292,18 +219,6 @@ class Stream extends StreamBase
     public function isClosed(): bool
     {
         return !is_resource($this->stream);
-    }
-
-    /**
-     * @param Throwable $exception
-     *
-     * @return void
-     */
-    public function failTransaction(Throwable $exception): void
-    {
-        if (isset($this->transaction)) {
-            $this->transaction->fail($exception);
-        }
     }
 
     /**
@@ -335,7 +250,7 @@ class Stream extends StreamBase
     {
         $suspension = getSuspension();
         if (!isset($this->onWriteable)) {
-            $this->onWriteable(fn () => Coroutine::resume($suspension, true));
+            $this->onWriteable(static fn () => Coroutine::resume($suspension, true));
             $suspension instanceof Suspension && $suspension->promise->finally(fn () => $this->cancelWriteable());
         }
 
