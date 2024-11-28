@@ -141,39 +141,23 @@ class Socket extends Stream
     public static function connect(string $address, int $timeout = 0, mixed $context = null): Socket
     {
         try {
-            return promise(static function (Closure $resolve, Closure $reject) use ($address, $timeout, $context) {
-                $connection = @stream_socket_client(
-                    $address,
-                    $_,
-                    $_,
-                    $timeout,
-                    STREAM_CLIENT_ASYNC_CONNECT | STREAM_CLIENT_CONNECT,
-                    $context
-                );
+            $connection = @stream_socket_client(
+                $address,
+                $_,
+                $_,
+                $timeout,
+                STREAM_CLIENT_ASYNC_CONNECT | STREAM_CLIENT_CONNECT,
+                $context
+            );
 
-                if (!$connection) {
-                    $reject(new ConnectionException('Failed to connect to the server.', ConnectionException::CONNECTION_ERROR));
-                    return;
-                }
+            if (!$connection) {
+                throw (new ConnectionException('Failed to connect to the server.', ConnectionException::CONNECTION_ERROR));
+            }
 
-                $stream = new static($connection, $address);
-
-                if ($timeout > 0) {
-                    $timeoutEventID     = delay(static function () use ($stream, $reject) {
-                        $stream->close();
-                        $reject(new ConnectionException('Connection timeout.', ConnectionException::CONNECTION_TIMEOUT));
-                    }, $timeout);
-                    $timeoutEventCancel = fn () => cancel($timeoutEventID);
-                } else {
-                    $timeoutEventCancel = fn () => null;
-                }
-
-                $stream->onWriteable(static function (Socket $stream, Closure $cancel) use ($resolve, $timeoutEventCancel) {
-                    $cancel();
-                    $resolve($stream);
-                    $timeoutEventCancel();
-                });
-            })->await();
+            $stream = new static($connection, $address);
+            $stream->waitForWriteable($timeout);
+            $stream->cancelWriteable();
+            return $stream;
         } catch (Throwable $exception) {
             throw new ConnectionException('Failed to connect to the server.', ConnectionException::CONNECTION_ERROR, $exception);
         }
