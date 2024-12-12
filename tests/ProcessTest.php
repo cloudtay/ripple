@@ -2,12 +2,12 @@
 
 namespace Tests;
 
-use Co\System;
 use PHPUnit\Framework\TestCase;
 use Ripple\Process\Exception\ProcessException;
 use Throwable;
 
 use function Co\async;
+use function Co\process;
 use function Co\thread;
 use function mt_rand;
 use function sleep;
@@ -21,7 +21,7 @@ class ProcessTest extends TestCase
     public function test_process(): void
     {
         $code = mt_rand(0, 255);
-        $task = System::Process()->task(function () use ($code) {
+        $task = process(function () use ($code) {
             \Co\sleep(1);
             exit($code);
         });
@@ -39,7 +39,7 @@ class ProcessTest extends TestCase
     {
         $code     = mt_rand(0, 255);
         $async    = async(function () use ($code) {
-            $task    = System::Process()->task(function () use ($code) {
+            $task = process(function () use ($code) {
                 \Co\sleep(0.1);
                 exit($code);
             });
@@ -57,7 +57,7 @@ class ProcessTest extends TestCase
     public function test_parallel(): void
     {
         $code    = mt_rand(0, 255);
-        $task    = System::Process()->task(function () use ($code) {
+        $task = process(function () use ($code) {
             $thread = thread(static function ($context) {
                 sleep($context->argv[0]);
                 return $context->argv[1];

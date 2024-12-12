@@ -186,7 +186,10 @@ class Stream implements StreamInterface
      */
     public function isWritable(): bool
     {
-        return $this->meta['mode'][0] === 'w' || $this->meta['mode'][0] === 'a' || $this->meta['mode'][0] === 'x' || $this->meta['mode'][0] === 'c';
+        return $this->meta['mode'][0] === 'w' ||
+               $this->meta['mode'][0] === 'a' ||
+               $this->meta['mode'][0] === 'x' ||
+               $this->meta['mode'][0] === 'c';
     }
 
     /**

@@ -71,5 +71,3 @@ Provides standard coroutine architecture and tools for rapid development or pack
 `Email` jingnigg@gmail.com
 
 `WeChat` jingnigg
-
----

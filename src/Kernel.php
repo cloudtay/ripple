@@ -13,11 +13,11 @@
 namespace Ripple;
 
 use Closure;
-use Co\System;
 use Fiber;
 use Revolt\EventLoop;
 use Revolt\EventLoop\UnsupportedFeatureException;
 use Ripple\Coroutine\Suspension;
+use Ripple\Process\Process;
 use Throwable;
 
 use function call_user_func;
@@ -189,7 +189,7 @@ class Kernel
      */
     public function onSignal(int $signal, Closure $closure): string
     {
-        return System::Process()->onSignal($signal, $closure);
+        return Process::getInstance()->onSignal($signal, $closure);
     }
 
     /**
@@ -199,7 +199,7 @@ class Kernel
      */
     public function forked(Closure $closure): string
     {
-        return System::Process()->forked($closure);
+        return Process::getInstance()->forked($closure);
     }
 
     /**
@@ -209,7 +209,7 @@ class Kernel
      */
     public function cancelForked(string $index): void
     {
-        System::Process()->cancelForked($index);
+        Process::getInstance()->cancelForked($index);
     }
 
     /**

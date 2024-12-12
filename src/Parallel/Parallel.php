@@ -13,7 +13,6 @@
 namespace Ripple\Parallel;
 
 use Closure;
-use Co\Base;
 use Composer\Autoload\ClassLoader;
 use parallel\Events;
 use parallel\Runtime;
@@ -21,6 +20,7 @@ use parallel\Sync;
 use ReflectionClass;
 use Revolt\EventLoop;
 use Ripple\Kernel;
+use Ripple\Support;
 use RuntimeException;
 use Throwable;
 
@@ -48,10 +48,10 @@ use const SIGUSR2;
  *
  * PHP version 8.3.0-8.3.8 has memory leak
  */
-class Parallel extends Base
+class Parallel extends Support
 {
-    /*** @var Base */
-    public static Base $instance;
+    /*** @var Support */
+    public static Support $instance;
 
     /*** @var int */
     public static int $cpuCount;
