@@ -59,11 +59,13 @@ class Manager
      */
     public function addWorker(Worker $worker): void
     {
-        if (isset($this->workers[$worker->getName()])) {
-            Output::warning('Worker name already exists');
+        $worker->register($this);
+        $workerName = $worker->getName();
+        if (isset($this->workers[$workerName])) {
+            Output::warning("Worker {$workerName} already exists");
             return;
         }
-        $this->workers[$worker->getName()] = $worker;
+        $this->workers[$workerName] = $worker;
     }
 
     /**

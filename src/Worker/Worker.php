@@ -80,12 +80,21 @@ abstract class Worker
     /**
      * @var string
      */
-    protected string $name = 'worker';
+    protected string $name;
 
     /**
      * @var array
      */
     private array $queue = [];
+
+    /**
+     *
+     */
+    public function __construct()
+    {
+        $this->name  = static::class;
+        $this->count = 1;
+    }
 
     /**
      * Send instructions to the specified Worker
