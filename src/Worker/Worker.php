@@ -85,15 +85,147 @@ abstract class Worker
     /**
      * @var array
      */
-    private array $queue = [];
+    protected array $queue = [];
 
     /**
+     * @Context manager
+     * @Author  cclilshy
+     * @Date    2024/8/16 23:50
      *
+     * @param Manager $manager
+     *
+     * @return bool
      */
-    public function __construct()
+    public function __invoke(Manager $manager): bool
     {
-        $this->name  = static::class;
-        $this->count = 1;
+        /*** @compatible:Windows */
+        $count = !Kernel::getInstance()->supportProcessControl() ? 1 : $this->getCount();
+        for ($index = 1; $index <= $count; $index++) {
+            if (!$this->guard($manager, $index)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * @Context  worker
+     * @Author   cclilshy
+     * @Date     2024/8/17 01:03
+     *
+     * @param Command $workerCommand
+     *
+     * @return void
+     */
+    protected function __onCommand(Command $workerCommand): void
+    {
+        switch ($workerCommand->name) {
+            case Worker::COMMAND_RELOAD:
+                $this->onReload();
+                break;
+
+            case Worker::COMMAND_SYNC_ID:
+                $id   = $workerCommand->arguments['id'];
+                $sync = $workerCommand->arguments['sync'];
+
+                if ($callback = $this->queue[$id] ?? null) {
+                    unset($this->queue[$id]);
+                    $callback['resolve']($sync);
+                }
+                break;
+
+            default:
+                $this->onCommand($workerCommand);
+        }
+    }
+
+    /**
+     * @Author cclilshy
+     * @Date   2024/8/17 14:25
+     *
+     * @param Manager $manager
+     * @param int     $index
+     *
+     * @return bool
+     */
+    protected function guard(Manager $manager, int $index): bool
+    {
+        /*** @compatible:Windows */
+        $domain = !Kernel::getInstance()->supportProcessControl() ? AF_INET : AF_UNIX;
+
+        if (!socket_create_pair($domain, SOCK_STREAM, 0, $sockets)) {
+            return false;
+        }
+
+        $streamA = new Socket(socket_export_stream($sockets[0]));
+        $streamB = new Socket(socket_export_stream($sockets[1]));
+        $streamA->setBlocking(false);
+        $streamB->setBlocking(false);
+        $streamA->onClose(fn () => $streamB->close());
+
+        $zx7e                  = new Zx7e();
+        $this->streams[$index] = $streamA;
+        $this->streams[$index]->onReadable(function (Socket $Socket) use ($streamA, $index, &$zx7e, $manager) {
+            $content = $Socket->readContinuously(1024);
+            foreach ($zx7e->decodeStream($content) as $string) {
+                $manager->onCommand(Command::fromString($string), $this->getName(), $index);
+            }
+        });
+
+        $this->runtimes[$index] = $runtime = process(function () use ($streamB) {
+            $this->parent       = false;
+            $this->parentSocket = $streamB;
+            $this->boot();
+
+            $this->zx7e = new Zx7e();
+            $this->parentSocket->onReadable(function (Socket $Socket) {
+                $content = $Socket->readContinuously(1024);
+                foreach ($this->zx7e->decodeStream($content) as $string) {
+                    $this->__onCommand(Command::fromString($string));
+                }
+            });
+        })->run();
+
+        $runtime->finally(function () use ($manager, $index) {
+            if (isset($this->streams[$index])) {
+                $this->streams[$index]->close();
+                unset($this->streams[$index]);
+            }
+
+            if (isset($this->runtimes[$index])) {
+                unset($this->runtimes[$index]);
+            }
+            delay(function () use ($manager, $index) {
+                $this->guard($manager, $index);
+            }, 0.1);
+        });
+
+        return true;
+    }
+
+    /**
+     * @Context  share
+     * @Author   cclilshy
+     * @Date     2024/8/17 01:05
+     * @return string
+     */
+    public function getName(): string
+    {
+        if (!isset($this->name)) {
+            $this->name = static::class;
+        }
+        return $this->name;
+    }
+
+    /**
+     * @Context  share
+     * @Author   cclilshy
+     * @Date     2024/8/17 01:06
+     * @return int
+     */
+    public function getCount(): int
+    {
+        return $this->count;
     }
 
     /**
@@ -179,99 +311,16 @@ abstract class Worker
     }
 
     /**
-     * @Context manager
-     * @Author  cclilshy
-     * @Date    2024/8/16 23:50
+     * Triggered during hot restart. The notified process should follow the hot restart rules to release resources and then exit.
      *
-     * @param Manager $manager
-     *
-     * @return bool
-     */
-    public function __invoke(Manager $manager): bool
-    {
-        /*** @compatible:Windows */
-        $count = !Kernel::getInstance()->supportProcessControl() ? 1 : $this->getCount();
-        for ($index = 1; $index <= $count; $index++) {
-            if (!$this->guard($manager, $index)) {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    /**
-     * @Context  share
+     * @Context  worker
      * @Author   cclilshy
-     * @Date     2024/8/17 01:06
-     * @return int
+     * @Date     2024/8/17 00:59
+     * @return void
      */
-    public function getCount(): int
+    #[NoReturn] public function onReload(): void
     {
-        return $this->count;
-    }
-
-    /**
-     * @Author cclilshy
-     * @Date   2024/8/17 14:25
-     *
-     * @param Manager $manager
-     * @param int     $index
-     *
-     * @return bool
-     */
-    private function guard(Manager $manager, int $index): bool
-    {
-        /*** @compatible:Windows */
-        $domain = !Kernel::getInstance()->supportProcessControl() ? AF_INET : AF_UNIX;
-
-        if (!socket_create_pair($domain, SOCK_STREAM, 0, $sockets)) {
-            return false;
-        }
-
-        $streamA = new Socket(socket_export_stream($sockets[0]));
-        $streamB = new Socket(socket_export_stream($sockets[1]));
-        $streamA->setBlocking(false);
-        $streamB->setBlocking(false);
-        $streamA->onClose(fn () => $streamB->close());
-
-        $zx7e                  = new Zx7e();
-        $this->streams[$index] = $streamA;
-        $this->streams[$index]->onReadable(function (Socket $Socket) use ($streamA, $index, &$zx7e, $manager) {
-            $content = $Socket->readContinuously(1024);
-            foreach ($zx7e->decodeStream($content) as $string) {
-                $manager->onCommand(Command::fromString($string), $this->getName(), $index);
-            }
-        });
-
-        $this->runtimes[$index] = $runtime = process(function () use ($streamB) {
-            $this->parent       = false;
-            $this->parentSocket = $streamB;
-            $this->boot();
-
-            $this->zx7e = new Zx7e();
-            $this->parentSocket->onReadable(function (Socket $Socket) {
-                $content = $Socket->readContinuously(1024);
-                foreach ($this->zx7e->decodeStream($content) as $string) {
-                    $this->__onCommand(Command::fromString($string));
-                }
-            });
-        })->run();
-
-        $runtime->finally(function () use ($manager, $index) {
-            if (isset($this->streams[$index])) {
-                $this->streams[$index]->close();
-                unset($this->streams[$index]);
-            }
-
-            if (isset($this->runtimes[$index])) {
-                unset($this->runtimes[$index]);
-            }
-            delay(function () use ($manager, $index) {
-                $this->guard($manager, $index);
-            }, 0.1);
-        });
-
-        return true;
+        exit(0);
     }
 
     /**
@@ -290,69 +339,6 @@ abstract class Worker
     }
 
     /**
-     * @Context  share
-     * @Author   cclilshy
-     * @Date     2024/8/17 01:05
-     * @return string
-     */
-    public function getName(): string
-    {
-        return $this->name;
-    }
-
-    /**
-     * @Context  worker
-     * @Author   cclilshy
-     * @Date     2024/8/16 11:53
-     * @return void
-     */
-    abstract public function boot(): void;
-
-    /**
-     * @Context  worker
-     * @Author   cclilshy
-     * @Date     2024/8/17 01:03
-     *
-     * @param Command $workerCommand
-     *
-     * @return void
-     */
-    private function __onCommand(Command $workerCommand): void
-    {
-        switch ($workerCommand->name) {
-            case Worker::COMMAND_RELOAD:
-                $this->onReload();
-                break;
-
-            case Worker::COMMAND_SYNC_ID:
-                $id   = $workerCommand->arguments['id'];
-                $sync = $workerCommand->arguments['sync'];
-
-                if ($callback = $this->queue[$id] ?? null) {
-                    unset($this->queue[$id]);
-                    $callback['resolve']($sync);
-                }
-                break;
-
-            default:
-                $this->onCommand($workerCommand);
-        }
-    }
-
-    /**
-     * Triggered during hot restart. The notified process should follow the hot restart rules to release resources and then exit.
-     *
-     * @Context  worker
-     * @Author   cclilshy
-     * @Date     2024/8/17 00:59
-     * @return void
-     */
-    #[NoReturn] public function onReload(): void
-    {
-        exit(0);
-    }
-
-    /**
      * @Context  manager
      * @Author   cclilshy
      * @Date     2024/8/16 11:53
@@ -362,4 +348,12 @@ abstract class Worker
      * @return void
      */
     abstract public function register(Manager $manager): void;
+
+    /**
+     * @Context  worker
+     * @Author   cclilshy
+     * @Date     2024/8/16 11:53
+     * @return void
+     */
+    abstract public function boot(): void;
 }

@@ -24,6 +24,9 @@ use function is_resource;
 use function posix_kill;
 use function proc_close;
 use function proc_get_status;
+use function proc_terminate;
+
+use const SIGTERM;
 
 /**
  * @Author cclilshy
@@ -132,9 +135,16 @@ class Session
             }
 
             try {
-                proc_close($this->proc);
+                if (!$this->getStatus('running')) {
+                    proc_close($this->proc);
+                } else {
+                    $this->terminate(SIGTERM);
+                    if (!$this->getStatus('running')) {
+                        proc_close($this->proc);
+                    }
+                }
             } catch (Throwable) {
-                // ignore
+                proc_close($this->proc);
             }
 
             if (isset($this->onClose)) {
@@ -192,14 +202,27 @@ class Session
     }
 
     /**
-     * @param string $key
+     * @param string|null $key
      *
      * @return mixed
      */
-    public function getStatus(string $key): mixed
+    public function getStatus(string|null $key = null): mixed
     {
         $status = proc_get_status($this->proc);
         return $key ? ($status[$key] ?? null) : $status;
+    }
+
+    /**
+     * @param int|null $signal
+     *
+     * @return bool
+     */
+    public function terminate(int|null $signal = null): bool
+    {
+        if ($signal) {
+            return proc_terminate($this->proc, $signal);
+        }
+        return proc_terminate($this->proc);
     }
 
     /**

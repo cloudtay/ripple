@@ -32,22 +32,22 @@ class Manager
     /**
      * @var Worker[]
      */
-    private array $workers = [];
+    protected array $workers = [];
 
     /**
      * @var Zx7e
      */
-    private Zx7e $zx7e;
+    protected Zx7e $zx7e;
 
     /**
      * @var int
      */
-    private int $index = 1;
+    protected int $index = 1;
 
     /**
      * @var int
      */
-    private int $processID;
+    protected int $processID;
 
     /**
      * @Author cclilshy
@@ -59,7 +59,6 @@ class Manager
      */
     public function addWorker(Worker $worker): void
     {
-        $worker->register($this);
         $workerName = $worker->getName();
         if (isset($this->workers[$workerName])) {
             Output::warning("Worker {$workerName} already exists");
@@ -114,6 +113,14 @@ class Manager
         foreach ($this->workers as $worker) {
             $this->stopWorker($worker->getName());
         }
+    }
+
+    /**
+     * @return \Ripple\Worker\Worker[]
+     */
+    public function getWorkers(): array
+    {
+        return $this->workers;
     }
 
     /**
