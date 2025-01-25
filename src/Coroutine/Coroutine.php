@@ -240,7 +240,7 @@ class Coroutine extends Support
      *
      * @return mixed
      */
-    public static function suspend(EventLoop\Suspension $suspension = null): mixed
+    public static function suspend(EventLoop\Suspension|null $suspension = null): mixed
     {
         if (!$suspension) {
             $suspension = getSuspension();
