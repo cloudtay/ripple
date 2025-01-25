@@ -295,7 +295,7 @@ function process(Closure $closure): Task
  * @return mixed
  * @throws Throwable
  */
-function suspend(EventLoop\Suspension $suspension = null): mixed
+function suspend(EventLoop\Suspension|null $suspension = null): mixed
 {
     if ($suspension === null) {
         $suspension = getSuspension();
