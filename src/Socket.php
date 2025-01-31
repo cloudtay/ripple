@@ -116,13 +116,13 @@ class Socket extends Stream
 
     /**
      * @param string     $address
-     * @param int        $timeout
+     * @param int|float $timeout
      * @param mixed|null $context
      *
      * @return Socket
      * @throws \Ripple\Stream\Exception\ConnectionException
      */
-    public static function connectWithSSL(string $address, int $timeout = 0, mixed $context = null): Socket
+    public static function connectWithSSL(string $address, int|float $timeout = 0, mixed $context = null): Socket
     {
         $address      = str_replace('ssl://', 'tcp://', $address);
         $Socket = Socket::connect($address, $timeout, $context);
@@ -132,13 +132,13 @@ class Socket extends Stream
 
     /**
      * @param string     $address
-     * @param int        $timeout
+     * @param int|float $timeout
      * @param mixed|null $context
      *
      * @return Socket
      * @throws ConnectionException
      */
-    public static function connect(string $address, int $timeout = 0, mixed $context = null): Socket
+    public static function connect(string $address, int|float $timeout = 0, mixed $context = null): Socket
     {
         try {
             $connection = @stream_socket_client(
@@ -164,15 +164,21 @@ class Socket extends Stream
     }
 
     /**
-     * @param float $timeout
+     * @param int|float $timeout
+     * @param int|null  $cryptoMethod
      *
      * @return Socket
-     * @throws ConnectionException
+     * @throws \Ripple\Stream\Exception\ConnectionException
      */
-    public function enableSSL(float $timeout = 0): Socket
-    {
+    public function enableSSL(
+        int|float $timeout = 0,
+        int|null  $cryptoMethod = null,
+    ): Socket {
+        if (!$cryptoMethod) {
+            $cryptoMethod = STREAM_CRYPTO_METHOD_SSLv23_CLIENT | STREAM_CRYPTO_METHOD_TLS_CLIENT;
+        }
         try {
-            return promise(function (Closure $resolve, Closure $reject, Promise $promise) use ($timeout) {
+            return promise(function (Closure $resolve, Closure $reject, Promise $promise) use ($cryptoMethod, $timeout) {
                 $stream = $this;
                 if ($timeout > 0) {
                     $timeoutEventID = delay(static function () use ($reject) {
@@ -184,7 +190,7 @@ class Socket extends Stream
                 $handshakeResult = @stream_socket_enable_crypto(
                     $stream->stream,
                     true,
-                    STREAM_CRYPTO_METHOD_SSLv23_CLIENT | STREAM_CRYPTO_METHOD_TLS_CLIENT
+                    $cryptoMethod
                 );
 
                 if ($handshakeResult === false) {
@@ -461,21 +467,5 @@ class Socket extends Stream
     public function getPort(): int
     {
         return $this->port;
-    }
-
-    /**
-     * @param int $length
-     *
-     * @return string
-     * @throws ConnectionException
-     */
-    public function readContinuously(int $length): string
-    {
-        $content = '';
-        while ($buffer = $this->read($length)) {
-            $content .= $buffer;
-        }
-
-        return $content;
     }
 }

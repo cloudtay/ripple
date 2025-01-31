@@ -12,316 +12,182 @@
 
 namespace Ripple\Parallel;
 
-use Closure;
 use Composer\Autoload\ClassLoader;
 use parallel\Events;
 use parallel\Runtime;
-use parallel\Sync;
 use ReflectionClass;
-use Revolt\EventLoop;
+use Ripple\Channel\Channel;
 use Ripple\Kernel;
 use Ripple\Support;
-use RuntimeException;
-use Throwable;
+use Closure;
+use Exception;
 
-use function Co\cancel;
-use function Co\defer;
-use function Co\onSignal;
-use function count;
+use function Co\async;
+use function Co\forked;
 use function dirname;
-use function file_exists;
-use function getmypid;
-use function intval;
-use function is_int;
-use function posix_getpid;
-use function posix_kill;
-use function preg_match;
-use function shell_exec;
-use function strval;
+use function extension_loaded;
 
-use const SIGUSR2;
+if (!extension_loaded('parallel')) {
+    return;
+}
 
 /**
  * 2024-08-07
  * 0x00 Allows the USR2 signal to be retained for parallel code execution in the main thread
- * 0x01 Use an independent thread to listen and count instructions to send signals to the main process, retaining the blocking mechanism of events::poll of the main process atomically.
+ * 0x01 Use an independent thread to listen and count instructions to send signals to the main process,
+ * retaining the blocking mechanism of events::poll of the main process atomically.
  *
  * PHP version 8.3.0-8.3.8 has memory leak
  */
 class Parallel extends Support
 {
+    /**
+     *
+     */
+    private const SCALAR_CHANNEL_PREFIX = 'ripple.parallel.scalar.';
+
     /*** @var Support */
     public static Support $instance;
 
-    /*** @var int */
-    public static int $cpuCount;
-
     /*** @var string */
-    public static string $autoload;
+    private string $autoloadFile;
+
+    /*** @var \Ripple\Channel\Channel */
+    private Channel $channel;
 
     /*** @var Events */
     private Events $events;
 
-    /*** @var Future[] */
-    private array $futures = [];
-
     /**
      * @var int
      */
-    private int $index;
+    private int $index = 0;
 
     /**
-     * Event dispatch thread
-     *
-     * @var Runtime
+     * @var Future[]
      */
-    private Runtime $counterRuntime;
-
-    /**
-     * Event dispatch thread Future
-     *
-     * @var \parallel\Future
-     */
-    private \parallel\Future $counterFuture;
-
-    /**
-     * Event count channel
-     *
-     * @var Channel
-     */
-    private Channel $counterChannel;
-
-    /**
-     * Event count scalar
-     *
-     * @var Sync
-     */
-    private Sync $eventScalar;
-
-    /*** @var string */
-    private string $signalHandlerID;
+    private array $futures = [];
 
     /**
      * Parallel constructor.
      */
     protected function __construct()
     {
-        $this->initialize();
-    }
-
-    /**
-     * @return void
-     */
-    private function initialize(): void
-    {
-        // Initialize autoloading address
+        // Initialize autoload file path
         $reflector          = new ReflectionClass(ClassLoader::class);
         $vendorDir          = dirname($reflector->getFileName(), 2);
-        Parallel::$autoload = "{$vendorDir}/autoload.php";
-
-        // get the number of cpu cores
-        Parallel::$cpuCount = intval(
-            // if
-            file_exists('/usr/bin/nproc')
-                ? shell_exec('/usr/bin/nproc')
-                : ( //else
-                    file_exists('/proc/cpuinfo') && preg_match('/^processor\s+:/', shell_exec('cat /proc/cpuinfo'), $matches)
-                        ? count($matches)
-                        : ( //else
-                            shell_exec('sysctl -n hw.ncpu')
-                                ? shell_exec('sysctl -n hw.ncpu')
-                                : 1 //else
-                        )
-                )
-        );
-
-        // initialize event handler
-        $this->index = 0;
-        $this->initializeCounter();
+        $this->autoloadFile = "{$vendorDir}/autoload.php";
+        $this->events = new Events();
+        $this->events->setBlocking(true);
+        $this->channel = Parallel::openScalarChannel(true);
+        $this->registerForked();
     }
 
     /**
      * @return void
      */
-    private function initializeCounter(): void
+    public function registerForked(): void
     {
-        if (isset($this->events)) {
-            return;
-        }
-
-        $this->events = new Events();
-        $this->events->setBlocking(true);
-
-        $this->counterChannel = $this->makeChannel('counter');
-        $this->eventScalar    = new Sync(0);
-        $this->counterRuntime = new Runtime(Parallel::$autoload);
-        $this->counterFuture  = $this->counterRuntime->run(static function (\parallel\Channel $channel, Sync $eventScalar) {
-            $eventScalar(fn () => $eventScalar->wait());
-            /*** @compatible:Windows */
-            if (!Kernel::getInstance()->supportProcessControl()) {
-                $processID = getmypid();
-            } else {
-                $processID = posix_getpid();
+        forked(function () {
+            foreach ($this->futures as $future) {
+                $future->reject(new Exception('Future was cancelled.'));
+                $future->cancel();
             }
-            $count = 0;
-            while ($number = $channel->recv()) {
-                $eventScalar->set($count += $number);
-                if ($number > 0) {
-                    /**
-                     * @compatible:Windows
-                     */
-                    if (!Kernel::getInstance()->supportProcessControl()) {
-                        break;
-                    }
-                    posix_kill($processID, SIGUSR2);
-                } elseif ($count === -1) {
-                    break;
-                } elseif ($count === 0) {
-                    $eventScalar(fn () => $eventScalar->wait());
-                }
-            }
-            return true;
-        }, [$this->counterChannel->channel, $this->eventScalar]);
 
-        try {
-            $this->signalHandlerID = onSignal(SIGUSR2, fn () => $this->poll());
-        } catch (EventLoop\UnsupportedFeatureException) {
-        }
-
-        /**
-         * The signal processor cannot be unlocked before it is registered.
-         */
-        defer(function () {
-            $this->eventScalar->notify();
+            $this->index  = 0;
+            $this->events = new Events();
+            $this->events->setBlocking(true);
+            $this->channel = Parallel::openScalarChannel(true);
+            $this->registerForked();
         });
     }
 
     /**
-     * @param string   $name
-     * @param int|null $capacity
-     *
-     * @return Channel
+     * @return void
      */
-    public function makeChannel(string $name, int|null $capacity = null): Channel
+    public function registerPoll(): void
     {
-        return is_int($capacity)
-            ? new Channel(\parallel\Channel::make($name, $capacity))
-            : new Channel(\parallel\Channel::make($name));
-    }
+        async(function () {
+            while ($this->channel->receive()) {
+                $this->poll();
 
-    /**
-     * @param Thread $thread
-     * @param        ...$argv
-     *
-     * @return Future
-     */
-    public function run(Thread $thread, ...$argv): Future
-    {
-        if (!isset($this->signalHandlerID)) {
-            try {
-                $this->signalHandlerID = onSignal(SIGUSR2, fn () => $this->poll());
-                defer(function () {
-                    $this->eventScalar->notify();
-                });
-            } catch (EventLoop\UnsupportedFeatureException) {
+                if ($this->events->count() === 0) {
+                    break;
+                }
             }
-        }
-        $future                       = $thread(...$argv);
-        $this->futures[$thread->name] = $future;
-        $this->events->addFuture($thread->name, $future->future);
-        return $future;
+        });
     }
 
     /**
      * @return void
      */
-    private function poll(): void
+    public function poll(): void
     {
-        while ($number = $this->eventScalar->get()) {
-            for ($i = 0; $i < $number; $i++) {
-                $event = $this->events->poll();
-                if (!$event) {
-                    continue;
+        if (!$event = $this->events->poll()) {
+            return;
+        }
+
+        switch ($event->type) {
+            case Events\Event\Type::Kill:
+            case Events\Event\Type::Cancel:
+                if ($future = $this->futures[$event->source] ?? null) {
+                    $future->reject(new Exception('Future was cancelled.'));
+                    unset($this->futures[$event->source]);
                 }
-                $this->counterChannel->send(-1);
-                switch ($event->type) {
-                    case Events\Event\Type::Cancel:
-                    case Events\Event\Type::Kill:
-                    case Events\Event\Type::Error:
-                        if (isset($this->futures[$event->source])) {
-                            $this->futures[$event->source]->onEvent($event);
-                            unset($this->futures[$event->source]);
-                        }
-                        break;
-                    case Events\Event\Type::Read:
-                        if ($event->object instanceof \parallel\Future) {
-                            $name = $event->source;
-                            if ($this->futures[$name] ?? null) {
-                                try {
-                                    $this->futures[$name]->resolve();
-                                } catch (Throwable) {
-                                } finally {
-                                    unset($this->futures[$name]);
-                                }
-                            }
-                        }
-                        break;
+                break;
+
+            case Events\Event\Type::Error:
+                if ($future = $this->futures[$event->source] ?? null) {
+                    $future->reject($event->value);
+                    unset($this->futures[$event->source]);
                 }
-            }
+                break;
+
+            case Events\Event\Type::Read:
+                if ($future = $this->futures[$event->source] ?? null) {
+                    $future->resolve($event->value);
+                    unset($this->futures[$event->source]);
+                }
+                break;
         }
-
-        if (empty($this->futures)) {
-            cancel($this->signalHandlerID);
-            unset($this->signalHandlerID);
-        }
-    }
-
-    /**
-     * @Author cclilshy
-     * @Date   2024/8/30 22:11
-     * @return static
-     * @throws RuntimeException
-     */
-    public static function getInstance(): static
-    {
-        /*** @compatible:Windows */
-        if (!Kernel::getInstance()->supportProcessControl()) {
-            throw new RuntimeException('Parallel is not supported on Windows');
-        }
-
-        return parent::getInstance();
-    }
-
-    /**
-     * @param string $name
-     *
-     * @return Channel
-     */
-    public function openChannel(string $name): Channel
-    {
-        return new Channel(\parallel\Channel::make($name));
     }
 
     /**
      * @param Closure $closure
+     * @param array $args
      *
-     * @return Thread
+     * @return Future
      */
-    public function thread(Closure $closure): Thread
+    public function run(Closure $closure, array $args = []): Future
     {
-        $name = strval($this->index++);
-        return new Thread($closure, $name);
+        $thread = new Thread($closure, $args);
+        if ($this->events->count() === 0) {
+            $this->registerPoll();
+        }
+
+        $future = $thread(new Runtime($this->autoloadFile));
+        $name   = "future-{$this->index}";
+        $this->index++;
+        $this->events->addFuture($name, $future->getParallelFuture());
+        $this->futures[$name] = $future;
+        return $future;
     }
 
     /**
-     * @throws Throwable
+     * @return int
      */
-    public function __destruct()
+    public function count(): int
     {
-        $this->eventScalar->notify();
-        $this->counterChannel->send(-1);
-        $this->counterFuture->value();
-        $this->counterRuntime->close();
-        $this->counterChannel->close();
+        return $this->events->count();
+    }
+
+    /**
+     * @param bool $owner
+     *
+     * @return \Ripple\Channel\Channel
+     */
+    public static function openScalarChannel(bool $owner = false): Channel
+    {
+        return \Co\channel(Parallel::SCALAR_CHANNEL_PREFIX . Kernel::getInstance()->getProcessId(), $owner);
     }
 }

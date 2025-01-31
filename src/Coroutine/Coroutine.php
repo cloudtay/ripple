@@ -47,6 +47,9 @@ class Coroutine extends Support
     /*** @var WeakMap<object,WeakReference<Suspension>> */
     private WeakMap $fiber2suspension;
 
+    /**
+     *
+     */
     public function __construct()
     {
         $this->registerOnFork();
@@ -72,7 +75,6 @@ class Coroutine extends Support
         if (!$fiber = Fiber::getCurrent()) {
             return EventLoop::getSuspension();
         }
-
         return ($this->fiber2suspension[$fiber] ?? null)?->get() ?? EventLoop::getSuspension();
     }
 
@@ -149,7 +151,9 @@ class Coroutine extends Support
     public function async(Closure $closure): Promise
     {
         return promise(function (Closure $resolve, Closure $reject, Promise $promise) use ($closure) {
-            $suspension = new Suspension(function () use ($closure, $resolve, $reject) {
+            $currentSuspension = getSuspension();
+            $suspension        = new Suspension(function () use ($closure, $resolve, $reject, $currentSuspension) {
+                Context::extend($currentSuspension);
                 try {
                     $resolve($closure());
                 } catch (EscapeException $exception) {
@@ -157,6 +161,8 @@ class Coroutine extends Support
                 } catch (Throwable $exception) {
                     $reject($exception);
                     return;
+                } finally {
+                    Context::clear();
                 }
             }, $resolve, $reject, $promise);
 
@@ -239,12 +245,14 @@ class Coroutine extends Support
      * @param \Revolt\EventLoop\Suspension|null $suspension
      *
      * @return mixed
+     * @throws Throwable
      */
     public static function suspend(EventLoop\Suspension|null $suspension = null): mixed
     {
         if (!$suspension) {
             $suspension = getSuspension();
         }
+
         try {
             return $suspension->suspend();
         } catch (EscapeException $exception) {

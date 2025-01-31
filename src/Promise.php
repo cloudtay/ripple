@@ -15,7 +15,6 @@ namespace Ripple;
 use Closure;
 use Ripple\Coroutine\Exception\Exception;
 use Ripple\Coroutine\Exception\PromiseAggregateError;
-use Ripple\Coroutine\WaitGroup;
 use Ripple\Utils\Output;
 use Throwable;
 

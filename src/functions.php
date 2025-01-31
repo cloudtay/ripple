@@ -20,8 +20,8 @@ use Ripple\Channel\Channel;
 use Ripple\Coroutine\Coroutine;
 use Ripple\File\Lock;
 use Ripple\Kernel;
+use Ripple\Parallel\Future;
 use Ripple\Parallel\Parallel;
-use Ripple\Parallel\Thread;
 use Ripple\Proc\Proc;
 use Ripple\Proc\Session;
 use Ripple\Process\Process;
@@ -136,13 +136,13 @@ function defer(Closure $closure): void
 
 /**
  * @param Closure $closure
+ * @param array   $argv
  *
- * @return Thread
- * @throws RuntimeException
+ * @return \Ripple\Parallel\Future
  */
-function thread(Closure $closure): Thread
+function thread(Closure $closure, array $argv = []): Future
 {
-    return Parallel::getInstance()->thread($closure);
+    return Parallel::getInstance()->run($closure, $argv);
 }
 
 /**
@@ -286,7 +286,7 @@ function proc(string|array $entrance = '/bin/sh'): Session|false
  */
 function process(Closure $closure): Task
 {
-    return Process::getInstance()->task($closure);
+    return Process::getInstance()->create($closure);
 }
 
 /**
@@ -321,7 +321,7 @@ function resume(EventLoop\Suspension $suspension, mixed $result = null): mixed
  *
  * @return void
  */
-function throw_(EventLoop\Suspension $suspension, Throwable $exception): void
+function __throw(EventLoop\Suspension $suspension, Throwable $exception): void
 {
     Coroutine::throw($suspension, $exception);
 }

@@ -30,16 +30,20 @@ use function call_user_func_array;
 use function Co\cancel;
 use function Co\getSuspension;
 use function Co\promise;
+use function Co\repeat;
 use function Co\wait;
 use function getmypid;
 use function pcntl_fork;
 use function pcntl_wait;
 use function pcntl_wexitstatus;
 use function pcntl_wifexited;
+use function pcntl_wifsignaled;
+use function pcntl_wifstopped;
+use function pcntl_wstopsig;
+use function pcntl_wtermsig;
 use function posix_getpid;
 
 use const SIGCHLD;
-use const SIGKILL;
 use const WNOHANG;
 use const WUNTRACED;
 
@@ -76,6 +80,9 @@ class Process extends Support
     /*** @var int */
     private int $index = 0;
 
+    /*** @var string */
+    private string $timer;
+
     public function __construct()
     {
         /*** @compatible:Windows */
@@ -89,18 +96,13 @@ class Process extends Support
         $this->processID     = posix_getpid();
     }
 
-    public function __destruct()
-    {
-        $this->destroy();
-    }
-
     /**
      * @return void
      */
     private function destroy(): void
     {
         foreach ($this->process2runtime as $runtime) {
-            $runtime->signal(SIGKILL);
+            $runtime->terminate();
         }
     }
 
@@ -130,7 +132,7 @@ class Process extends Support
      *
      * @return Task|false
      */
-    public function task(Closure $closure): Task|false
+    public function create(Closure $closure): Task|false
     {
         return new Task(function (...$args) use ($closure) {
             /**
@@ -144,7 +146,7 @@ class Process extends Support
              */
             if (!Kernel::getInstance()->supportProcessControl()) {
                 call_user_func($closure, ...$args);
-                return new Runtime(promise(static function () {
+                return new WindowsRuntime(promise(static function () {
                 }), getmypid());
             }
 
@@ -248,7 +250,15 @@ class Process extends Support
      */
     private function unregisterSignalHandler(): void
     {
-        cancel($this->signalHandlerEventID);
+        if (isset($this->signalHandlerEventID)) {
+            cancel($this->signalHandlerEventID);
+            unset($this->signalHandlerEventID);
+        }
+
+        if (isset($this->timer)) {
+            cancel($this->timer);
+            unset($this->timer);
+        }
     }
 
     /**
@@ -262,7 +272,15 @@ class Process extends Support
             return;
         }
 
-        $this->signalHandlerEventID = $this->onSignal(SIGCHLD, fn () => $this->signalSIGCHLDHandler());
+        if (!isset($this->signalHandlerEventID)) {
+            $this->signalHandlerEventID = $this->onSignal(SIGCHLD, fn () => $this->signalSIGCHLDHandler());
+        }
+
+        if (!isset($this->timer)) {
+            $this->timer = repeat(function () {
+                $this->signalSIGCHLDHandler();
+            }, 1);
+        }
     }
 
     /**
@@ -301,18 +319,35 @@ class Process extends Support
      */
     private function onProcessExit(int $processID, int $status): void
     {
-        $exit            = pcntl_wifexited($status) ? pcntl_wexitstatus($status) : -1;
+        $exitCode   = -1;
+        $exitReason = '';
+
+        if (pcntl_wifexited($status)) {
+            $exitCode   = pcntl_wexitstatus($status);
+            $exitReason = 'normal exit';
+        } elseif (pcntl_wifsignaled($status)) {
+            $exitCode   = pcntl_wtermsig($status);
+            $exitReason = 'terminated by signal';
+        } elseif (pcntl_wifstopped($status)) {
+            $exitCode   = pcntl_wstopsig($status);
+            $exitReason = 'stopped by signal';
+        }
+
         $promiseCallback = $this->process2promiseCallback[$processID] ?? null;
         if (!$promiseCallback) {
             return;
         }
 
-        if ($exit === -1) {
-            call_user_func($promiseCallback['reject'], new ProcessException('The process is abnormal.', $exit));
+        if ($exitCode !== 0) {
+            call_user_func(
+                $promiseCallback['reject'],
+                new ProcessException("Process failed: {$exitReason}", $exitCode)
+            );
         } else {
-            call_user_func($promiseCallback['resolve'], $exit);
+            call_user_func($promiseCallback['resolve'], $exitCode);
         }
 
+        // Clean up resources
         unset($this->process2promiseCallback[$processID]);
         unset($this->process2runtime[$processID]);
 
@@ -327,5 +362,21 @@ class Process extends Support
     public function getRootProcessID(): int
     {
         return $this->rootProcessID;
+    }
+
+    /**
+     * @return int
+     */
+    public function getProcessID(): int
+    {
+        return $this->processID;
+    }
+
+    /**
+     *
+     */
+    public function __destruct()
+    {
+        $this->destroy();
     }
 }

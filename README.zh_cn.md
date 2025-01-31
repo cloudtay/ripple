@@ -1,5 +1,5 @@
 <p align="center">
-<img src="https://raw.githubusercontent.com/cloudtay/ripple/refs/heads/main/assets/images/logo.png" width="420" alt="Logo">
+<img src="assets/images/logo.png" width="420" alt="Logo">
 </p>
 <p align="center">
 <a href="#"><img src="https://img.shields.io/badge/PHP-%3E%3D%208.1-blue" alt="Build Status"></a>
@@ -18,9 +18,9 @@ ripple是一个现代化的、高性能的原生PHP协程引擎, 旨在解决PHP
 
 **`🎉 加入方式`** 通过以下方式添加作者微信即可加入交流群
 
-| 微信二维码                                                                                                                |
-|----------------------------------------------------------------------------------------------------------------------|
-| <img src="https://raw.githubusercontent.com/cloudtay/ripple/refs/heads/main/assets/images/wechat.jpg" width="380" /> |
+| 微信二维码                                              |
+|----------------------------------------------------|
+| <img src="assets/images/wechat.jpg" width="380" /> |
 
 ## 安装
 
@@ -42,20 +42,23 @@ composer require cloudtay/ripple
 
 > 我们允许用户自行选择适用的组件库, 所有组件只需像文档中描述的方式即可无需额外配置
 
-**🚀 [Guzzle](https://docs.guzzlephp.org/en/stable/)**  
-PHP应用最为广泛的HTTP客户端
+**🚀 [Guzzle]（https://docs.guzzlephp.org/en/stable/）**  
+PHP 是使用最广泛的 HTTP 客户端
 
-**🔥 [AmPHP](https://amphp.org/)**  
-提供丰富的PHP异步组件供用户自行封装
+**🔥 [AmPHP]（https://amphp.org/）**  
+提供丰富的 PHP 异步组件供用户自行封装
 
-**🚀 [Driver](https://github.com/cloudtay/ripple-driver)**  
-官方提供的高性能驱动库，无缝接入你的传统应用
+**🚀 [Laravel-ripple]（https://github.com/cloudtay/laravel-ripple）**  
+官方高性能驱动程序库提供对传统应用程序的无缝访问。
 
-**🚀 [Webman-coroutine](https://github.com/workbunny/webman-coroutine)**
-workbunny团队体统的webman协程扩展, 为Webman提供了协程支持
+**🚀 [Workerman-ripple]（https://github.com/cloudtay/workerman-ripple）**  
+官方高性能驱动程序库提供对传统应用程序的无缝访问。
 
-**🟢 [ripple](https://github.com/cloudtay/ripple)**  
-提供标准的协程架构与工具用于迅速开发或封装传统应用
+**🚀 [webman-coroutine]（https://github.com/workbunny/webman-coroutine）**  
+workbunny 团队的集成 webman 协程扩展为 Webman 提供协程支持。
+
+**🟢[ripple]（https://github.com/cloudtay/ripple）**  
+提供标准协程架构和工具，用于快速开发或打包传统应用程序
 
 ### 事件库指南
 

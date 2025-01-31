@@ -10,13 +10,10 @@
  * Contributions, suggestions, and feedback are always welcome!
  */
 
-namespace Ripple\Parallel;
+namespace Ripple\Types;
 
-class Context
+use stdClass;
+
+class Undefined extends stdClass
 {
-    /*** @var array */
-    public array  $argv;
-
-    /*** @var string */
-    public string $name;
 }

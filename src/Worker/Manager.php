@@ -16,9 +16,9 @@ use Ripple\Kernel;
 use Ripple\Stream\Exception\ConnectionException;
 use Ripple\Utils\Output;
 use Ripple\Utils\Serialization\Zx7e;
+use Throwable;
 
 use function getmypid;
-use function posix_getpid;
 
 /**
  * @Author cclilshy
@@ -26,8 +26,10 @@ use function posix_getpid;
  */
 class Manager
 {
-    public const COMMAND_COMMAND_TO_WORKER = 'manager.commandToWorker';
-    public const COMMAND_COMMAND_TO_ALL    = 'manager.commandToAll';
+    public const COMMAND_COMMAND_TO_WORKER = '__manager__.commandToWorker';
+    public const COMMAND_COMMAND_TO_ALL    = '__manager__.commandToAll';
+    public const COMMAND_REFRESH_METADATA = '__manager__.refreshMetadata';
+    public const COMMAND_GET_METADATA     = '__manager__.getMetadata';
 
     /**
      * @var Worker[]
@@ -50,14 +52,11 @@ class Manager
     protected int $processID;
 
     /**
-     * @Author cclilshy
-     * @Date   2024/8/16 12:28
-     *
-     * @param Worker $worker
+     * @param \Ripple\Worker\Worker $worker
      *
      * @return void
      */
-    public function addWorker(Worker $worker): void
+    public function add(Worker $worker): void
     {
         $workerName = $worker->getName();
         if (isset($this->workers[$workerName])) {
@@ -68,50 +67,37 @@ class Manager
     }
 
     /**
-     * @Author cclilshy
-     * @Date   2024/8/17 10:11
-     *
      * @param string $name
      *
      * @return void
      */
-    public function removeWorker(string $name): void
+    public function remove(string $name): void
     {
-        if ($this->workers[$name] ?? null) {
-            $this->stopWorker($name);
+        if ($worker = $this->workers[$name] ?? null) {
+            $worker->isRunning() && $this->terminate($name);
             unset($this->workers[$name]);
         }
     }
 
     /**
      * @Author cclilshy
-     * @Date   2024/8/17 10:14
-     *
-     * @param string $name
-     *
-     * @return void
-     */
-    public function stopWorker(string $name): void
-    {
-        if ($worker = $this->workers[$name] ?? null) {
-            foreach ($worker->runtimes as $runtime) {
-                $runtime->stop();
-            }
-            foreach ($worker->streams as $stream) {
-                $stream->close();
-            }
-        }
-    }
-
-    /**
-     * @Author cclilshy
      * @Date   2024/8/17 00:44
+     *
+     * @param string|null $name
+     *
      * @return void
      */
-    public function stop(): void
+    public function terminate(string|null $name = null): void
     {
+        if ($name) {
+            if ($worker = $this->workers[$name] ?? null) {
+                $worker->terminate();
+            }
+            return;
+        }
+
         foreach ($this->workers as $worker) {
-            $this->stopWorker($worker->getName());
+            $worker->terminate();
         }
     }
 
@@ -132,31 +118,61 @@ class Manager
      * @param int     $index
      *
      * @return void
-     * @throws ConnectionException
      */
     public function onCommand(Command $workerCommand, string $name, int $index): void
     {
         switch ($workerCommand->name) {
-            case Worker::COMMAND_RELOAD:
+            case WorkerContext::COMMAND_RELOAD:
                 $name = $workerCommand->arguments['name'] ?? null;
                 $this->reload($name);
-                return;
+                break;
+
+            case WorkerContext::COMMAND_SYNC_ID:
+                if ($workerProcess = $this->workers[$name]?->getWorkerProcess($index)) {
+                    $sync    = $this->index++;
+                    $id      = $workerCommand->arguments['id'];
+                    $command = Command::make(WorkerContext::COMMAND_SYNC_ID, ['sync' => $sync, 'id' => $id]);
+                    try {
+                        $workerProcess->command($command);
+                    } catch (ConnectionException $e) {
+                        Output::warning($e->getMessage());
+                    }
+                }
+                break;
+
             case Manager::COMMAND_COMMAND_TO_WORKER:
                 $command = $workerCommand->arguments['command'];
                 $target  = $workerCommand->arguments['name'];
-                $this->commandToWorker($command, $target);
+                $targetIndex = $workerCommand->arguments['index'];
+                $this->sendCommand($command, $target, $targetIndex);
                 break;
+
             case Manager::COMMAND_COMMAND_TO_ALL:
                 $command = $workerCommand->arguments['command'];
-                $this->commandToAll($command);
+                $this->sendCommand($command);
                 break;
-            case Worker::COMMAND_SYNC_ID:
-                if ($stream = $this->workers[$name]?->streams[$index] ?? null) {
-                    $sync    = $this->index++;
-                    $id      = $workerCommand->arguments['id'];
-                    $command = Command::make(Worker::COMMAND_SYNC_ID, ['sync' => $sync, 'id' => $id]);
-                    $stream->write($this->zx7e->encodeFrame($command->__toString()));
+
+            case Manager::COMMAND_REFRESH_METADATA:
+                if ($workerProcess = $this->workers[$name]?->getWorkerProcess($index)) {
+                    $metadata = $workerCommand->arguments['metadata'];
+                    $workerProcess->refreshMetadata($metadata);
                 }
+                break;
+
+            case Manager::COMMAND_GET_METADATA:
+                $result = [];
+                foreach ($this->workers as $worker) {
+                    $name          = $worker->getName();
+                    $result[$name] = [];
+                    foreach ($worker->getWorkerProcess() as $workerProcess) {
+                        foreach ($workerProcess->getMetadate() as $key => $value) {
+                            $result[$name][$key] = $value;
+                        }
+                    }
+                }
+                $id      = $workerCommand->arguments['id'];
+                $command = Command::make(Manager::COMMAND_GET_METADATA, ['metadata' => $result, 'id' => $id]);
+                $this->sendCommand($command, $name, $index);
                 break;
         }
     }
@@ -168,53 +184,44 @@ class Manager
      * @param string|null $name
      *
      * @return void
-     * @throws ConnectionException
      */
     public function reload(string|null $name = null): void
     {
         if ($name) {
             if (isset($this->workers[$name])) {
-                $this->commandToWorker(Command::make(Worker::COMMAND_RELOAD), $name);
+                $this->sendCommand(Command::make(WorkerContext::COMMAND_RELOAD), $name);
             }
             return;
         }
-        $this->commandToAll(Command::make(Worker::COMMAND_RELOAD));
+        $this->sendCommand(Command::make(WorkerContext::COMMAND_RELOAD));
     }
 
     /**
-     * @Author cclilshy
-     * @Date   2024/8/17 09:28
-     *
-     * @param Command $command
-     * @param string  $name
+     * @param \Ripple\Worker\Command $command
+     * @param string|null            $name
+     * @param int|null $index
      *
      * @return void
-     * @throws ConnectionException
      */
-    public function commandToWorker(Command $command, string $name): void
+    public function sendCommand(Command $command, string|null $name = null, int|null $index = null): void
     {
-        if (isset($this->workers[$name])) {
-            foreach ($this->workers[$name]->streams as $stream) {
-                $stream->write($this->zx7e->encodeFrame($command->__toString()));
+        if ($name) {
+            if (!$worker = $this->workers[$name] ?? null) {
+                return;
             }
-        }
-    }
 
-    /**
-     * @Author cclilshy
-     * @Date   2024/8/17 09:23
-     *
-     * @param Command $command
-     *
-     * @return void
-     * @throws ConnectionException
-     */
-    public function commandToAll(Command $command): void
-    {
-        $workers = $this->workers;
-        foreach ($workers as $worker) {
-            foreach ($worker->streams as $stream) {
-                $stream->write($this->zx7e->encodeFrame($command->__toString()));
+            $workerProcesses = $index ? [$worker->getWorkerProcess($index)] : $worker->getWorkerProcess();
+            foreach ($workerProcesses as $workerProcess) {
+                try {
+                    $workerProcess?->command($command);
+                } catch (ConnectionException $e) {
+                    Output::warning($e->getMessage());
+                }
+            }
+        } else {
+            $workers = $this->workers;
+            foreach ($workers as $worker) {
+                $this->sendCommand($command, $worker->getName());
             }
         }
     }
@@ -230,26 +237,50 @@ class Manager
         if (!Kernel::getInstance()->supportProcessControl()) {
             $this->processID = getmypid();
         } else {
-            $this->processID = posix_getpid();
+            $this->processID = Kernel::getInstance()->getProcessId();
         }
+
         $this->zx7e = new Zx7e();
         foreach ($this->workers as $worker) {
-            $worker->register($this);
-            if (!$worker($this)) {
+            try {
+                $worker->register($this);
+            } catch (Throwable $exception) {
+                Output::error("Worker {$worker->getName()} registration failed: {$exception->getMessage()}, will be removed");
+                $this->remove($worker->getName());
+                return false;
+            }
+        }
+
+        foreach ($this->workers as $worker) {
+            if (!$worker->run($this)) {
                 Output::error("worker {$worker->getName()} failed to start");
-                $this->stop();
+                $this->terminate();
             }
         }
         return true;
     }
 
+    /**
+     *
+     */
     public function __destruct()
     {
         if (!Kernel::getInstance()->supportProcessControl()) {
             return;
         }
-        if (isset($this->processID) && $this->processID === posix_getpid()) {
-            $this->stop();
+
+        if (isset($this->processID) && $this->processID === Kernel::getInstance()->getProcessId()) {
+            $this->terminate();
         }
+    }
+
+    /**
+     * @param string $name
+     *
+     * @return \Ripple\Worker\Worker|null
+     */
+    public function get(string $name): Worker|null
+    {
+        return $this->workers[$name] ?? null;
     }
 }

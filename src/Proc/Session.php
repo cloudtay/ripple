@@ -13,6 +13,7 @@
 namespace Ripple\Proc;
 
 use Closure;
+use Ripple\Kernel;
 use Ripple\Stream\Exception\ConnectionException;
 use Ripple\Utils\Output;
 use Throwable;
@@ -198,6 +199,11 @@ class Session
      */
     public function inputSignal(int $signalCode): bool
     {
+        /*** @compatible:Windows */
+        if (!Kernel::getInstance()->supportProcessControl()) {
+            return false;
+        }
+
         return posix_kill($this->getStatus('pid'), $signalCode);
     }
 
