@@ -1,5 +1,5 @@
 <p align="center">
-<img src="https://raw.githubusercontent.com/cloudtay/ripple/refs/heads/main/assets/images/logo.png" width="420" alt="Logo">
+<img src="assets/images/logo.png" width="420" alt="Logo">
 </p>
 <p align="center">
 <a href="#"><img src="https://img.shields.io/badge/PHP-%3E%3D%208.1-blue" alt="Build Status"></a>
@@ -35,19 +35,22 @@ visit [Quick Deployment](https://ripple.cloudtay.com/docs/install/server)
 > We allow users to choose applicable component libraries by themselves. All components can be used as described in the
 > document without additional configuration.
 
-**🚀 [Guzzle](https://docs.guzzlephp.org/en/stable/)**
+**🚀 [Guzzle](https://docs.guzzlephp.org/en/stable/)**  
 PHP is the most widely used HTTP client
 
-**🔥 [AmPHP](https://amphp.org/)**
+**🔥 [AmPHP](https://amphp.org/)**  
 Provides rich PHP asynchronous components for users to encapsulate by themselves
 
-**🚀 [Driver](https://github.com/cloudtay/ripple-driver)**
+**🚀 [Laravel-ripple](https://github.com/cloudtay/laravel-ripple)**  
 The official high-performance driver library provides seamless access to your traditional applications.
 
-**🚀 [Webman-coroutine](https://github.com/workbunny/webman-coroutine)**
+**🚀 [Workerman-ripple](https://github.com/cloudtay/workerman-ripple)**  
+The official high-performance driver library provides seamless access to your traditional applications.
+
+**🚀 [Webman-coroutine](https://github.com/workbunny/webman-coroutine)**  
 The workbunny team's integrated webman coroutine extension provides coroutine support for Webman.
 
-**🟢[ripple](https://github.com/cloudtay/ripple)**
+**🟢 [ripple](https://github.com/cloudtay/ripple)**  
 Provides standard coroutine architecture and tools for rapid development or packaging of traditional applications
 
 ### Event Library Guide

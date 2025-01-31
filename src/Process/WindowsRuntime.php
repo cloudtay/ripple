@@ -15,30 +15,11 @@ namespace Ripple\Process;
 use Closure;
 use Ripple\Kernel;
 use Ripple\Promise;
-use Throwable;
 
 use function getmypid;
-use function posix_kill;
 
-use const SIGKILL;
-use const SIGTERM;
-
-/**
- * @Author cclilshy
- * @Date   2024/8/16 09:36
- */
-class Runtime
+class WindowsRuntime extends Runtime
 {
-    /**
-     * @param int     $processID
-     * @param Promise $promise
-     */
-    public function __construct(
-        protected readonly Promise $promise,
-        protected readonly int     $processID,
-    ) {
-    }
-
     /*** @return void */
     public function kill(): void
     {
@@ -47,7 +28,7 @@ class Runtime
             return;
         }
 
-        posix_kill($this->processID, SIGKILL);
+        parent::kill();
     }
 
     /**
@@ -62,7 +43,7 @@ class Runtime
             return;
         }
 
-        posix_kill($this->processID, $signal);
+        parent::signal($signal);
     }
 
     /*** @return int */
@@ -73,7 +54,7 @@ class Runtime
             return getmypid();
         }
 
-        return $this->processID;
+        return parent::getProcessID();
     }
 
     /**
@@ -84,43 +65,6 @@ class Runtime
     public function then(Closure $then): Promise
     {
         return $this->promise->then($then);
-    }
-
-    /**
-     * @param Closure $catch
-     *
-     * @return Promise
-     */
-    public function except(Closure $catch): Promise
-    {
-        return $this->promise->except($catch);
-    }
-
-    /**
-     * @param Closure $finally
-     *
-     * @return Promise
-     */
-    public function finally(Closure $finally): Promise
-    {
-        return $this->promise->finally($finally);
-    }
-
-    /***
-     * @return mixed
-     * @throws Throwable
-     */
-    public function await(): mixed
-    {
-        return $this->getPromise()->await();
-    }
-
-    /**
-     * @return Promise
-     */
-    public function getPromise(): Promise
-    {
-        return $this->promise;
     }
 
     /**
@@ -135,16 +79,6 @@ class Runtime
             return;
         }
 
-        $force
-            ? $this->kill()
-            : $this->signal(SIGTERM);
-    }
-
-    /**
-     * @return bool
-     */
-    public function isRunning(): bool
-    {
-        return $this->promise->getStatus() === Promise::PENDING;
+        parent::terminate($force);
     }
 }

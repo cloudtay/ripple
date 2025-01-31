@@ -5,7 +5,6 @@ namespace Tests;
 use PHPUnit\Framework\Attributes\RunClassInSeparateProcess;
 use PHPUnit\Framework\TestCase;
 use Ripple\Kernel;
-use Ripple\Parallel\Context;
 use Throwable;
 
 use function Co\thread;
@@ -26,12 +25,11 @@ class ParallelTest extends TestCase
         }
 
         $code   = mt_rand(0, 255);
-        $future = thread(static function (Context $context) {
-            return $context->argv[0];
-        })->run($code);
-        $future->onValue(function (int $value) use ($code) {
-            $this->assertEquals($code, $value);
-        });
+        $future = thread(static function ($code) {
+            return $code;
+        }, [$code]);
+        $value = $future->value();
+        $this->assertEquals($code, $value);
         wait();
     }
 }

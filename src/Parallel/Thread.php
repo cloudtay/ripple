@@ -12,75 +12,46 @@
 
 namespace Ripple\Parallel;
 
-use Closure;
 use parallel\Runtime;
+use Closure;
+
+use function Co\wait;
+use function call_user_func_array;
+use function extension_loaded;
+
+if (!extension_loaded('parallel')) {
+    return;
+}
 
 class Thread
 {
-    /*** @var Runtime */
-    private readonly Runtime $runtime;
-
-    /*** @var Context */
-    private Context $context;
-
     /**
-     * @param Closure $handler
-     * @param string  $name
+     * @param Closure $function
+     * @param array   $argv
      */
-    public function __construct(
-        private readonly Closure $handler,
-        public readonly string   $name,
-    ) {
-        $this->runtime = new Runtime(Parallel::$autoload);
-        $this->context = new Context();
-    }
-
-    /**
-     * @return void
-     */
-    public function close(): void
+    public function __construct(private readonly Closure $function, private readonly array $argv = [])
     {
-        $this->runtime->close();
     }
 
     /**
-     * @return void
-     */
-    public function kill(): void
-    {
-        $this->runtime->kill();
-    }
-
-    /**
-     * @param mixed ...$argv
+     * @param \parallel\Runtime $runtime
      *
-     * @return Future
+     * @return \Ripple\Parallel\Future
      */
-    public function __invoke(mixed ...$argv): Future
+    public function __invoke(Runtime $runtime): Future
     {
-        $this->context->argv = $argv;
-        $this->context->name = $this->name;
-
-        return new Future($this->runtime->run(static function (Closure $handler, Context $context) {
-            $counterChannel = \parallel\Channel::open('counter');
+        $function = $this->function;
+        $future   = $runtime->run(function (...$argv) use ($function) {
             try {
-                return $handler($context);
+                $result = call_user_func_array($function, $argv);
+                wait();
+                return $result;
             } finally {
-                $counterChannel->send(1);
+                $channel = Parallel::openScalarChannel();
+                $channel->send(1);
+                $channel->close();
             }
-        }, [
-            $this->handler,
-            $this->context,
-        ]));
-    }
-
-    /**
-     * @param  ...$argv
-     *
-     * @return Future
-     */
-    public function run(...$argv): Future
-    {
-        return Parallel::getInstance()->run($this, ... $argv);
+        }, $this->argv);
+        return new Future($future, $runtime);
     }
 }

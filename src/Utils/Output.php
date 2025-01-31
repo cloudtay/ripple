@@ -19,7 +19,6 @@ use function explode;
 use function fwrite;
 use function get_class;
 use function implode;
-use function posix_getpid;
 use function posix_getppid;
 
 use const PHP_EOL;
@@ -39,7 +38,7 @@ final class Output
     {
         /*** @compatible:Windows */
         if (Kernel::getInstance()->supportProcessControl()) {
-            fwrite(STDOUT, "\033[31mProcess: " . posix_getpid() . '=>' . posix_getppid() . "\033[0m\n");
+            fwrite(STDOUT, "\033[31mProcess: " . Kernel::getInstance()->getProcessId() . '=>' . posix_getppid() . "\033[0m\n");
         }
 
         fwrite(STDOUT, "\033[31mException: " . get_class($exception) . "\033[0m\n");
@@ -73,7 +72,7 @@ final class Output
      */
     public static function writeln(string $message): void
     {
-        fwrite(STDOUT, $message . PHP_EOL);
+        Output::write($message . PHP_EOL);
     }
 
     /**
@@ -96,5 +95,15 @@ final class Output
     public static function error(string $title, string ...$contents): void
     {
         Output::writeln("\033[31m{$title}\033[0m \033[33m" . implode(' ', $contents) . "\033[0m");
+    }
+
+    /**
+     * @param string $message
+     *
+     * @return void
+     */
+    public static function write(string $message): void
+    {
+        fwrite(STDOUT, $message);
     }
 }

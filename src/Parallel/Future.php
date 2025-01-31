@@ -12,46 +12,90 @@
 
 namespace Ripple\Parallel;
 
-use Closure;
-use parallel\Events;
-use parallel\Events\Event;
-use Ripple\Utils\Output;
+use parallel\Runtime;
+use Ripple\WaitGroup;
 use Throwable;
+
+use function extension_loaded;
+
+if (!extension_loaded('parallel')) {
+    return;
+}
 
 class Future
 {
-    /*** @var mixed */
-    public mixed $result;
+    public const STATUS_PENDING   = 0;
+    public const STATUS_FULFILLED = 1;
+    public const STATUS_REJECTED  = 2;
 
-    /*** @var Closure */
-    private Closure $onError;
-
-    /*** @var Closure */
-    private Closure $onValue;
+    /*** @var \Ripple\Coroutine\WaitGroup */
+    private WaitGroup $waitGroup;
 
     /**
-     * @deprecated Should the user's active behavior be called back?？
-     * @var Closure
+     * @var int
      */
-    private Closure $onCancelled;
+    private int $status = Future::STATUS_PENDING;
 
     /**
-     * @deprecated Should the user's active behavior be called back?？
-     * @var Closure
+     * @var mixed
      */
-    private Closure $onKilled;
+    private mixed $result;
 
-    /*** @param \parallel\Future $future */
-    public function __construct(public readonly \parallel\Future $future)
+    /**
+     * @param \parallel\Future  $parallelFuture
+     * @param \parallel\Runtime $runtime
+     */
+    public function __construct(private readonly \parallel\Future $parallelFuture, private readonly Runtime $runtime)
     {
+        $this->waitGroup = new WaitGroup(1);
     }
 
     /**
-     * @return bool
+     * @param mixed $result
+     *
+     * @return void
      */
-    public function cancel(): bool
+    public function resolve(mixed $result): void
     {
-        return $this->future->cancel();
+        $this->status = Future::STATUS_FULFILLED;
+        $this->result = $result;
+        $this->waitGroup->done();
+    }
+
+    /**
+     * @param Throwable $exception
+     *
+     * @return void
+     */
+    public function reject(Throwable $exception): void
+    {
+        $this->status = Future::STATUS_REJECTED;
+        $this->result = $exception;
+        $this->waitGroup->done();
+    }
+
+    /**
+     * @return int
+     */
+    public function getStatus(): int
+    {
+        return $this->status;
+    }
+
+    /**
+     * @return \parallel\Future
+     */
+    public function getParallelFuture(): \parallel\Future
+    {
+        return $this->parallelFuture;
+    }
+
+    /**
+     * @return \parallel\Runtime
+     */
+    public function getRuntime(): Runtime
+    {
+        return $this->runtime;
     }
 
     /**
@@ -59,80 +103,8 @@ class Future
      */
     public function done(): bool
     {
-        return $this->future->done();
-    }
-
-    /**
-     * @return void
-     */
-    public function cancelled(): void
-    {
-        $this->future->cancelled();
-    }
-
-    /**
-     * @param Closure $onError
-     *
-     * @return Future
-     */
-    public function onError(Closure $onError): Future
-    {
-        $this->onError = $onError;
-        return $this;
-    }
-
-    /**
-     * @param Event $event
-     *
-     * @return void
-     */
-    public function onEvent(Events\Event $event): void
-    {
-        try {
-            switch ($event->type) {
-                case Events\Event\Type::Error:
-                    if (isset($this->onError)) {
-                        ($this->onError)($event->value);
-                    }
-                    break;
-
-                case Events\Event\Type::Cancel:
-                    if (isset($this->onCancelled)) {
-                        ($this->onCancelled)($event->value);
-                    }
-                    break;
-                case Events\Event\Type::Kill:
-                    if (isset($this->onKilled)) {
-                        ($this->onKilled)($event->value);
-                    }
-                    break;
-            }
-        } catch (Throwable $exception) {
-            Output::error($exception->getMessage());
-        }
-
-    }
-
-    /**
-     * @param Closure $onValue
-     *
-     * @return $this
-     */
-    public function onValue(Closure $onValue): Future
-    {
-        $this->onValue = $onValue;
-        return $this;
-    }
-
-    /**
-     * @return void
-     * @throws Throwable
-     */
-    public function resolve(): void
-    {
-        if (isset($this->onValue)) {
-            ($this->onValue)($this->result = $this->value());
-        }
+        $this->waitGroup->wait();
+        return $this->status === Future::STATUS_FULFILLED;
     }
 
     /**
@@ -141,33 +113,36 @@ class Future
      */
     public function value(): mixed
     {
-        if (isset($this->result)) {
-            return $this->result;
+        if (!$this->done()) {
+            throw $this->result;
         }
-        return $this->result = $this->future->value();
+        return $this->result;
     }
 
     /**
-     * @param Closure $onKilled
-     *
-     * @return Future
-     * @deprecated Should the user's active behavior be called back?？
+     * @return bool
      */
-    public function onKilled(Closure $onKilled): Future
+    public function cancel(): bool
     {
-        $this->onKilled = $onKilled;
-        return $this;
+        $bool = $this->getParallelFuture()->cancel();
+        Parallel::getInstance()->poll();
+        return $bool;
     }
 
     /**
-     * @param Closure $onCancelled
-     *
-     * @return Future
-     * @deprecated Should the user's active behavior be called back?？
+     * @return bool
      */
-    public function onCancelled(Closure $onCancelled): Future
+    public function canceled(): bool
     {
-        $this->onCancelled = $onCancelled;
-        return $this;
+        return $this->getParallelFuture()->cancelled();
+    }
+
+    /**
+     * @return void
+     */
+    public function kill(): void
+    {
+        $this->getRuntime()->kill();
+        Parallel::getInstance()->poll();
     }
 }
