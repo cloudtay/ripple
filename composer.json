@@ -34,7 +34,7 @@
     "ext-parallel": "*",
     "ext-zlib": "*",
     "phpunit/phpunit": "*",
-    "friendsofphp/php-cs-fixer": "*"
+    "friendsofphp/php-cs-fixer": "^3.68"
   },
   "suggest": {
     "ext-posix": "For better signal handling",

@@ -47,11 +47,13 @@ class Session
     /*** @var Stream */
     public readonly Stream $streamStdInput;
 
-    /*** @var Stream */
     public readonly Stream $streamStdOutput;
 
     /*** @var Stream */
     public readonly Stream $streamStdError;
+
+    /*** @var bool */
+    public bool $closed = false;
 
     /**
      * @param mixed $proc
@@ -126,6 +128,12 @@ class Session
      */
     public function close(): void
     {
+        if ($this->closed) {
+            return;
+        }
+
+        $this->closed = true;
+
         if (is_resource($this->proc)) {
             $this->streamStdError->close();
             $this->streamStdOutput->close();

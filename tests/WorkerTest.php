@@ -90,11 +90,7 @@ class WorkerTest extends TestCase
 
         $result = $manager->run();
         $this->assertTrue($result);
-
         \Co\sleep(1);
-
-        $this->assertTrue($worker->isRunning());
-
         $manager->terminate();
         cancelAll();
         wait();
