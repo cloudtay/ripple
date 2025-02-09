@@ -37,11 +37,6 @@ class Task
      */
     public function run(...$argv): Runtime|false
     {
-        //        if (Kernel::getInstance()->supportParallel() && Parallel::hasInstance()) {
-        //            // @bug: Unable to run child processes in an environment that has multithreading enabled
-        //            // throw: new RuntimeException('Unable to run child processes in an environment with multithreading enabled');
-        //            return false;
-        //        }
         return call_user_func($this->closure, ...$argv);
     }
 }
