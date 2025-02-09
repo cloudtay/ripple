@@ -108,7 +108,9 @@ class Channel
         $this->zx7e = new Zx7e();
     }
 
-    /*** @return void */
+    /**
+     * @return void
+     */
     public function close(): void
     {
         if ($this->closed) {
@@ -223,13 +225,17 @@ class Channel
         }
     }
 
-    /*** @return string */
+    /**
+     * @return string
+     */
     public function getName(): string
     {
         return $this->name;
     }
 
-    /*** @return string */
+    /**
+     * @return string
+     */
     public function getPath(): string
     {
         return $this->path;

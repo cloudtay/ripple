@@ -39,33 +39,9 @@ class Runtime
     ) {
     }
 
-    /*** @return void */
-    public function kill(): void
-    {
-        /*** @compatible:Windows */
-        if (!Kernel::getInstance()->supportProcessControl()) {
-            return;
-        }
-
-        posix_kill($this->processID, SIGKILL);
-    }
-
     /**
-     * @param int $signal
-     *
-     * @return void
+     * @return int
      */
-    public function signal(int $signal): void
-    {
-        /*** @compatible:Windows */
-        if (!Kernel::getInstance()->supportProcessControl()) {
-            return;
-        }
-
-        posix_kill($this->processID, $signal);
-    }
-
-    /*** @return int */
     public function getProcessID(): int
     {
         /*** @compatible:Windows */
@@ -138,6 +114,34 @@ class Runtime
         $force
             ? $this->kill()
             : $this->signal(SIGTERM);
+    }
+
+    /**
+     * @return void
+     */
+    public function kill(): void
+    {
+        /*** @compatible:Windows */
+        if (!Kernel::getInstance()->supportProcessControl()) {
+            return;
+        }
+
+        posix_kill($this->processID, SIGKILL);
+    }
+
+    /**
+     * @param int $signal
+     *
+     * @return void
+     */
+    public function signal(int $signal): void
+    {
+        /*** @compatible:Windows */
+        if (!Kernel::getInstance()->supportProcessControl()) {
+            return;
+        }
+
+        posix_kill($this->processID, $signal);
     }
 
     /**

@@ -288,14 +288,6 @@ class Kernel
     }
 
     /**
-     * @return bool
-     */
-    public function supportProcessControl(): bool
-    {
-        return $this->processControl;
-    }
-
-    /**
      * @Author cclilshy
      * @Date   2024/9/24 14:27
      * @return int
@@ -338,5 +330,13 @@ class Kernel
     public function getProcessId(): int
     {
         return $this->supportProcessControl() ? posix_getpid() : getmygid();
+    }
+
+    /**
+     * @return bool
+     */
+    public function supportProcessControl(): bool
+    {
+        return $this->processControl;
     }
 }

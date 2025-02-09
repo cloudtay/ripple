@@ -84,6 +84,16 @@ class Parallel extends Support
     }
 
     /**
+     * @param bool $owner
+     *
+     * @return \Ripple\Channel\Channel
+     */
+    public static function openScalarChannel(bool $owner = false): Channel
+    {
+        return \Co\channel(Parallel::SCALAR_CHANNEL_PREFIX . Kernel::getInstance()->getProcessId(), $owner);
+    }
+
+    /**
      * @return void
      */
     public function registerForked(): void
@@ -100,6 +110,35 @@ class Parallel extends Support
             $this->channel = Parallel::openScalarChannel(true);
             $this->registerForked();
         });
+    }
+
+    /**
+     * @param Closure $closure
+     * @param array $args
+     *
+     * @return Future
+     */
+    public function run(Closure $closure, array $args = []): Future
+    {
+        $thread = new Thread($closure, $args);
+        if ($this->events->count() === 0) {
+            $this->registerPoll();
+        }
+
+        $future = $thread(new Runtime($this->autoloadFile));
+        $name   = "future-{$this->index}";
+        $this->index++;
+        $this->events->addFuture($name, $future->getParallelFuture());
+        $this->futures[$name] = $future;
+        return $future;
+    }
+
+    /**
+     * @return int
+     */
+    public function count(): int
+    {
+        return $this->events->count();
     }
 
     /**
@@ -150,44 +189,5 @@ class Parallel extends Support
                 }
                 break;
         }
-    }
-
-    /**
-     * @param Closure $closure
-     * @param array $args
-     *
-     * @return Future
-     */
-    public function run(Closure $closure, array $args = []): Future
-    {
-        $thread = new Thread($closure, $args);
-        if ($this->events->count() === 0) {
-            $this->registerPoll();
-        }
-
-        $future = $thread(new Runtime($this->autoloadFile));
-        $name   = "future-{$this->index}";
-        $this->index++;
-        $this->events->addFuture($name, $future->getParallelFuture());
-        $this->futures[$name] = $future;
-        return $future;
-    }
-
-    /**
-     * @return int
-     */
-    public function count(): int
-    {
-        return $this->events->count();
-    }
-
-    /**
-     * @param bool $owner
-     *
-     * @return \Ripple\Channel\Channel
-     */
-    public static function openScalarChannel(bool $owner = false): Channel
-    {
-        return \Co\channel(Parallel::SCALAR_CHANNEL_PREFIX . Kernel::getInstance()->getProcessId(), $owner);
     }
 }

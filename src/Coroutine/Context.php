@@ -47,6 +47,19 @@ class Context
     }
 
     /**
+     * @param \Revolt\EventLoop\Suspension|null $suspension
+     *
+     * @return string
+     */
+    public static function getHash(Suspension|null $suspension = null): string
+    {
+        if (!$suspension) {
+            $suspension = getSuspension();
+        }
+        return spl_object_hash($suspension);
+    }
+
+    /**
      * @param string|null $key
      *
      * @return mixed
@@ -94,18 +107,5 @@ class Context
     public static function clear(): void
     {
         unset(Context::$context[Context::getHash()]);
-    }
-
-    /**
-     * @param \Revolt\EventLoop\Suspension|null $suspension
-     *
-     * @return string
-     */
-    public static function getHash(Suspension|null $suspension = null): string
-    {
-        if (!$suspension) {
-            $suspension = getSuspension();
-        }
-        return spl_object_hash($suspension);
     }
 }

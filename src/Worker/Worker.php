@@ -74,6 +74,29 @@ abstract class Worker extends WorkerContext
     }
 
     /**
+     * 发送指令
+     *
+     * @Context  worker
+     * @Author   cclilshy
+     * @Date     2024/8/17 00:07
+     *
+     * @param Command $command
+     *
+     * @return void
+     */
+    public function sc2m(Command $command): void
+    {
+        try {
+            $this->parentSocket->write($this->zx7e->encodeFrame($command->__toString()));
+        } catch (ConnectionException $exception) {
+            Output::error($exception->getMessage());
+
+            // Writing a message to the parent process fails. There is only one possibility that the parent process has exited.
+            exit(1);
+        }
+    }
+
+    /**
      * @Author cclilshy
      * @Date   2024/8/17 17:32
      * @return int|false
@@ -114,29 +137,6 @@ abstract class Worker extends WorkerContext
             })->await();
         } catch (Throwable) {
             return false;
-        }
-    }
-
-    /**
-     * 发送指令
-     *
-     * @Context  worker
-     * @Author   cclilshy
-     * @Date     2024/8/17 00:07
-     *
-     * @param Command $command
-     *
-     * @return void
-     */
-    public function sc2m(Command $command): void
-    {
-        try {
-            $this->parentSocket->write($this->zx7e->encodeFrame($command->__toString()));
-        } catch (ConnectionException $exception) {
-            Output::error($exception->getMessage());
-
-            // Writing a message to the parent process fails. There is only one possibility that the parent process has exited.
-            exit(1);
         }
     }
 
@@ -193,23 +193,13 @@ abstract class Worker extends WorkerContext
             $this->boot();
             repeat(function () {
                 $this->sc2m(Command::make(Manager::COMMAND_REFRESH_METADATA, [
-                    'metadata' => $this->getMetadate()
+                    'metadata' => $this->getMetadata()
                 ]));
             }, 1);
         } catch (Throwable $exception) {
             Output::error('Worker boot failed: ' . $exception->getMessage());
             exit(128);
         }
-    }
-
-    /**
-     * @Context  worker
-     * @Author   cclilshy
-     * @Date     2024/8/16 11:53
-     * @return void
-     */
-    public function boot(): void
-    {
     }
 
     /**
@@ -259,17 +249,19 @@ abstract class Worker extends WorkerContext
     }
 
     /**
-     * @return int
+     * @Context  worker
+     * @Author   cclilshy
+     * @Date     2024/8/16 11:53
+     * @return void
      */
-    protected function getIndex(): int
+    public function boot(): void
     {
-        return $this->index;
     }
 
     /**
      * @return array
      */
-    protected function getMetadate(): array
+    protected function getMetadata(): array
     {
         return [
             'memory'      => memory_get_usage(true),
@@ -277,5 +269,13 @@ abstract class Worker extends WorkerContext
             'queue_size'  => count($this->queue),
             'cpu'         => sys_getloadavg(),
         ];
+    }
+
+    /**
+     * @return int
+     */
+    protected function getIndex(): int
+    {
+        return $this->index;
     }
 }

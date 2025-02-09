@@ -28,7 +28,7 @@ class Future
     public const STATUS_FULFILLED = 1;
     public const STATUS_REJECTED  = 2;
 
-    /*** @var \Ripple\Coroutine\WaitGroup */
+    /*** @var WaitGroup */
     private WaitGroup $waitGroup;
 
     /**
@@ -63,6 +63,15 @@ class Future
     }
 
     /**
+     * @return bool
+     */
+    public function done(): bool
+    {
+        $this->waitGroup->wait();
+        return $this->status === Future::STATUS_FULFILLED;
+    }
+
+    /**
      * @param Throwable $exception
      *
      * @return void
@@ -80,31 +89,6 @@ class Future
     public function getStatus(): int
     {
         return $this->status;
-    }
-
-    /**
-     * @return \parallel\Future
-     */
-    public function getParallelFuture(): \parallel\Future
-    {
-        return $this->parallelFuture;
-    }
-
-    /**
-     * @return \parallel\Runtime
-     */
-    public function getRuntime(): Runtime
-    {
-        return $this->runtime;
-    }
-
-    /**
-     * @return bool
-     */
-    public function done(): bool
-    {
-        $this->waitGroup->wait();
-        return $this->status === Future::STATUS_FULFILLED;
     }
 
     /**
@@ -130,6 +114,14 @@ class Future
     }
 
     /**
+     * @return \parallel\Future
+     */
+    public function getParallelFuture(): \parallel\Future
+    {
+        return $this->parallelFuture;
+    }
+
+    /**
      * @return bool
      */
     public function canceled(): bool
@@ -144,5 +136,13 @@ class Future
     {
         $this->getRuntime()->kill();
         Parallel::getInstance()->poll();
+    }
+
+    /**
+     * @return \parallel\Runtime
+     */
+    public function getRuntime(): Runtime
+    {
+        return $this->runtime;
     }
 }

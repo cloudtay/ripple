@@ -85,39 +85,6 @@ class Stream extends StreamBase
     }
 
     /**
-     * @param Closure $closure
-     *
-     * @return string
-     */
-    public function onClose(Closure $closure): string
-    {
-        $this->onCloseCallbacks[$key = Format::int2string($this->index++)] = $closure;
-        return $key;
-    }
-
-    /**
-     * @return void
-     */
-    public function cancelReadable(): void
-    {
-        if (isset($this->onReadable)) {
-            cancel($this->onReadable);
-            unset($this->onReadable);
-        }
-    }
-
-    /**
-     * @return void
-     */
-    public function cancelWriteable(): void
-    {
-        if (isset($this->onWriteable)) {
-            cancel($this->onWriteable);
-            unset($this->onWriteable);
-        }
-    }
-
-    /**
      * @param bool $bool
      *
      * @return bool
@@ -195,6 +162,38 @@ class Stream extends StreamBase
     /**
      * @return void
      */
+    public function cancelReadable(): void
+    {
+        if (isset($this->onReadable)) {
+            cancel($this->onReadable);
+            unset($this->onReadable);
+        }
+    }
+
+    /**
+     * @param Closure $closure
+     *
+     * @return string
+     */
+    public function onClose(Closure $closure): string
+    {
+        $this->onCloseCallbacks[$key = Format::int2string($this->index++)] = $closure;
+        return $key;
+    }
+
+    /**
+     * @param string $key
+     *
+     * @return void
+     */
+    public function cancelOnClose(string $key): void
+    {
+        unset($this->onCloseCallbacks[$key]);
+    }
+
+    /**
+     * @return void
+     */
     public function close(): void
     {
         if ($this->isClosed()) {
@@ -225,13 +224,14 @@ class Stream extends StreamBase
     }
 
     /**
-     * @param string $key
-     *
      * @return void
      */
-    public function cancelOnClose(string $key): void
+    public function cancelWriteable(): void
     {
-        unset($this->onCloseCallbacks[$key]);
+        if (isset($this->onWriteable)) {
+            cancel($this->onWriteable);
+            unset($this->onWriteable);
+        }
     }
 
     /**

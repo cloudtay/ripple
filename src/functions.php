@@ -28,7 +28,6 @@ use Ripple\Process\Process;
 use Ripple\Process\Task;
 use Ripple\Promise;
 use Ripple\Utils\Output;
-use RuntimeException;
 use Throwable;
 
 /**
