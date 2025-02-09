@@ -14,6 +14,8 @@ namespace Ripple\Worker;
 
 use Ripple\Process\Runtime;
 use Ripple\Stream;
+use Ripple\Stream\Exception\ConnectionException;
+use Ripple\Utils\Output;
 use Ripple\Utils\Serialization\Zx7e;
 
 use function time;
@@ -69,12 +71,17 @@ class WorkerProcess
     /**
      * @param \Ripple\Worker\Command $command
      *
-     * @return void
-     * @throws \Ripple\Stream\Exception\ConnectionException
+     * @return bool
      */
-    public function command(Command $command): void
+    public function command(Command $command): bool
     {
-        $this->stream->write($this->zx7e->encodeFrame($command->__toString()));
+        try {
+            $this->stream->write($this->zx7e->encodeFrame($command->__toString()));
+            return true;
+        } catch (ConnectionException $e) {
+            Output::warning($e->getMessage());
+            return false;
+        }
     }
 
     /**
@@ -100,5 +107,13 @@ class WorkerProcess
         foreach ($metadata as $key => $value) {
             $this->metadata[$key] = $value;
         }
+    }
+
+    /**
+     * @return bool
+     */
+    public function isRunning(): bool
+    {
+        return $this->getRuntime()->isRunning();
     }
 }

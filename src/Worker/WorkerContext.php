@@ -18,6 +18,7 @@ use Ripple\Socket;
 use Ripple\Utils\Output;
 use Ripple\Utils\Serialization\Zx7e;
 
+use function Co\async;
 use function Co\delay;
 use function Co\process;
 use function socket_create_pair;
@@ -29,6 +30,9 @@ use function is_int;
 use const AF_INET;
 use const AF_UNIX;
 use const SOCK_STREAM;
+use const SOL_SOCKET;
+use const SO_KEEPALIVE;
+use const SIGKILL;
 
 /**
  * This class is used to define the context of the worker process, hiding the underlying communication details
@@ -127,6 +131,10 @@ abstract class WorkerContext
         $streamB = new Socket(socket_export_stream($sockets[1]));
         $streamA->setBlocking(false);
         $streamB->setBlocking(false);
+
+        $streamA->setOption(SOL_SOCKET, SO_KEEPALIVE, 1);
+        $streamB->setOption(SOL_SOCKET, SO_KEEPALIVE, 1);
+
         $streamA->onClose(fn () => $streamB->close());
         $zx7e                    = new Zx7e();
         $runtime                 = process(fn () => $this->onProcess($streamB, $index))->run();
@@ -203,10 +211,13 @@ abstract class WorkerContext
 
         $this->terminated = true;
 
-        $this->manager->sendCommand(
-            Command::make(WorkerContext::COMMAND_TERMINATE),
-            $this->getName()
-        );
+        foreach ($this->getWorkerProcess() as $workerProcess) {
+            $workerProcess->command(Command::make(WorkerContext::COMMAND_TERMINATE));
+            async(function () use ($workerProcess) {
+                \Co\sleep(1);
+                $workerProcess->isRunning() && $workerProcess->getRuntime()->signal(SIGKILL);
+            });
+        }
 
         $this->running = false;
     }

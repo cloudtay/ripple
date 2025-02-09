@@ -13,7 +13,6 @@
 namespace Ripple\Worker;
 
 use Ripple\Kernel;
-use Ripple\Stream\Exception\ConnectionException;
 use Ripple\Utils\Output;
 use Ripple\Utils\Serialization\Zx7e;
 use Throwable;
@@ -132,11 +131,7 @@ class Manager
                     $sync    = $this->index++;
                     $id      = $workerCommand->arguments['id'];
                     $command = Command::make(WorkerContext::COMMAND_SYNC_ID, ['sync' => $sync, 'id' => $id]);
-                    try {
-                        $workerProcess->command($command);
-                    } catch (ConnectionException $e) {
-                        Output::warning($e->getMessage());
-                    }
+                    $workerProcess->command($command);
                 }
                 break;
 
@@ -212,11 +207,7 @@ class Manager
 
             $workerProcesses = $index ? [$worker->getWorkerProcess($index)] : $worker->getWorkerProcess();
             foreach ($workerProcesses as $workerProcess) {
-                try {
-                    $workerProcess?->command($command);
-                } catch (ConnectionException $e) {
-                    Output::warning($e->getMessage());
-                }
+                $workerProcess?->command($command);
             }
         } else {
             $workers = $this->workers;
