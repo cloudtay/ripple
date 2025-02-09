@@ -1,5 +1,6 @@
 <?php declare(strict_types=1);
 
+use Ripple\Utils\Output;
 use Ripple\Worker\Command;
 use Ripple\Worker\Manager;
 
@@ -19,6 +20,7 @@ $worker  = new class () extends Ripple\Worker\Worker {
     /*** @return void */
     public function boot(): void
     {
+        Output::info('Worker started');
     }
 
     /**

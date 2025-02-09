@@ -28,17 +28,10 @@ use function Co\wait;
 use function define;
 use function defined;
 use function extension_loaded;
-use function file_exists;
-use function file_get_contents;
 use function fopen;
 use function ini_set;
-use function intval;
-use function preg_match;
-use function shell_exec;
 use function getmygid;
 use function posix_getpid;
-
-use const PHP_OS_FAMILY;
 
 /**
  * @Author cclilshy
@@ -61,23 +54,73 @@ class Kernel
     /*** @var bool */
     private bool $mainRunning = true;
 
-    /*** @var int */
-    private int $memorySize;
-
     public function __construct()
     {
         ini_set('memory_limit', -1);
         ini_set('max_execution_time', 0);
 
-        if (!defined('STDIN')) {
-            define('STDIN', fopen('php://stdin', 'r'));
-        }
-        if (!defined('STDOUT')) {
-            define('STDOUT', fopen('php://stdout', 'w'));
-        }
-
         $this->parallel       = extension_loaded('parallel');
         $this->processControl = extension_loaded('pcntl') && extension_loaded('posix');
+        $this->defineConstants();
+    }
+
+    /**
+     * @return void
+     */
+    private function defineConstants(): void
+    {
+        defined('STDIN') || define('STDIN', fopen('php://stdin', 'r'));
+        defined('STDOUT') || define('STDOUT', fopen('php://stdout', 'w'));
+
+        if (!$this->processControl) {
+            /**
+             * @see https://www.php.net/manual/en/pcntl.constants.php
+             */
+            defined('WNOHANG') || define('WNOHANG', 1);
+            defined('WUNTRACED') || define('WUNTRACED', 2);
+            defined('WCONTINUED') || define('WCONTINUED', 8);
+            defined('SIG_IGN') || define('SIG_IGN', 1);
+            defined('SIG_DFL') || define('SIG_DFL', 0);
+            defined('SIG_ERR') || define('SIG_ERR', -1);
+            defined('SIGHUP') || define('SIGHUP', 1);
+            defined('SIGINT') || define('SIGINT', 2);
+            defined('SIGQUIT') || define('SIGQUIT', 3);
+            defined('SIGILL') || define('SIGILL', 4);
+            defined('SIGTRAP') || define('SIGTRAP', 5);
+            defined('SIGABRT') || define('SIGABRT', 6);
+            defined('SIGIOT') || define('SIGIOT', 6);
+            defined('SIGBUS') || define('SIGBUS', 7);
+            defined('SIGFPE') || define('SIGFPE', 8);
+            defined('SIGKILL') || define('SIGKILL', 9);
+            defined('SIGUSR1') || define('SIGUSR1', 10);
+            defined('SIGSEGV') || define('SIGSEGV', 11);
+            defined('SIGUSR2') || define('SIGUSR2', 12);
+            defined('SIGPIPE') || define('SIGPIPE', 13);
+            defined('SIGALRM') || define('SIGALRM', 14);
+            defined('SIGTERM') || define('SIGTERM', 15);
+            defined('SIGSTKFLT') || define('SIGSTKFLT', 16);
+            defined('SIGCLD') || define('SIGCLD', 17);
+            defined('SIGCHLD') || define('SIGCHLD', 17);
+            defined('SIGCONT') || define('SIGCONT', 18);
+            defined('SIGSTOP') || define('SIGSTOP', 19);
+            defined('SIGTSTP') || define('SIGTSTP', 20);
+            defined('SIGTTIN') || define('SIGTTIN', 21);
+            defined('SIGTTOU') || define('SIGTTOU', 22);
+            defined('SIGURG') || define('SIGURG', 23);
+            defined('SIGXCPU') || define('SIGXCPU', 24);
+            defined('SIGXFSZ') || define('SIGXFSZ', 25);
+            defined('SIGVTALRM') || define('SIGVTALRM', 26);
+            defined('SIGPROF') || define('SIGPROF', 27);
+            defined('SIGWINCH') || define('SIGWINCH', 28);
+            defined('SIGPOLL') || define('SIGPOLL', 29);
+            defined('SIGIO') || define('SIGIO', 29);
+            defined('SIGPWR') || define('SIGPWR', 30);
+            defined('SIGSYS') || define('SIGSYS', 31);
+            defined('SIGBABY') || define('SIGBABY', 31);
+            defined('PRIO_PGRP') || define('PRIO_PGRP', 1);
+            defined('PRIO_USER') || define('PRIO_USER', 2);
+            defined('PRIO_PROCESS') || define('PRIO_PROCESS', 0);
+        }
     }
 
     /**
@@ -285,43 +328,6 @@ class Kernel
     public function supportParallel(): bool
     {
         return $this->parallel;
-    }
-
-    /**
-     * @Author cclilshy
-     * @Date   2024/9/24 14:27
-     * @return int
-     */
-    public function getMemorySize(): int
-    {
-        if (isset($this->memorySize)) {
-            return $this->memorySize;
-        }
-
-        switch (PHP_OS_FAMILY) {
-            case 'Linux':
-                if (file_exists('/proc/meminfo')) {
-                    $data = file_get_contents("/proc/meminfo");
-                    if ($data && preg_match("/MemTotal:\s+(\d+)\skB/", $data, $matches)) {
-                        return $this->memorySize = intval(($matches[1] * 1024));
-                    }
-                }
-                break;
-            case 'Windows':
-                $memory = shell_exec("wmic computersystem get totalphysicalmemory");
-                if (preg_match("/\d+/", $memory, $matches)) {
-                    return $this->memorySize = intval($matches[0]);
-                }
-                break;
-            case 'Darwin':
-                $memory = shell_exec("sysctl -n hw.memsize");
-                if ($memory) {
-                    return $this->memorySize = intval($memory);
-                }
-                break;
-        }
-
-        return $this->memorySize = -1;
     }
 
     /**

@@ -148,9 +148,16 @@ class Process extends Support
             }
 
             if ($processID === 0) {
+                /**
+                 * 通过 processedInMain 的方式将闭包运行于 mainSuspension 中,
+                 * 实现在 EventDriver 交换之后运行闭包
+                 */
                 $this->processedInMain(function () use ($closure, $args) {
                     $this->forgetEvents();
+                    $this->distributeForked();
                     call_user_func_array($closure, $args);
+                    wait();
+                    exit(0);
                 });
             }
 
@@ -176,6 +183,8 @@ class Process extends Support
     }
 
     /**
+     * 通过 processedInMain 的方式将闭包运行于 mainSuspension 中,
+     * 实现在 EventDriver 交换之后运行闭包
      * @param Closure $closure
      *
      * @return void
@@ -184,18 +193,18 @@ class Process extends Support
     {
         $suspension = getSuspension();
         if ($suspension instanceof Suspension) {
+            // 属于ripple协程时将向上抛出异常,该异常最终会在 Suspension::start 时被捕获
             throw new EscapeException($closure);
         } else {
-            // this is main
+            // 该闭包运行于 mainSuspension 中, 可以直接执行
             if (!Fiber::getCurrent()) {
                 $closure();
-                wait();
-                exit(0);
+                return;
             }
 
-            // in fiber
+            // 通过 wait 的方式将闭包运行于 mainSuspension 中
             wait($closure);
-            exit(0);
+            return;
         }
     }
 
@@ -209,7 +218,6 @@ class Process extends Support
         }
         EventLoop::run();
         EventLoop::setDriver((new EventLoop\DriverFactory())->create());
-        $this->distributeForked();
     }
 
     /**
@@ -221,12 +229,14 @@ class Process extends Support
             $this->unregisterSignalHandler();
         }
 
+        // onFork可能在运行过程中被写入,因此不能使用while+array_shift方式重构
         foreach ($this->onFork as $key => $closure) {
             try {
-                unset($this->onFork[$key]);
                 $closure();
             } catch (Throwable $exception) {
                 Output::error($exception->getMessage());
+            } finally {
+                unset($this->onFork[$key]);
             }
         }
 

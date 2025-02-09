@@ -30,6 +30,9 @@ use Ripple\Promise;
 use Ripple\Utils\Output;
 use Throwable;
 
+use function function_exists;
+use function getmypid;
+
 /**
  * This method is different from onReject, which allows accepting any type of rejected futures object.
  * When await promise is rejected, an error will be thrown instead of returning the rejected value.
@@ -194,13 +197,14 @@ function forked(Closure $closure): string
     return Kernel::getInstance()->forked($closure);
 }
 
+/**
+ * @param Closure|null $closure
+ *
+ * @return void
+ */
 function wait(Closure|null $closure = null): void
 {
-    try {
-        Kernel::getInstance()->wait($closure);
-    } catch (Throwable $exception) {
-        throw new BadFunctionCallException($exception->getMessage(), $exception->getCode(), $exception);
-    }
+    Kernel::getInstance()->wait($closure);
 }
 
 /**
@@ -323,4 +327,18 @@ function resume(EventLoop\Suspension $suspension, mixed $result = null): mixed
 function __throw(EventLoop\Suspension $suspension, Throwable $exception): void
 {
     Coroutine::throw($suspension, $exception);
+}
+
+
+/**
+ *
+ */
+if (!function_exists('posix_getpid')) {
+    /**
+     * @return int
+     */
+    function posix_getpid(): int
+    {
+        return getmypid();
+    }
 }

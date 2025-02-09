@@ -15,6 +15,11 @@ namespace Ripple\Coroutine\Exception;
 use Closure;
 use RuntimeException;
 
+/**
+ * 协程中运行子进程时使用 suspension->suspend 会跳出协程从而导致协程上下文逃逸,
+ * 会发生资源泄漏等不可预料的问题,因此在协程中使用 Process::fork 时,
+ * ripple会通过 EscapeException 的方式向上抛出异常最终在 mainSuspension 中执行交换 EventDriver
+ */
 class EscapeException extends RuntimeException
 {
     /**
