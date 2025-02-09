@@ -163,6 +163,30 @@ class Session
     }
 
     /**
+     * @param string|null $key
+     *
+     * @return mixed
+     */
+    public function getStatus(string|null $key = null): mixed
+    {
+        $status = proc_get_status($this->proc);
+        return $key ? ($status[$key] ?? null) : $status;
+    }
+
+    /**
+     * @param int|null $signal
+     *
+     * @return bool
+     */
+    public function terminate(int|null $signal = null): bool
+    {
+        if ($signal) {
+            return proc_terminate($this->proc, $signal);
+        }
+        return proc_terminate($this->proc);
+    }
+
+    /**
      * @param string|array $content
      *
      * @return bool
@@ -213,30 +237,6 @@ class Session
         }
 
         return posix_kill($this->getStatus('pid'), $signalCode);
-    }
-
-    /**
-     * @param string|null $key
-     *
-     * @return mixed
-     */
-    public function getStatus(string|null $key = null): mixed
-    {
-        $status = proc_get_status($this->proc);
-        return $key ? ($status[$key] ?? null) : $status;
-    }
-
-    /**
-     * @param int|null $signal
-     *
-     * @return bool
-     */
-    public function terminate(int|null $signal = null): bool
-    {
-        if ($signal) {
-            return proc_terminate($this->proc, $signal);
-        }
-        return proc_terminate($this->proc);
     }
 
     /**

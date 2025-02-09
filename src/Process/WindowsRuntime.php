@@ -20,7 +20,9 @@ use function getmypid;
 
 class WindowsRuntime extends Runtime
 {
-    /*** @return void */
+    /**
+     * @return void
+     */
     public function kill(): void
     {
         /*** @compatible:Windows */
@@ -46,7 +48,9 @@ class WindowsRuntime extends Runtime
         parent::signal($signal);
     }
 
-    /*** @return int */
+    /**
+     * @return int
+     */
     public function getProcessID(): int
     {
         /*** @compatible:Windows */

@@ -97,16 +97,6 @@ class Process extends Support
     }
 
     /**
-     * @return void
-     */
-    private function destroy(): void
-    {
-        foreach ($this->process2runtime as $runtime) {
-            $runtime->terminate();
-        }
-    }
-
-    /**
      * @param Closure $closure
      *
      * @return string
@@ -378,5 +368,15 @@ class Process extends Support
     public function __destruct()
     {
         $this->destroy();
+    }
+
+    /**
+     * @return void
+     */
+    private function destroy(): void
+    {
+        foreach ($this->process2runtime as $runtime) {
+            $runtime->terminate();
+        }
     }
 }

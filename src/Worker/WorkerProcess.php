@@ -23,10 +23,11 @@ use function get_current_user;
 
 class WorkerProcess
 {
-    /**
-     * @var \Ripple\Utils\Serialization\Zx7e
-     */
+    /*** @var \Ripple\Utils\Serialization\Zx7e */
     private Zx7e $zx7e;
+
+    /*** @var array */
+    private array $metadata;
 
     /**
      * @param \Ripple\Process\Runtime $runtime
@@ -42,14 +43,6 @@ class WorkerProcess
             'start_time' => time(),
             'user'       => get_current_user(),
         ];
-    }
-
-    /**
-     * @return \Ripple\Process\Runtime
-     */
-    public function getRuntime(): Runtime
-    {
-        return $this->runtime;
     }
 
     /**
@@ -85,14 +78,9 @@ class WorkerProcess
     }
 
     /**
-     * @var array
-     */
-    private array $metadata = [];
-
-    /**
      * @return array
      */
-    public function getMetadate(): array
+    public function getMetadata(): array
     {
         return $this->metadata;
     }
@@ -115,5 +103,13 @@ class WorkerProcess
     public function isRunning(): bool
     {
         return $this->getRuntime()->isRunning();
+    }
+
+    /**
+     * @return \Ripple\Process\Runtime
+     */
+    public function getRuntime(): Runtime
+    {
+        return $this->runtime;
     }
 }

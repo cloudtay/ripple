@@ -43,6 +43,20 @@ abstract class WorkerContext
     public const COMMAND_TERMINATE = '__worker__.terminate';
     public const COMMAND_SYNC_ID   = '__worker__.sync.id';
 
+    /**
+     *
+     */
+    private const MAX_RESTART_ATTEMPTS = 10;
+
+    /*** @var string */
+    protected string $name;
+
+    /*** @var int */
+    protected int $count = 1;
+
+    /*** @var WorkerProcess[] */
+    protected array $processes = [];
+
     /*** @var bool */
     private bool $running = false;
 
@@ -54,20 +68,6 @@ abstract class WorkerContext
 
     /*** @var array */
     private array $restartAttempts = [];
-
-    /*** @var string */
-    protected string $name;
-
-    /*** @var int */
-    protected int $count = 1;
-
-    /*** @var WorkerProcess[] */
-    protected array $processes = [];
-
-    /**
-     *
-     */
-    private const MAX_RESTART_ATTEMPTS = 10;
 
     /**
      * @Context  manager
@@ -109,6 +109,16 @@ abstract class WorkerContext
         return true;
     }
 
+    /**
+     * @Context  share
+     * @Author   cclilshy
+     * @Date     2024/8/17 01:06
+     * @return int
+     */
+    public function getCount(): int
+    {
+        return $this->count;
+    }
 
     /**
      * @Author cclilshy
@@ -167,6 +177,28 @@ abstract class WorkerContext
     }
 
     /**
+     * @param \Ripple\Socket $parentStream
+     * @param int            $index
+     *
+     * @return void
+     */
+    abstract protected function onProcess(Socket $parentStream, int $index): void;
+
+    /**
+     * @Context  share
+     * @Author   cclilshy
+     * @Date     2024/8/17 01:05
+     * @return string
+     */
+    public function getName(): string
+    {
+        if (!isset($this->name)) {
+            $this->name = static::class;
+        }
+        return $this->name;
+    }
+
+    /**
      * @param int $index
      * @param int $exitCode
      *
@@ -199,7 +231,6 @@ abstract class WorkerContext
         }
     }
 
-
     /**
      * @return void
      */
@@ -223,39 +254,6 @@ abstract class WorkerContext
     }
 
     /**
-     * @Context  share
-     * @Author   cclilshy
-     * @Date     2024/8/17 01:05
-     * @return string
-     */
-    public function getName(): string
-    {
-        if (!isset($this->name)) {
-            $this->name = static::class;
-        }
-        return $this->name;
-    }
-
-    /**
-     * @Context  share
-     * @Author   cclilshy
-     * @Date     2024/8/17 01:06
-     * @return int
-     */
-    public function getCount(): int
-    {
-        return $this->count;
-    }
-
-    /**
-     * @return bool
-     */
-    public function isRunning(): bool
-    {
-        return $this->running;
-    }
-
-    /**
      * @param int|null $index
      *
      * @return WorkerProcess[]|WorkerProcess|null
@@ -269,10 +267,10 @@ abstract class WorkerContext
     }
 
     /**
-     * @param \Ripple\Socket $parentStream
-     * @param int            $index
-     *
-     * @return void
+     * @return bool
      */
-    abstract protected function onProcess(Socket $parentStream, int $index): void;
+    public function isRunning(): bool
+    {
+        return $this->running;
+    }
 }

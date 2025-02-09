@@ -30,24 +30,16 @@ class Manager
     public const COMMAND_REFRESH_METADATA = '__manager__.refreshMetadata';
     public const COMMAND_GET_METADATA     = '__manager__.getMetadata';
 
-    /**
-     * @var Worker[]
-     */
+    /*** @var Worker[] */
     protected array $workers = [];
 
-    /**
-     * @var Zx7e
-     */
+    /*** @var Zx7e */
     protected Zx7e $zx7e;
 
-    /**
-     * @var int
-     */
+    /*** @var int */
     protected int $index = 1;
 
-    /**
-     * @var int
-     */
+    /*** @var int */
     protected int $processID;
 
     /**
@@ -63,41 +55,6 @@ class Manager
             return;
         }
         $this->workers[$workerName] = $worker;
-    }
-
-    /**
-     * @param string $name
-     *
-     * @return void
-     */
-    public function remove(string $name): void
-    {
-        if ($worker = $this->workers[$name] ?? null) {
-            $worker->isRunning() && $this->terminate($name);
-            unset($this->workers[$name]);
-        }
-    }
-
-    /**
-     * @Author cclilshy
-     * @Date   2024/8/17 00:44
-     *
-     * @param string|null $name
-     *
-     * @return void
-     */
-    public function terminate(string|null $name = null): void
-    {
-        if ($name) {
-            if ($worker = $this->workers[$name] ?? null) {
-                $worker->terminate();
-            }
-            return;
-        }
-
-        foreach ($this->workers as $worker) {
-            $worker->terminate();
-        }
     }
 
     /**
@@ -160,7 +117,7 @@ class Manager
                     $name          = $worker->getName();
                     $result[$name] = [];
                     foreach ($worker->getWorkerProcess() as $workerProcess) {
-                        foreach ($workerProcess->getMetadate() as $key => $value) {
+                        foreach ($workerProcess->getMetadata() as $key => $value) {
                             $result[$name][$key] = $value;
                         }
                     }
@@ -249,6 +206,41 @@ class Manager
             }
         }
         return true;
+    }
+
+    /**
+     * @param string $name
+     *
+     * @return void
+     */
+    public function remove(string $name): void
+    {
+        if ($worker = $this->workers[$name] ?? null) {
+            $worker->isRunning() && $this->terminate($name);
+            unset($this->workers[$name]);
+        }
+    }
+
+    /**
+     * @Author cclilshy
+     * @Date   2024/8/17 00:44
+     *
+     * @param string|null $name
+     *
+     * @return void
+     */
+    public function terminate(string|null $name = null): void
+    {
+        if ($name) {
+            if ($worker = $this->workers[$name] ?? null) {
+                $worker->terminate();
+            }
+            return;
+        }
+
+        foreach ($this->workers as $worker) {
+            $worker->terminate();
+        }
     }
 
     /**

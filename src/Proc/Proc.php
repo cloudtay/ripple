@@ -26,6 +26,16 @@ class Proc
     /**
      * @param string|array $entrance
      *
+     * @return \Ripple\Proc\Future
+     */
+    public static function exec(string|array $entrance = '/bin/sh'): Future
+    {
+        return new Future(Proc::open($entrance));
+    }
+
+    /**
+     * @param string|array $entrance
+     *
      * @return Session|false
      */
     public static function open(string|array $entrance = '/bin/sh'): Session|false
@@ -50,15 +60,5 @@ class Proc
         }
 
         return false;
-    }
-
-    /**
-     * @param string|array $entrance
-     *
-     * @return \Ripple\Proc\Future
-     */
-    public static function exec(string|array $entrance = '/bin/sh'): Future
-    {
-        return new Future(Proc::open($entrance));
     }
 }
