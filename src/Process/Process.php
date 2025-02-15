@@ -216,8 +216,8 @@ class Process extends Support
         foreach (EventLoop::getIDentifiers() as $identifier) {
             @cancel($identifier);
         }
-        EventLoop::run();
-        EventLoop::setDriver((new EventLoop\DriverFactory())->create());
+        //        EventLoop::run();
+        //        EventLoop::setDriver((new EventLoop\DriverFactory())->create());
     }
 
     /**
