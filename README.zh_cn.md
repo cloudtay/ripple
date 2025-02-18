@@ -30,11 +30,11 @@ composer require cloudtay/ripple
 
 ## 最新文档
 
-你可以访问`ripple`的[文档](https://ripple.cloudtay.com/)开始阅读
+你可以访问`ripple`的[文档]( https://ripple.cloudtay.com/ )开始阅读
 
-我们建议你从[手动安装](https://ripple.cloudtay.com/docs/install/professional)开始, 便于更好地理解ripple的工作流程
+我们建议你从[手动安装]( https://ripple.cloudtay.com/docs/install/professional )开始, 便于更好地理解ripple的工作流程
 
-如果你想快速部署并使用`ripple`的服务, 你可以直接访问[快速部署](https://ripple.cloudtay.com/docs/install/server)
+如果你想快速部署并使用`ripple`的服务, 你可以直接访问[快速部署]( https://ripple.cloudtay.com/docs/install/server )
 
 ## 附录
 
@@ -74,7 +74,7 @@ workbunny 团队的集成 webman 协程扩展为 Webman 提供协程支持。
     <img src="https://www.jetbrains.com/company/brand/img/jetbrains_logo.png" width="200" alt="jetbrains">
 </a>
 
-[Jetbrains](https://www.jetbrains.com/?from=ripple) 为本项目提供了免费的开发工具
+[Jetbrains]( https://www.jetbrains.com/?from=ripple ) 为本项目提供了免费的开发工具
 
 ### 联系方式
 
