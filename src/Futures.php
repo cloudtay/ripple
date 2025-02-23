@@ -18,7 +18,7 @@ use Throwable;
 
 use function array_shift;
 use function assert;
-use function Co\getSuspension;
+use function Co\getContext;
 
 class Futures implements Iterator
 {
@@ -28,7 +28,7 @@ class Futures implements Iterator
     /*** @var array */
     protected array $results = [];
 
-    /*** @var \Revolt\EventLoop\Suspension[] */
+    /*** @var \Ripple\Coroutine\Context[] */
     protected array $waiters = [];
 
     /*** @param \Ripple\Promise[] $promises */
@@ -55,8 +55,8 @@ class Futures implements Iterator
         if (isset($this->results[$this->index])) {
             return $this->results[$this->index];
         } else {
-            $this->waiters[] = $suspension = getSuspension();
-            return Coroutine::suspend($suspension);
+            $this->waiters[] = $context = getContext();
+            return Coroutine::suspend($context);
         }
     }
 

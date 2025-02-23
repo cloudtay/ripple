@@ -10,11 +10,8 @@
  * Contributions, suggestions, and feedback are always welcome!
  */
 
-namespace Ripple\Coroutine;
+namespace Ripple\Coroutine\Event;
 
-/**
- * @deprecated
- */
-class Suspension extends SuspensionProxy
+class Event extends \Ripple\Event\Event
 {
 }

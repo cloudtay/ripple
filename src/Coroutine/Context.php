@@ -12,19 +12,131 @@
 
 namespace Ripple\Coroutine;
 
+use Closure;
+use Fiber;
 use Revolt\EventLoop\Suspension;
+use Ripple\Coroutine\Events\TerminateEvent;
+use Ripple\Event\EventTracer;
 use Ripple\Types\Undefined;
+use Throwable;
 
-use function Co\getSuspension;
+use function Co\getContext;
+use function Co\go;
 use function spl_object_hash;
 use function array_merge;
 use function is_array;
+use function array_pop;
 
 /**
- *
+ * 对`Suspension`接口的兼容只是暂时的,
+ * 请任何时候都使用 Context 作为类型声明而非 `Suspension`
  */
-class Context
+class Context implements Suspension
 {
+    /*** @var Fiber */
+    public readonly Fiber $fiber;
+
+    /**
+     * @var \Ripple\Coroutine\Event\Event[]
+     */
+    public array $eventQueue = [];
+
+    /**
+     * @var array Closure[]
+     */
+    public array $defers = [];
+
+    /**
+     * @param Closure $main
+     */
+    public function __construct(
+        protected Closure $main,
+    ) {
+        $this->fiber = new Fiber($this->main);
+    }
+
+    /**
+     * @param mixed|null $value
+     *
+     * @return void
+     * @throws Throwable
+     */
+    public function resume(mixed $value = null): void
+    {
+        $this->fiber->resume($value);
+    }
+
+    /**
+     * @return mixed
+     * @throws Throwable
+     */
+    public function suspend(): mixed
+    {
+        return Fiber::suspend();
+    }
+
+    /**
+     * @param Throwable $throwable
+     *
+     * @return void
+     * @throws Throwable
+     */
+    public function throw(Throwable $throwable): void
+    {
+        $this->fiber->throw($throwable);
+    }
+
+    /**
+     * @param array $argv
+     *
+     * @return mixed
+     * @throws Throwable
+     */
+    public function start(array $argv = []): mixed
+    {
+        return $this->fiber->start(...$argv);
+    }
+
+    /**
+     * @return void
+     */
+    public function terminate(): void
+    {
+        $this->eventQueue[] = new TerminateEvent();
+    }
+
+    /**
+     * @param Closure $closure
+     *
+     * @return void
+     */
+    public function defer(Closure $closure): void
+    {
+        $this->defers[] = $closure;
+    }
+
+    /**
+     * @return void
+     */
+    public function processDefers(): void
+    {
+        while ($defer = array_pop($this->defers)) {
+            try {
+                go($defer);
+            } catch (Throwable) {
+                continue;
+            }
+        }
+    }
+
+    /**
+     * @return array
+     */
+    public function getTraces(): array
+    {
+        return EventTracer::getInstance()->getTraces($this);
+    }
+
     /**
      * @var array
      */
@@ -36,7 +148,7 @@ class Context
      *
      * @return void
      */
-    public static function define(array|string $key, mixed $value = null): void
+    public static function setValue(array|string $key, mixed $value = null): void
     {
         $hash = Context::getHash();
         if (is_array($key)) {
@@ -47,16 +159,17 @@ class Context
     }
 
     /**
-     * @param \Revolt\EventLoop\Suspension|null $suspension
+     * @param \Ripple\Coroutine\Context|null $context
      *
      * @return string
      */
-    public static function getHash(Suspension|null $suspension = null): string
+    public static function getHash(Context|null $context = null): string
     {
-        if (!$suspension) {
-            $suspension = getSuspension();
+        if (!$context) {
+            $context = getContext();
         }
-        return spl_object_hash($suspension);
+
+        return spl_object_hash($context);
     }
 
     /**
@@ -64,7 +177,7 @@ class Context
      *
      * @return mixed
      */
-    public static function get(string|null $key = null): mixed
+    public static function getValue(string|null $key = null): mixed
     {
         $hash = Context::getHash();
         if (!$key) {
@@ -78,26 +191,26 @@ class Context
      *
      * @return void
      */
-    public static function remove(string $key): void
+    public static function removeValue(string $key): void
     {
         $hash = Context::getHash();
         unset(Context::$context[$hash][$key]);
     }
 
     /**
-     * @param \Revolt\EventLoop\Suspension $targetSuspension
+     * @param \Ripple\Coroutine\Context $targetContext
      *
      * @return void
      */
-    public static function extend(Suspension $targetSuspension): void
+    public static function extend(Context $targetContext): void
     {
-        $currentSuspension = getSuspension();
-        if ($currentSuspension === $targetSuspension) {
+        $currentContext = getContext();
+        if ($currentContext === $targetContext) {
             return;
         }
 
-        $currentHash                    = Context::getHash($currentSuspension);
-        $targetHash                     = Context::getHash($targetSuspension);
+        $currentHash = Context::getHash($currentContext);
+        $targetHash  = Context::getHash($targetContext);
         Context::$context[$currentHash] = (Context::$context[$targetHash] ?? []);
     }
 

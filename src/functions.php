@@ -17,6 +17,7 @@ use Closure;
 use Revolt\EventLoop;
 use Revolt\EventLoop\UnsupportedFeatureException;
 use Ripple\Channel\Channel;
+use Ripple\Coroutine\Context;
 use Ripple\Coroutine\Coroutine;
 use Ripple\File\Lock;
 use Ripple\Kernel;
@@ -27,7 +28,6 @@ use Ripple\Proc\Session;
 use Ripple\Process\Process;
 use Ripple\Process\Task;
 use Ripple\Promise;
-use Ripple\Utils\Output;
 use Throwable;
 
 use function function_exists;
@@ -47,7 +47,7 @@ use function getmypid;
  */
 function await(Promise $promise): mixed
 {
-    return Kernel::getInstance()->await($promise);
+    return Coroutine::getInstance()->await($promise);
 }
 
 /**
@@ -63,7 +63,7 @@ function await(Promise $promise): mixed
  */
 function async(Closure $closure): Promise
 {
-    return Kernel::getInstance()->async($closure);
+    return Coroutine::getInstance()->async($closure);
 }
 
 /**
@@ -73,7 +73,7 @@ function async(Closure $closure): Promise
  */
 function promise(Closure $closure): Promise
 {
-    return Kernel::getInstance()->promise($closure);
+    return new Promise($closure);
 }
 
 /**
@@ -98,7 +98,9 @@ function sleep(int|float $second): int|float
  */
 function delay(Closure $closure, int|float $second): string
 {
-    return Kernel::getInstance()->delay($closure, $second);
+    return EventLoop::delay($second, static function () use ($closure) {
+        async($closure);
+    });
 }
 
 
@@ -154,7 +156,7 @@ function thread(Closure $closure, array $argv = []): Future
  */
 function cancel(string $id): void
 {
-    Kernel::getInstance()->cancel($id);
+    EventLoop::cancel($id);
 }
 
 /**
@@ -172,7 +174,9 @@ function cancelForked(string $eventID): void
  */
 function cancelAll(): void
 {
-    Kernel::getInstance()->cancelAll();
+    foreach (EventLoop::getIdentifiers() as $identifier) {
+        @EventLoop::cancel($identifier);
+    }
 }
 
 /**
@@ -216,39 +220,22 @@ function stop(): void
 }
 
 /**
- * @Description please use forked instead.
- *
- * @param Closure $closure
- *
- * @return string
- */
-function registerForkHandler(Closure $closure): string
-{
-    Output::warning('registerForkHandler is deprecated, please use forked instead.');
-    return forked($closure);
-}
-
-/**
- * @Description please use cancelForked instead.
- *
- * @param string $eventID
- *
- * @return void
- */
-function cancelForkHandler(string $eventID): void
-{
-    Output::warning('cancelForkHandler is deprecated, please use cancelForked instead.');
-    Kernel::getInstance()->cancelForked($eventID);
-}
-
-/**
  * @Author cclilshy
  * @Date   2024/10/7 17:15
- * @return EventLoop\Suspension
+ * @return Context
+ * @deprecated
  */
-function getSuspension(): EventLoop\Suspension
+function getSuspension(): Context
 {
-    return Coroutine::getInstance()->getSuspension();
+    return getContext();
+}
+
+/**
+ * @return Context
+ */
+function getContext(): Context
+{
+    return Coroutine::getInstance()->getContext();
 }
 
 /**
@@ -293,42 +280,51 @@ function process(Closure $closure): Task
 }
 
 /**
- * @param \Revolt\EventLoop\Suspension|null $suspension
+ * @param Context|null $context
  *
  * @return mixed
  * @throws Throwable
  */
-function suspend(EventLoop\Suspension|null $suspension = null): mixed
+function suspend(Context|null $context = null): mixed
 {
-    if ($suspension === null) {
-        $suspension = getSuspension();
+    if ($context === null) {
+        $context = getContext();
     }
 
-    return Coroutine::suspend($suspension);
+    return Coroutine::suspend($context);
 }
 
 /**
- * @param \Revolt\EventLoop\Suspension $suspension
- * @param mixed|null                   $result
+ * @param Context    $context
+ * @param mixed|null $result
  *
  * @return mixed
  */
-function resume(EventLoop\Suspension $suspension, mixed $result = null): mixed
+function resume(Context $context, mixed $result = null): mixed
 {
-    return Coroutine::resume($suspension, $result);
+    return Coroutine::resume($context, $result);
 }
 
 /**
- * @param \Revolt\EventLoop\Suspension $suspension
+ * @param Context $context
  * @param Throwable                   $exception
  *
  * @return void
  */
-function __throw(EventLoop\Suspension $suspension, Throwable $exception): void
+function __throw(Context $context, Throwable $exception): void
 {
-    Coroutine::throw($suspension, $exception);
+    Coroutine::throw($context, $exception);
 }
 
+/**
+ * @param Closure $closure
+ *
+ * @return Context
+ */
+function go(Closure $closure): Context
+{
+    return Coroutine::getInstance()->go($closure);
+}
 
 /**
  *

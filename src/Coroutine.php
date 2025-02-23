@@ -10,11 +10,8 @@
  * Contributions, suggestions, and feedback are always welcome!
  */
 
-namespace Ripple\Coroutine;
+namespace Ripple;
 
-/**
- * @deprecated
- */
-class Suspension extends SuspensionProxy
+class Coroutine extends Coroutine\Coroutine
 {
 }

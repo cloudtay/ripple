@@ -71,7 +71,7 @@ class Channel
     public function __construct(protected readonly string $name, protected bool $owner = false)
     {
         $this->path = Path::temp($this->name, 'channel');
-        $this->readLock  = \Co\lock("{$this->name}.read");
+        $this->readLock  = \Co\lock("w{$this->name}.read");
         $this->writeLock = \Co\lock("{$this->name}.write");
 
         if (!file_exists($this->path)) {

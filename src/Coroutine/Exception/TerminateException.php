@@ -10,11 +10,18 @@
  * Contributions, suggestions, and feedback are always welcome!
  */
 
-namespace Ripple\Coroutine;
+namespace Ripple\Coroutine\Exception;
 
-/**
- * @deprecated
- */
-class Suspension extends SuspensionProxy
+use Ripple\Coroutine\Event\Event;
+use RuntimeException;
+
+class TerminateException extends RuntimeException
 {
+    /**
+     * @param \Ripple\Coroutine\Event\Event|null $event
+     */
+    public function __construct(public readonly Event|null $event = null)
+    {
+        parent::__construct('Coroutine terminated');
+    }
 }
