@@ -41,7 +41,7 @@ class Thread
     public function __invoke(Runtime $runtime): Future
     {
         $function = $this->function;
-        $future   = $runtime->run(function (...$argv) use ($function) {
+        $future   = $runtime->run(static function (...$argv) use ($function) {
             try {
                 $result = call_user_func_array($function, $argv);
                 wait();

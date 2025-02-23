@@ -18,7 +18,7 @@ try {
     $googleStream = $googleSocks5->getSocket();
     $googleStream->enableSSL();
     $googleStream->write("GET / HTTP/1.1\r\nHost: www.google.com\r\nConnection: close\r\n\r\n");
-    $googleStream->onReadable(function () use ($googleStream) {
+    $googleStream->onReadable(static function () use ($googleStream) {
         $data = $googleStream->read(1024);
         if ($data === '') {
             $googleStream->close();
@@ -45,7 +45,7 @@ try {
     $connection = $google->getSocket();
     $connection->enableSSL();
     $connection->write("GET / HTTP/1.1\r\nHost: www.google.com\r\nConnection: close\r\n\r\n");
-    $connection->onReadable(function () use ($connection) {
+    $connection->onReadable(static function () use ($connection) {
         $data = $connection->read(1024);
         if ($data === '') {
             $connection->close();

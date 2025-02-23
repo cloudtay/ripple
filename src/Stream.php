@@ -27,7 +27,7 @@ use function call_user_func;
 use function call_user_func_array;
 use function Co\async;
 use function Co\cancel;
-use function Co\getSuspension;
+use function Co\getContext;
 use function is_resource;
 use function stream_set_blocking;
 
@@ -98,7 +98,7 @@ class Stream extends StreamBase
      * Wait for readable events. This method is only valid when there are no readable events to listen for.
      * After enabling this method, it is forbidden to use the onReadable method elsewhere unless you know what you are doing.
      *
-     * After getting the result of this event, please do not perform other asynchronous suspension operations including \Co\sleep
+     * After getting the result of this event, please do not perform other asynchronous context operations including \Co\sleep
      * in the current coroutine except the waitForReadable method.
      * Please put other asynchronous operations in the new coroutine,
      *
@@ -109,30 +109,30 @@ class Stream extends StreamBase
      */
     public function waitForReadable(int|float $timeout = 0): bool
     {
-        $suspension = getSuspension();
+        $context = getContext();
         if (!isset($this->onReadable)) {
-            $this->onReadable(static fn () => Coroutine::resume($suspension, true));
+            $this->onReadable(static fn () => Coroutine::resume($context, true));
         }
 
         // If the stream is closed, return false directly.
-        $closeOID = $this->onClose(function () use ($suspension) {
+        $closeOID = $this->onClose(static function () use ($context) {
             Coroutine::throw(
-                $suspension,
+                $context,
                 new ConnectionCloseException('Stream has been closed', null)
             );
         });
 
         $resumed = false;
         if ($timeout > 0) {
-            // If a timeout is set, the suspension will be canceled after the timeout
-            async(static function () use ($suspension, $timeout, &$resumed) {
+            // If a timeout is set, the context will be canceled after the timeout
+            async(static function () use ($context, $timeout, &$resumed) {
                 \Co\sleep($timeout);
-                $resumed || Coroutine::throw($suspension, new ConnectionTimeoutException('Stream write timeout'));
+                $resumed || Coroutine::throw($context, new ConnectionTimeoutException('Stream write timeout'));
             });
         }
 
         try {
-            $result  = Coroutine::suspend($suspension);
+            $result  = Coroutine::suspend($context);
             $resumed = true;
             $this->cancelOnClose($closeOID);
             return $result;
@@ -238,7 +238,7 @@ class Stream extends StreamBase
      * Wait for writeable events. This method is only valid when there is no writeable event listener.
      * After enabling this method, it is forbidden to use the onWritable method elsewhere unless you know what you are doing.
      *
-     * After getting the result of this event, please do not perform other asynchronous suspension operations including \Co\sleep
+     * After getting the result of this event, please do not perform other asynchronous context operations including \Co\sleep
      * in the current coroutine except the waitForWriteable method.
      * Please put other asynchronous operations in the new coroutine
      *
@@ -249,30 +249,30 @@ class Stream extends StreamBase
      */
     public function waitForWriteable(int|float $timeout = 0): bool
     {
-        $suspension = getSuspension();
+        $context = getContext();
         if (!isset($this->onWriteable)) {
-            $this->onWriteable(static fn () => Coroutine::resume($suspension, true));
+            $this->onWriteable(static fn () => Coroutine::resume($context, true));
         }
 
         // If the stream is closed, return false directly.
-        $closeOID = $this->onClose(function () use ($suspension) {
+        $closeOID = $this->onClose(static function () use ($context) {
             Coroutine::throw(
-                $suspension,
+                $context,
                 new ConnectionCloseException('Stream has been closed')
             );
         });
 
         $resumed = false;
         if ($timeout > 0) {
-            // If a timeout is set, the suspension will be canceled after the timeout
-            async(static function () use ($suspension, $timeout, &$resumed) {
+            // If a timeout is set, the context will be canceled after the timeout
+            async(static function () use ($context, $timeout, &$resumed) {
                 \Co\sleep($timeout);
-                $resumed || Coroutine::throw($suspension, new ConnectionTimeoutException('Stream write timeout'));
+                $resumed || Coroutine::throw($context, new ConnectionTimeoutException('Stream write timeout'));
             });
         }
 
         try {
-            $result  = Coroutine::suspend($suspension);
+            $result  = Coroutine::suspend($context);
             $resumed = true;
             $this->cancelOnClose($closeOID);
             return $result;

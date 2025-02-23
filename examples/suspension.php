@@ -1,11 +1,15 @@
 <?php declare(strict_types=1);
 
+use function Co\async;
+use function Co\getSuspension;
+use function Co\wait;
+
 include __DIR__ . '/../vendor/autoload.php';
 
-\Co\async(static function () {
-    $suspension = \Co\getSuspension();
+async(static function () {
+    $suspension = getSuspension();
 
-    \Co\async(function () use ($suspension) {
+    async(static function () use ($suspension) {
         \Co\sleep(1);
         $suspension->resume();
     });
@@ -15,4 +19,4 @@ include __DIR__ . '/../vendor/autoload.php';
     echo 'Coroutine 1', \PHP_EOL;
 });
 
-\Co\wait();
+wait();

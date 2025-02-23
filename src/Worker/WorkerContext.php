@@ -244,7 +244,7 @@ abstract class WorkerContext
 
         foreach ($this->getWorkerProcess() as $workerProcess) {
             $workerProcess->command(Command::make(WorkerContext::COMMAND_TERMINATE));
-            async(function () use ($workerProcess) {
+            async(static function () use ($workerProcess) {
                 \Co\sleep(1);
                 $workerProcess->isRunning() && $workerProcess->getRuntime()->signal(SIGKILL);
             });

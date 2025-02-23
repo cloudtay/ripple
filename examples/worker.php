@@ -55,12 +55,12 @@ $worker2 = new class () extends Ripple\Worker\Worker {
     {
         $this->forwardCommand(Command::make('test'), 'abc', 2);
         if ($this->getIndex() === 1) {
-            async(function () {
+            async(static function () {
                 while (1) {
                     echo \json_encode($this->getManagerMateData()), \PHP_EOL;
                     \Co\sleep(1);
                 }
-            })->except(function () {
+            })->except(static function () {
                 \var_dump('error');
             });
         }

@@ -27,7 +27,6 @@ use function count;
 use function memory_get_peak_usage;
 use function memory_get_usage;
 use function sys_getloadavg;
-use function gc_collect_cycles;
 
 /**
  * @Author cclilshy
@@ -193,7 +192,6 @@ abstract class Worker extends WorkerContext
             $this->onDefinedIndex($index);
             $this->boot();
             repeat(function () {
-                gc_collect_cycles();
                 $this->sc2m(Command::make(Manager::COMMAND_REFRESH_METADATA, [
                     'metadata' => $this->getMetadata()
                 ]));

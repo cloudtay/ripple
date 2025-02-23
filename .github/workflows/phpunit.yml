@@ -24,7 +24,7 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: ${{ matrix.php-version }}
-          extensions: posix, sockets, pcntl, openssl, parallel, curl, ev
+          extensions: posix, sockets, pcntl, openssl, parallel, curl, ev, event
         env:
           phpts: ts
 
@@ -32,4 +32,4 @@ jobs:
         run: composer install
 
       - name: Run PHPUnit
-        run: ./vendor/bin/phpunit
+        run: sh phpunit.sh
