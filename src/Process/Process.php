@@ -17,7 +17,7 @@ use Fiber;
 use Revolt\EventLoop;
 use Revolt\EventLoop\UnsupportedFeatureException;
 use Ripple\Coroutine\Exception\EscapeException;
-use Ripple\Coroutine\Suspension;
+use Ripple\Coroutine\SuspensionProxy;
 use Ripple\Kernel;
 use Ripple\Process\Exception\ProcessException;
 use Ripple\Support;
@@ -28,7 +28,8 @@ use Throwable;
 use function call_user_func;
 use function call_user_func_array;
 use function Co\cancel;
-use function Co\getSuspension;
+use function Co\cancelAll;
+use function Co\getContext;
 use function Co\promise;
 use function Co\repeat;
 use function Co\wait;
@@ -149,7 +150,7 @@ class Process extends Support
 
             if ($processID === 0) {
                 /**
-                 * 通过 processedInMain 的方式将闭包运行于 mainSuspension 中,
+                 * 通过 processedInMain 的方式将闭包运行于 mainContext 中,
                  * 实现在 EventDriver 交换之后运行闭包
                  */
                 $this->processedInMain(function () use ($closure, $args) {
@@ -183,7 +184,7 @@ class Process extends Support
     }
 
     /**
-     * 通过 processedInMain 的方式将闭包运行于 mainSuspension 中,
+     * 通过 processedInMain 的方式将闭包运行于 mainContext 中,
      * 实现在 EventDriver 交换之后运行闭包
      * @param Closure $closure
      *
@@ -191,18 +192,18 @@ class Process extends Support
      */
     public function processedInMain(Closure $closure): void
     {
-        $suspension = getSuspension();
-        if ($suspension instanceof Suspension) {
-            // 属于ripple协程时将向上抛出异常,该异常最终会在 Suspension::start 时被捕获
+        $context = getContext();
+        if (!$context instanceof SuspensionProxy) {
+            // 属于ripple协程时将向上抛出异常,该异常最终会在 Context::start 时被捕获
             throw new EscapeException($closure);
         } else {
-            // 该闭包运行于 mainSuspension 中, 可以直接执行
+            // 该闭包运行于 mainContext 中, 可以直接执行
             if (!Fiber::getCurrent()) {
                 $closure();
                 return;
             }
 
-            // 通过 wait 的方式将闭包运行于 mainSuspension 中
+            // 通过 wait 的方式将闭包运行于 mainContext 中
             wait($closure);
             return;
         }
@@ -213,11 +214,9 @@ class Process extends Support
      */
     public function forgetEvents(): void
     {
-        foreach (EventLoop::getIDentifiers() as $identifier) {
-            @cancel($identifier);
-        }
-        //        EventLoop::run();
-        //        EventLoop::setDriver((new EventLoop\DriverFactory())->create());
+        cancelAll();
+        EventLoop::run();
+        EventLoop::setDriver((new EventLoop\DriverFactory())->create());
     }
 
     /**
@@ -373,14 +372,6 @@ class Process extends Support
     }
 
     /**
-     *
-     */
-    public function __destruct()
-    {
-        $this->destroy();
-    }
-
-    /**
      * @return void
      */
     private function destroy(): void
@@ -388,5 +379,13 @@ class Process extends Support
         foreach ($this->process2runtime as $runtime) {
             $runtime->terminate();
         }
+    }
+
+    /**
+     *
+     */
+    public function __destruct()
+    {
+        $this->destroy();
     }
 }

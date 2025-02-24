@@ -21,7 +21,7 @@ use Throwable;
 use function array_shift;
 use function Co\cancel;
 use function Co\delay;
-use function Co\getSuspension;
+use function Co\getContext;
 use function spl_object_hash;
 
 class WaitGroup
@@ -29,7 +29,7 @@ class WaitGroup
     /*** @var bool */
     protected bool $done = true;
 
-    /*** @var \Revolt\EventLoop\Suspension[] */
+    /*** @var \Ripple\Coroutine\Context[] */
     protected array $waiters = [];
 
     /*** @var int */
@@ -70,9 +70,9 @@ class WaitGroup
         $this->count--;
         if ($this->count === 0) {
             $this->done = true;
-            while ($suspension = array_shift($this->waiters)) {
+            while ($context = array_shift($this->waiters)) {
                 try {
-                    Coroutine::resume($suspension);
+                    Coroutine::resume($context);
                 } catch (Throwable $exception) {
                     Output::warning($exception->getMessage());
                     continue;
@@ -92,19 +92,19 @@ class WaitGroup
             return;
         }
 
-        $suspension                                          = getSuspension();
-        $this->waiters[$hash = spl_object_hash($suspension)] = $suspension;
+        $context = getContext();
+        $this->waiters[$hash = spl_object_hash($context)] = $context;
 
         if ($timeout > 0) {
             $timeoutOID = delay(function () use ($hash) {
-                $suspension = $this->waiters[$hash];
+                $context = $this->waiters[$hash];
                 unset($this->waiters[$hash]);
-                Coroutine::throw($suspension, new RuntimeException('WaitGroup timeout'));
+                Coroutine::throw($context, new RuntimeException('WaitGroup timeout'));
             }, $timeout);
         }
 
         try {
-            Coroutine::suspend($suspension);
+            Coroutine::suspend($context);
             if (isset($timeoutOID)) {
                 cancel($timeoutOID);
             }

@@ -10,11 +10,20 @@
  * Contributions, suggestions, and feedback are always welcome!
  */
 
-namespace Ripple\Coroutine;
+namespace Ripple\Coroutine\Events;
+
+use Ripple\Coroutine\Event\Event;
 
 /**
- * @deprecated
+ *
  */
-class Suspension extends SuspensionProxy
+class ResumeEvent extends Event
 {
+    /**
+     *
+     */
+    public function __construct()
+    {
+        parent::__construct('coroutine.resume');
+    }
 }

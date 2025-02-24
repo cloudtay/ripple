@@ -16,14 +16,15 @@ use Closure;
 use Fiber;
 use Revolt\EventLoop;
 use Revolt\EventLoop\UnsupportedFeatureException;
+use Ripple\Coroutine\Context;
 use Ripple\Coroutine\Coroutine;
-use Ripple\Coroutine\Suspension;
+use Ripple\Coroutine\SuspensionProxy;
 use Ripple\Process\Process;
 use Throwable;
 
 use function call_user_func;
 use function Co\async;
-use function Co\getSuspension;
+use function Co\getContext;
 use function Co\wait;
 use function define;
 use function defined;
@@ -42,8 +43,8 @@ class Kernel
     /*** @var Kernel */
     public static Kernel $instance;
 
-    /*** @var EventLoop\Suspension */
-    private EventLoop\Suspension $mainSuspension;
+    /*** @var \Ripple\Coroutine\Context */
+    private Context $mainContext;
 
     /*** @var bool */
     private bool $parallel;
@@ -62,6 +63,17 @@ class Kernel
         $this->parallel       = extension_loaded('parallel');
         $this->processControl = extension_loaded('pcntl') && extension_loaded('posix');
         $this->defineConstants();
+    }
+
+    /**
+     * @return Kernel
+     */
+    public static function getInstance(): Kernel
+    {
+        if (!isset(Kernel::$instance)) {
+            Kernel::$instance = new self();
+        }
+        return Kernel::$instance;
     }
 
     /**
@@ -124,86 +136,6 @@ class Kernel
     }
 
     /**
-     * This method is different from onReject, which allows accepting any type of rejected futures object.
-     * When await promise is rejected, an error will be thrown instead of returning the rejected value.
-     *
-     * If the rejected value is a non-Error object, it will be wrapped into a `PromiseRejectException` object,
-     * The `getReason` method of this object can obtain the rejected value
-     *
-     * @param Promise $promise
-     *
-     * @return mixed
-     * @throws Throwable
-     */
-    public function await(Promise $promise): mixed
-    {
-        return Coroutine::getInstance()->await($promise);
-    }
-
-    /**
-     * @return Kernel
-     */
-    public static function getInstance(): Kernel
-    {
-        if (!isset(Kernel::$instance)) {
-            Kernel::$instance = new self();
-        }
-        return Kernel::$instance;
-    }
-
-    /**
-     * The location of the exception thrown in the async closure may be the calling context/suspension recovery location,
-     * so exceptions must be managed carefully.
-     *
-     * @param Closure $closure
-     *
-     * @return Promise
-     */
-    public function async(Closure $closure): Promise
-    {
-        return Coroutine::getInstance()->async($closure);
-    }
-
-    /**
-     * @param Closure $closure
-     *
-     * @return Promise
-     */
-    public function promise(Closure $closure): Promise
-    {
-        return new Promise($closure);
-    }
-
-    /**
-     * @param Closure   $closure
-     * @param int|float $second
-     *
-     * @return string
-     */
-    public function delay(Closure $closure, int|float $second): string
-    {
-        return EventLoop::delay($second, static function () use ($closure) {
-            async($closure);
-        });
-    }
-
-    /**
-     * @param Closure $closure
-     *
-     * @return void
-     */
-    public function defer(Closure $closure): void
-    {
-        $suspension = getSuspension();
-        if (!$suspension instanceof Suspension) {
-            EventLoop::queue(static fn () => async($closure));
-            return;
-        }
-
-        $suspension->promise->finally(static fn () => async($closure));
-    }
-
-    /**
      * @param Closure(Closure):void $closure
      * @param int|float             $second
      *
@@ -212,18 +144,8 @@ class Kernel
     public function repeat(Closure $closure, int|float $second): string
     {
         return EventLoop::repeat($second, function (string $cancelID) use ($closure) {
-            call_user_func($closure, fn () => $this->cancel($cancelID));
+            call_user_func($closure, fn () => EventLoop::cancel($cancelID));
         });
-    }
-
-    /**
-     * @param string $id
-     *
-     * @return void
-     */
-    public function cancel(string $id): void
-    {
-        EventLoop::cancel($id);
     }
 
     /**
@@ -236,6 +158,23 @@ class Kernel
     public function onSignal(int $signal, Closure $closure): string
     {
         return Process::getInstance()->onSignal($signal, $closure);
+    }
+
+    /**
+     * @param Closure $closure
+     *
+     * @return void
+     */
+    public function defer(Closure $closure): void
+    {
+        $context = getContext();
+        if ($context instanceof SuspensionProxy) {
+            EventLoop::queue(static fn () => async($closure));
+            return;
+        }
+
+        /*** compatibility */
+        $context instanceof Context && $context->defer($closure);
     }
 
     /**
@@ -265,13 +204,13 @@ class Kernel
      */
     public function wait(Closure|null $result = null): void
     {
-        if (!isset($this->mainSuspension)) {
-            $this->mainSuspension = getSuspension();
+        if (!isset($this->mainContext)) {
+            $this->mainContext = getContext();
         }
 
         if (!$this->mainRunning) {
             try {
-                Coroutine::resume($this->mainSuspension, $result);
+                Coroutine::resume($this->mainContext, $result);
                 if (Fiber::getCurrent()) {
                     Fiber::suspend();
                 }
@@ -287,7 +226,7 @@ class Kernel
 
         try {
             $this->mainRunning = false;
-            $result = Coroutine::suspend($this->mainSuspension);
+            $result = Coroutine::suspend($this->mainContext);
             $this->mainRunning = true;
 
             if ($result instanceof Closure) {
@@ -297,8 +236,8 @@ class Kernel
                 }
             }
 
-            /*** The Event object may be reset during the mainRunning of $result, so mainSuspension needs to be reacquired.*/
-            unset($this->mainSuspension);
+            /*** The Event object may be reset during the mainRunning of $result, so mainContext needs to be reacquired.*/
+            unset($this->mainContext);
             wait();
         } catch (Throwable) {
         }
@@ -310,16 +249,6 @@ class Kernel
     public function stop(): void
     {
         wait(static fn () => EventLoop::getDriver()->stop());
-    }
-
-    /**
-     * @return void
-     */
-    public function cancelAll(): void
-    {
-        foreach (EventLoop::getIDentifiers() as $identifier) {
-            $this->cancel($identifier);
-        }
     }
 
     /**

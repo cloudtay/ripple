@@ -10,11 +10,17 @@
  * Contributions, suggestions, and feedback are always welcome!
  */
 
-namespace Ripple\Coroutine;
+namespace Ripple\Coroutine\Events;
 
-/**
- * @deprecated
- */
-class Suspension extends SuspensionProxy
+use Ripple\Coroutine\Event\Event;
+
+class TerminateEvent extends Event
 {
+    /**
+     *
+     */
+    public function __construct()
+    {
+        parent::__construct('coroutine.terminate');
+    }
 }

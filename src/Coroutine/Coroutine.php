@@ -16,36 +16,46 @@ use Closure;
 use Fiber;
 use JetBrains\PhpStorm\NoReturn;
 use Revolt\EventLoop;
+use Ripple\Coroutine\Events\EndEvent;
+use Ripple\Coroutine\Events\ErrorEvent;
+use Ripple\Coroutine\Events\ResumeEvent;
+use Ripple\Coroutine\Events\StartEvent;
+use Ripple\Coroutine\Events\SuspendEvent;
+use Ripple\Coroutine\Events\TerminateEvent;
 use Ripple\Coroutine\Exception\EscapeException;
 use Ripple\Coroutine\Exception\PromiseRejectException;
+use Ripple\Coroutine\Exception\TerminateException;
+use Ripple\Event\Event;
 use Ripple\Process\Process;
 use Ripple\Promise;
 use Ripple\Support;
 use Ripple\Utils\Output;
 use Throwable;
-use WeakMap;
 use WeakReference;
+use WeakMap;
+use Ripple\Event\EventDispatcher;
+use Ripple\Event\EventTracer;
 
 use function Co\delay;
 use function Co\forked;
-use function Co\getSuspension;
-use function Co\promise;
+use function Co\getContext;
+use function array_shift;
+use function Co\go;
+use function gc_collect_cycles;
 
-/**
- * 2024-07-13 principle
- *
- * async is a single-line Fiber independent of EventLoop. Operations on Fiber must take into account the coroutine space of EventLoop.
- * Any suspend/resume should be responsible for the Fiber of the current operation, including the return processing of the results
- *
- * 2024-07-13 Compatible with Process module
- */
 class Coroutine extends Support
 {
     /*** @var Support */
     protected static Support $instance;
 
-    /*** @var WeakMap<object,WeakReference<Suspension>> */
-    private WeakMap $fiber2suspension;
+    /*** @var WeakMap<object,WeakReference<Context>> */
+    private WeakMap $fiber2context;
+
+    /*** @var \Ripple\Event\EventDispatcher */
+    private EventDispatcher $dispatcher;
+
+    /*** @var \Ripple\Event\EventTracer */
+    private EventTracer $tracer;
 
     /**
      *
@@ -53,7 +63,9 @@ class Coroutine extends Support
     public function __construct()
     {
         $this->registerOnFork();
-        $this->fiber2suspension = new WeakMap();
+        $this->fiber2context = new WeakMap();
+        $this->dispatcher    = EventDispatcher::getInstance();
+        $this->tracer        = EventTracer::getInstance();
     }
 
     /**
@@ -62,20 +74,149 @@ class Coroutine extends Support
     private function registerOnFork(): void
     {
         forked(function () {
-            $this->fiber2suspension = new WeakMap();
+            $this->fiber2context = new WeakMap();
             $this->registerOnFork();
         });
     }
 
     /**
-     * @return EventLoop\Suspension
+     *
+     * The coroutine that cannot be restored can only throw an exception.
+     * If it is a ripple type exception, it will be caught and the contract will be rejected.
+     *
+     * This method attempts to resume a suspended coroutine and take over the coroutine context.
+     * When the recovery fails or an exception occurs within the coroutine, an exception will be thrown.
+     * This method will not return any value yet
+     *
+     * @param Context    $context
+     * @param mixed|null $result
+     *
+     * @return mixed
      */
-    public function getSuspension(): EventLoop\Suspension
+    public static function resume(Context $context, mixed $result = null): mixed
     {
-        if (!$fiber = Fiber::getCurrent()) {
-            return EventLoop::getSuspension();
+        try {
+            $context->resume($result);
+        } catch (EscapeException $exception) {
+            Coroutine::getInstance()->handleEscapeException($exception);
+        } catch (Throwable $exception) {
+            Output::warning($exception->getMessage());
         }
-        return ($this->fiber2suspension[$fiber] ?? null)?->get() ?? EventLoop::getSuspension();
+
+        return null;
+    }
+
+    /**
+     * @param Context|null $context
+     *
+     * @return mixed
+     * @throws Throwable
+     */
+    public static function suspend(Context|null $context = null): mixed
+    {
+        if (!$context) {
+            $context = getContext();
+        }
+
+        try {
+            Coroutine::getInstance()->dispatchEvent(new SuspendEvent());
+            $result = $context->suspend();
+            Coroutine::getInstance()->dispatchEvent(new ResumeEvent());
+        } catch (EscapeException $exception) {
+            Coroutine::getInstance()->handleEscapeException($exception);
+        } finally {
+            gc_collect_cycles();
+
+            while ($event = array_shift($context->eventQueue)) {
+                Coroutine::getInstance()->dispatchEvent($event);
+            }
+        }
+
+        return $result;
+    }
+
+    /**
+     * @param Context   $context
+     * @param Throwable $exception
+     *
+     * @return void
+     */
+    public static function throw(Context $context, Throwable $exception): void
+    {
+        try {
+            $context->throw($exception);
+        } catch (Throwable) {
+        }
+    }
+
+    /**
+     * @param Closure $closure
+     *
+     * @return Promise
+     */
+    public function async(Closure $closure): Promise
+    {
+        return new Promise(static function (Closure $resolve, Closure $reject) use ($closure) {
+            go(static function () use ($resolve, $reject, $closure) {
+                try {
+                    $result = $closure();
+                    $resolve($result);
+                } catch (EscapeException $exception) {
+                    throw $exception;
+                } catch (Throwable $exception) {
+                    $reject($exception);
+                }
+            });
+        });
+    }
+
+    /**
+     * @param Closure $closure
+     *
+     * @return \Ripple\Coroutine\Context
+     */
+    public function go(Closure $closure): Context
+    {
+        $context       = null;
+        $parentContext = getContext();
+        $context       = new Context(function () use ($closure, $parentContext, &$context) {
+            Context::extend($parentContext);
+
+            try {
+                $fiber = Fiber::getCurrent();
+                $this->dispatchEvent(new StartEvent($fiber));
+
+                $result = $closure();
+
+                $this->dispatchEvent(new EndEvent($fiber, $result));
+            } catch (EscapeException $exception) {
+                $fiber = Fiber::getCurrent();
+
+                $this->dispatchEvent(new ErrorEvent($fiber, $exception));
+                throw $exception;
+            } catch (Throwable $exception) {
+                $fiber = Fiber::getCurrent();
+
+                $this->dispatchEvent(new ErrorEvent($fiber, $exception));
+            } finally {
+                Context::clear();
+                $this->tracer->clear($context);
+
+                $this->processDefers($context);
+            }
+        });
+
+        $this->fiber2context[$context->fiber] = WeakReference::create($context);
+
+        try {
+            $context->start();
+        } catch (EscapeException $exception) {
+            $this->handleEscapeException($exception);
+        } catch (Throwable $exception) {
+            // 有预期之外的异常泄漏
+            Output::exception($exception);
+        }
+        return $context;
     }
 
     /**
@@ -108,35 +249,22 @@ class Coroutine extends Support
             }
         }
 
-        $suspension = getSuspension();
-        if (!$suspension instanceof Suspension) {
-            $promise->then(static fn ($result) => Coroutine::resume($suspension, $result));
-            $promise->except(static function (mixed $result) use ($suspension) {
-                $result instanceof Throwable
-                    ? Coroutine::throw($suspension, $result)
-                    : Coroutine::throw($suspension, new PromiseRejectException($result));
-            });
-            $result = Coroutine::suspend($suspension);
-            if ($result instanceof Promise) {
-                return $this->await($result);
-            }
-            return $result;
-        }
+        $context = getContext();
 
         /**
          * To determine your own control over preparing Fiber, you must be responsible for the subsequent status of Fiber.
          */
         // When the status of the awaited Promise is completed
         $promise
-            ->then(static fn (mixed $result) => Coroutine::resume($suspension, $result))
-            ->except(static function (mixed $result) use ($suspension) {
+            ->then(static fn (mixed $result) => Coroutine::resume($context, $result))
+            ->except(static function (mixed $result) use ($context) {
                 $result instanceof Throwable
-                    ? Coroutine::throw($suspension, $result)
-                    : Coroutine::throw($suspension, new PromiseRejectException($result));
+                    ? Coroutine::throw($context, $result)
+                    : Coroutine::throw($context, new PromiseRejectException($result));
             });
 
         // Confirm that you have prepared to handle Fiber recovery and take over control of Fiber by suspending it
-        $result = Coroutine::suspend($suspension);
+        $result = Coroutine::suspend($context);
         if ($result instanceof Promise) {
             return $this->await($result);
         }
@@ -144,31 +272,16 @@ class Coroutine extends Support
     }
 
     /**
-     *
-     * The coroutine that cannot be restored can only throw an exception.
-     * If it is a ripple type exception, it will be caught and the contract will be rejected.
-     *
-     * This method attempts to resume a suspended coroutine and take over the coroutine context.
-     * When the recovery fails or an exception occurs within the coroutine, an exception will be thrown.
-     * This method will not return any value yet
-     *
-     * @param \Revolt\EventLoop\Suspension $suspension
-     * @param mixed|null                   $result
-     *
-     * @return mixed
+     * @return \Ripple\Coroutine\Context
      */
-    public static function resume(EventLoop\Suspension $suspension, mixed $result = null): mixed
+    public function getContext(): Context
     {
-        try {
-            $suspension->resume($result);
-        } catch (EscapeException $exception) {
-            Coroutine::getInstance()->handleEscapeException($exception);
-        } catch (Throwable $exception) {
-            Output::warning($exception->getMessage());
+        if (!$fiber = Fiber::getCurrent()) {
+            return new SuspensionProxy(EventLoop::getSuspension());
         }
-
-        return null;
+        return ($this->fiber2context[$fiber] ?? null)?->get() ?? new SuspensionProxy(EventLoop::getSuspension());
     }
+
 
     /**
      * @param EscapeException $exception
@@ -181,71 +294,6 @@ class Coroutine extends Support
         Process::getInstance()->processedInMain($exception->lastWords);
     }
 
-    /**
-     * @param \Revolt\EventLoop\Suspension $suspension
-     * @param Throwable $exception
-     *
-     * @return void
-     */
-    public static function throw(EventLoop\Suspension $suspension, Throwable $exception): void
-    {
-        try {
-            $suspension->throw($exception);
-        } catch (Throwable $exception) {
-        }
-    }
-
-    /**
-     * @param \Revolt\EventLoop\Suspension|null $suspension
-     *
-     * @return mixed
-     * @throws Throwable
-     */
-    public static function suspend(EventLoop\Suspension|null $suspension = null): mixed
-    {
-        if (!$suspension) {
-            $suspension = getSuspension();
-        }
-
-        try {
-            return $suspension->suspend();
-        } catch (EscapeException $exception) {
-            Coroutine::getInstance()->handleEscapeException($exception);
-        }
-    }
-
-    /**
-     * @param Closure $closure
-     *
-     * @return Promise
-     */
-    public function async(Closure $closure): Promise
-    {
-        return promise(function (Closure $resolve, Closure $reject, Promise $promise) use ($closure) {
-            $currentSuspension = getSuspension();
-            $suspension        = new Suspension(function () use ($closure, $resolve, $reject, $currentSuspension) {
-                Context::extend($currentSuspension);
-                try {
-                    $resolve($closure());
-                } catch (EscapeException $exception) {
-                    throw $exception;
-                } catch (Throwable $exception) {
-                    $reject($exception);
-                    return;
-                } finally {
-                    Context::clear();
-                }
-            }, $resolve, $reject, $promise);
-
-            $this->fiber2suspension[$suspension->fiber] = WeakReference::create($suspension);
-
-            try {
-                $suspension->start();
-            } catch (EscapeException $exception) {
-                $this->handleEscapeException($exception);
-            }
-        });
-    }
 
     /**
      * @param int|float $second
@@ -255,8 +303,32 @@ class Coroutine extends Support
      */
     public function sleep(int|float $second): int|float
     {
-        $suspension = getSuspension();
-        delay(static fn () => Coroutine::resume($suspension, $second), $second);
-        return Coroutine::suspend($suspension);
+        $context = getContext();
+        delay(static fn () => Coroutine::resume($context, $second), $second);
+        return Coroutine::suspend($context);
+    }
+
+    /**
+     * @param \Ripple\Coroutine\Context $context
+     *
+     * @return void
+     */
+    private function processDefers(Context $context): void
+    {
+        $context->processDefers();
+    }
+
+    /**
+     * @param \Ripple\Event\Event $event
+     *
+     * @return void
+     */
+    protected function dispatchEvent(Event $event): void
+    {
+        $this->tracer->trace($event);
+        if ($event instanceof TerminateEvent) {
+            throw new TerminateException($event);
+        }
+        $this->dispatcher->dispatch($event);
     }
 }
