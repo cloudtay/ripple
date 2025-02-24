@@ -29,7 +29,7 @@ use function array_pop;
 
 /**
  * 对`Suspension`接口的兼容只是暂时的,
- * 请任何时候都使用 Context 作为类型声明而非 `Suspension`
+ * 请任何时候都使用 `Context` 作为类型声明而非 `Suspension`
  */
 class Context implements Suspension
 {
