@@ -215,8 +215,8 @@ class Process extends Support
     public function forgetEvents(): void
     {
         cancelAll();
-        //        EventLoop::run();
-        //        EventLoop::setDriver((new EventLoop\DriverFactory())->create());
+        EventLoop::run();
+        EventLoop::setDriver((new EventLoop\DriverFactory())->create());
     }
 
     /**
