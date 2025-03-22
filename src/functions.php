@@ -34,20 +34,13 @@ use function function_exists;
 use function getmypid;
 
 /**
- * This method is different from onReject, which allows accepting any type of rejected futures object.
- * When await promise is rejected, an error will be thrown instead of returning the rejected value.
+ * @param Closure $closure
  *
- * If the rejected value is a non-Error object, it will be wrapped into a `PromiseRejectException` object,
- * The `getReason` method of this object can obtain the rejected value
- *
- * @param \Ripple\Promise $promise
- *
- * @return mixed
- * @throws Throwable
+ * @return Context
  */
-function await(Promise $promise): mixed
+function go(Closure $closure): Context
 {
-    return Coroutine::getInstance()->await($promise);
+    return Coroutine::getInstance()->go($closure);
 }
 
 /**
@@ -64,6 +57,23 @@ function await(Promise $promise): mixed
 function async(Closure $closure): Promise
 {
     return Coroutine::getInstance()->async($closure);
+}
+
+/**
+ * This method is different from onReject, which allows accepting any type of rejected futures object.
+ * When await promise is rejected, an error will be thrown instead of returning the rejected value.
+ *
+ * If the rejected value is a non-Error object, it will be wrapped into a `PromiseRejectException` object,
+ * The `getReason` method of this object can obtain the rejected value
+ *
+ * @param \Ripple\Promise $promise
+ *
+ * @return mixed
+ * @throws Throwable
+ */
+function await(Promise $promise): mixed
+{
+    return Coroutine::getInstance()->await($promise);
 }
 
 /**
@@ -99,7 +109,7 @@ function sleep(int|float $second): int|float
 function delay(Closure $closure, int|float $second): string
 {
     return EventLoop::delay($second, static function () use ($closure) {
-        async($closure);
+        go($closure);
     });
 }
 
@@ -314,16 +324,6 @@ function resume(Context $context, mixed $result = null): mixed
 function __throw(Context $context, Throwable $exception): void
 {
     Coroutine::throw($context, $exception);
-}
-
-/**
- * @param Closure $closure
- *
- * @return Context
- */
-function go(Closure $closure): Context
-{
-    return Coroutine::getInstance()->go($closure);
 }
 
 /**

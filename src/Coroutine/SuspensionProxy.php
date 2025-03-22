@@ -21,7 +21,7 @@ class SuspensionProxy extends Context implements \Revolt\EventLoop\Suspension
      */
     public function __construct(protected readonly \Revolt\EventLoop\Suspension $suspension)
     {
-        parent::__construct(fn () => null);
+        parent::__construct(static fn () => null);
     }
 
     /**

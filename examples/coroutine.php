@@ -4,20 +4,19 @@ include __DIR__ . '/../vendor/autoload.php';
 
 use Ripple\Event\EventTracer;
 
-use function Co\async;
 use function Co\getContext;
 use function Co\go;
 use function Co\wait;
 
-async(static function () {
+go(static function () {
     echo \microtime(true), ' > Coroutine 1', \PHP_EOL;
 });
 
-async(static function () {
+go(static function () {
     echo \microtime(true), ' > Coroutine 2', \PHP_EOL;
 });
 
-async(static function () {
+go(static function () {
     \Co\sleep(1);
     echo \microtime(true), ' > Coroutine 3', \PHP_EOL;
     \var_dump(EventTracer::getInstance()->getTraces(getContext()));
