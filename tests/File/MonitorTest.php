@@ -9,6 +9,7 @@ use InvalidArgumentException;
 use RuntimeException;
 use Exception;
 
+use function Co\process;
 use function file_exists;
 use function file_put_contents;
 use function function_exists;
@@ -249,7 +250,7 @@ class MonitorTest extends TestCase
         $this->assertTrue($this->monitor->isRunning());
 
         try {
-            $task = \Co\process(function () {
+            $task = process(function () {
                 $running = $this->monitor->isRunning();
                 return $running ? 1 : 0;
             });

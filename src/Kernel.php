@@ -220,9 +220,12 @@ class Kernel
             return;
         }
 
+        /*** main is running*/
         if ($result instanceof Closure) {
             $result();
         }
+
+        $this->mainContext = getContext();
 
         try {
             $this->mainRunning = false;
@@ -237,7 +240,6 @@ class Kernel
             }
 
             /*** The Event object may be reset during the mainRunning of $result, so mainContext needs to be reacquired.*/
-            unset($this->mainContext);
             wait();
         } catch (Throwable) {
         }
