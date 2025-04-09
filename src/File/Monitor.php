@@ -492,9 +492,9 @@ class Monitor
      *
      * @param int $seconds
      *
-     * @return self
+     * @return \Ripple\File\Monitor
      */
-    public function setInterval(int $seconds): self
+    public function setInterval(int $seconds): Monitor
     {
         $this->interval = max(1, $seconds);
         return $this;
@@ -503,9 +503,9 @@ class Monitor
     /**
      * 清除当前所有监控项
      *
-     * @return self
+     * @return \Ripple\File\Monitor
      */
-    public function clear(): self
+    public function clear(): Monitor
     {
         $this->stop();
         $this->list  = [];
