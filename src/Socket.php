@@ -331,87 +331,11 @@ class Socket extends Stream
      *
      * @return int
      * @throws \Ripple\Stream\Exception\ConnectionException
+     * @deprecated
      */
     public function writeInternal(string $string, bool $wait = true): int
     {
-        $writeLength = 0;
-        if (!$this->blocking) {
-            $length       = parent::write($string);
-            $string2cache = substr($string, $length);
-            if ($string2cache === '') {
-                return $length;
-            }
-
-            $writeLength += $length;
-
-            $this->blocking = true;
-            $tempFilePath   = sys_get_temp_dir() . '/' . uniqid('buf_');
-
-            $this->storageCacheWrite = File::open($tempFilePath, 'w+');
-            $this->storageCacheWrite->setBlocking(true);
-
-            $this->storageCacheRead = File::open($tempFilePath, 'r+');
-            $this->storageCacheRead->setBlocking(false);
-
-            $eventID = $this->onClose(function () use ($tempFilePath) {
-                $this->cleanupTempFiles($tempFilePath);
-            });
-
-            $this->onWriteable(function (Socket $_, Closure $cancel) use ($tempFilePath, $eventID) {
-                if ($buffer = $this->storageCacheRead->read($this->getOption(SOL_SOCKET, SO_SNDLOWAT))) {
-                    try {
-                        parent::write($buffer);
-                    } catch (ConnectionException $exception) {
-                        $this->blocking = false;
-                        $this->cleanupTempFiles($tempFilePath);
-                        $cancel();
-                        $this->cancelOnClose($eventID);
-
-                        if (isset($this->writePromise)) {
-                            $this->writePromise->reject($exception);
-
-                            unset($this->writePromise);
-                        }
-                        return;
-                    }
-                }
-
-                if ($this->storageCacheRead->eof()) {
-                    $this->blocking = false;
-                    $this->cleanupTempFiles($tempFilePath);
-                    $cancel();
-                    $this->cancelOnClose($eventID);
-
-                    if (isset($this->writePromise)) {
-                        $this->writePromise->resolve(0);
-
-                        unset($this->writePromise);
-                    }
-                }
-            });
-        } else {
-            $string2cache = $string;
-        }
-
-        $writeLength += $this->storageCacheWrite->write($string2cache);
-
-        /*** @var Promise $writePromise */
-        if ($wait) {
-            if (!isset($this->writePromise)) {
-                $this->writePromise = promise(static function () {
-                });
-            }
-
-            try {
-                $this->writePromise->await();
-                return strlen($string);
-            } catch (Throwable $exception) {
-                $this->close();
-                throw new ConnectionException($exception->getMessage(), ConnectionException::CONNECTION_WRITE_FAIL);
-            }
-        }
-
-        return $writeLength;
+        return parent::write($string);
     }
 
     /**

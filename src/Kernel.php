@@ -71,7 +71,7 @@ class Kernel
     public static function getInstance(): Kernel
     {
         if (!isset(Kernel::$instance)) {
-            Kernel::$instance = new self();
+            Kernel::$instance = new Kernel();
         }
         return Kernel::$instance;
     }

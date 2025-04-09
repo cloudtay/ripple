@@ -21,11 +21,11 @@ use function fseek;
 use function fstat;
 use function ftell;
 use function fwrite;
-use function get_resource_id;
 use function is_resource;
 use function rewind;
 use function stream_get_contents;
 use function stream_get_meta_data;
+use function boolval;
 
 use const SEEK_SET;
 
@@ -41,16 +41,6 @@ class Stream implements StreamInterface
     public readonly mixed $stream;
 
     /**
-     * @var int $id
-     */
-    public readonly int $id;
-
-    /**
-     * @var array $meta
-     */
-    public readonly array $meta;
-
-    /**
      * Stream constructor.
      *
      * @param resource $resource
@@ -58,8 +48,6 @@ class Stream implements StreamInterface
     public function __construct(mixed $resource)
     {
         $this->stream = $resource;
-        $this->meta   = stream_get_meta_data($resource);
-        $this->id     = get_resource_id($resource);
     }
 
     /**
@@ -162,14 +150,6 @@ class Stream implements StreamInterface
      */
     public function tell(): int
     {
-        return $this->ftell();
-    }
-
-    /**
-     * @return int|false
-     */
-    public function ftell(): int|false
-    {
         return ftell($this->stream);
     }
 
@@ -178,7 +158,7 @@ class Stream implements StreamInterface
      */
     public function isSeekable(): bool
     {
-        return $this->meta['seekable'] ?? false;
+        return boolval($this->getMetadata('seekable')) ?? false;
     }
 
     /**
@@ -186,10 +166,11 @@ class Stream implements StreamInterface
      */
     public function isWritable(): bool
     {
-        return $this->meta['mode'][0] === 'w' ||
-               $this->meta['mode'][0] === 'a' ||
-               $this->meta['mode'][0] === 'x' ||
-               $this->meta['mode'][0] === 'c';
+        $meta = $this->getMetadata('mode');
+        return $meta[0] === 'w' ||
+               $meta[0] === 'a' ||
+               $meta[0] === 'x' ||
+               $meta[0] === 'c';
     }
 
     /**
@@ -197,7 +178,8 @@ class Stream implements StreamInterface
      */
     public function isReadable(): bool
     {
-        return $this->meta['mode'][0] === 'r' || $this->meta['mode'][0] === 'r+';
+        $meta = $this->getMetadata('mode');
+        return $meta[0] === 'r' || $meta[0] === 'r+';
     }
 
     /**
@@ -207,7 +189,8 @@ class Stream implements StreamInterface
      */
     public function getMetadata(string|null $key = null): mixed
     {
-        return $key ? $this->meta[$key] : $this->meta;
+        $meta = stream_get_meta_data($this->stream);
+        return $key ? $meta[$key] : $meta;
     }
 
     /**
