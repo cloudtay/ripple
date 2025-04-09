@@ -1,5 +1,6 @@
 <?php declare(strict_types=1);
 
+use JetBrains\PhpStorm\NoReturn;
 use Ripple\Utils\Output;
 use Ripple\Worker\Command;
 use Ripple\Worker\Manager;
@@ -18,9 +19,11 @@ $worker  = new class () extends Ripple\Worker\Worker {
     protected int $count = 4;
 
     /*** @return void */
-    public function boot(): void
+    #[NoReturn] public function boot(): void
     {
-        Output::info('Worker started');
+        Output::info('Worker 1 started');
+        \Co\sleep(6);
+        exit();
     }
 
     /**
@@ -53,15 +56,16 @@ $worker2 = new class () extends Ripple\Worker\Worker {
     /*** @return void */
     public function boot(): void
     {
+        Output::info('Worker 2 started');
         $this->forwardCommand(Command::make('test'), 'abc', 2);
         if ($this->getIndex() === 1) {
-            async(static function () {
+            async(function () {
                 while (1) {
                     echo \json_encode($this->getManagerMateData()), \PHP_EOL;
                     \Co\sleep(1);
                 }
-            })->except(static function () {
-                \var_dump('error');
+            })->except(static function (Throwable $exception) {
+                \var_dump('error: ' . $exception->getMessage());
             });
         }
     }

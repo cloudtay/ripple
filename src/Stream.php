@@ -30,6 +30,10 @@ use function Co\cancel;
 use function Co\getContext;
 use function is_resource;
 use function stream_set_blocking;
+use function get_resource_id;
+use function substr;
+use function strlen;
+use function end;
 
 /**
  * 2024/09/21
@@ -77,11 +81,17 @@ class Stream extends StreamBase
     protected int $index = 0;
 
     /**
+     * @var int $id
+     */
+    public readonly int $id;
+
+    /**
      * @param mixed $resource
      */
     public function __construct(mixed $resource)
     {
         parent::__construct($resource);
+        $this->id = get_resource_id($resource);
     }
 
     /**
@@ -312,5 +322,102 @@ class Stream extends StreamBase
         }
 
         return $content;
+    }
+
+    /*** @var string */
+    protected string $buffer = '';
+
+    /*** @var bool */
+    protected bool $clearBufferIsRunning = false;
+
+    /*** @var \Ripple\Coroutine\Context[] */
+    protected array $clearBufferWaiters = [];
+
+    /**
+     * 写入数据
+     *
+     * @param string $string
+     *
+     * @return int
+     * @throws \Ripple\Stream\Exception\ConnectionException
+     */
+    public function write(string $string): int
+    {
+        $this->buffer .= $string;
+
+        try {
+            if (!$this->clearBufferIsRunning) {
+                $writeLength  = parent::write($this->buffer);
+                $this->buffer = substr($this->buffer, $writeLength);
+
+                if ($this->buffer === '') {
+                    return strlen($string);
+                }
+
+                $this->startClearBuffer();
+            }
+
+            $this->clearBufferWaiters[] = getContext();
+            Coroutine::suspend(end($this->clearBufferWaiters));
+            return strlen($string);
+        } catch (Throwable) {
+            $this->close();
+            throw new ConnectionException('Unable to write to stream', ConnectionException::CONNECTION_WRITE_FAIL);
+        }
+    }
+
+    /**
+     * @return void
+     */
+    private function startClearBuffer(): void
+    {
+        $this->onWriteable(function () {
+            try {
+                $writeLength = parent::write($this->buffer);
+            } catch (Throwable) {
+                $this->close();
+                $this->failAllWaiters();
+                return;
+            }
+
+            $this->buffer = substr($this->buffer, $writeLength);
+
+            if ($this->buffer === '') {
+                $this->cancelWriteable();
+                $this->clearBufferIsRunning = false;
+                $this->resumeAllWaiters();
+            }
+        });
+
+        $this->clearBufferIsRunning = true;
+    }
+
+    /**
+     * @return void
+     */
+    private function resumeAllWaiters(): void
+    {
+        $waiters                  = $this->clearBufferWaiters;
+        $this->clearBufferWaiters = [];
+
+        foreach ($waiters as $waiter) {
+            \Ripple\Coroutine::resume($waiter);
+        }
+    }
+
+    /**
+     * @return void
+     */
+    private function failAllWaiters(): void
+    {
+        $waiters                  = $this->clearBufferWaiters;
+        $this->clearBufferWaiters = [];
+
+        foreach ($waiters as $waiter) {
+            \Ripple\Coroutine::throw(
+                $waiter,
+                new ConnectionException('Unable to write to stream', ConnectionException::CONNECTION_WRITE_FAIL)
+            );
+        }
     }
 }

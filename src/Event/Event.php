@@ -77,7 +77,7 @@ class Event
     /**
      * @return string|null
      */
-    public function getCorrelationId(): ?string
+    public function getCorrelationId(): string|null
     {
         return $this->correlationId;
     }
@@ -87,7 +87,7 @@ class Event
      *
      * @return $this
      */
-    public function withContext(array $context): self
+    public function withContext(array $context): Event
     {
         $this->context = array_merge($this->context, $context);
         return $this;
