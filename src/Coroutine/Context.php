@@ -15,43 +15,31 @@ namespace Ripple\Coroutine;
 use Closure;
 use Fiber;
 use Revolt\EventLoop\Suspension;
-use Ripple\Coroutine\Events\TerminateEvent;
-use Ripple\Event\EventTracer;
-use Ripple\Types\Undefined;
+use Ripple\Coroutine\Event\EventTracer;
 use Throwable;
 
 use function Co\getContext;
-use function Co\go;
 use function spl_object_hash;
-use function array_merge;
-use function is_array;
-use function array_pop;
 
 /**
- * 对`Suspension`接口的兼容只是暂时的,
- * 请任何时候都使用 `Context` 作为类型声明而非 `Suspension`
+ * Compatibility with the 'Suspension' interface is only temporary,
+ * Please always use 'Context' as a type declaration instead of 'Suspension'
  */
-class Context implements Suspension
+class Context extends ContextData implements Suspension
 {
     /*** @var Fiber */
     public readonly Fiber $fiber;
 
     /**
-     * @var \Ripple\Coroutine\Event\Event[]
+     * @var bool
      */
-    public array $eventQueue = [];
-
-    /**
-     * @var array Closure[]
-     */
-    public array $defers = [];
+    public bool $isTerminate = false;
 
     /**
      * @param Closure $main
      */
-    public function __construct(
-        protected Closure $main,
-    ) {
+    public function __construct(protected Closure $main)
+    {
         $this->fiber = new Fiber($this->main);
     }
 
@@ -102,31 +90,7 @@ class Context implements Suspension
      */
     public function terminate(): void
     {
-        $this->eventQueue[] = new TerminateEvent();
-    }
-
-    /**
-     * @param Closure $closure
-     *
-     * @return void
-     */
-    public function defer(Closure $closure): void
-    {
-        $this->defers[] = $closure;
-    }
-
-    /**
-     * @return void
-     */
-    public function processDefers(): void
-    {
-        while ($defer = array_pop($this->defers)) {
-            try {
-                go($defer);
-            } catch (Throwable) {
-                continue;
-            }
-        }
+        $this->isTerminate = true;
     }
 
     /**
@@ -138,28 +102,7 @@ class Context implements Suspension
     }
 
     /**
-     * @var array
-     */
-    protected static array $context = [];
-
-    /**
-     * @param array|string $key
-     * @param mixed        $value
-     *
-     * @return void
-     */
-    public static function setValue(array|string $key, mixed $value = null): void
-    {
-        $hash = Context::getHash();
-        if (is_array($key)) {
-            Context::$context[$hash] = array_merge(Context::$context[$hash] ?? [], $key);
-        }
-
-        Context::$context[$hash][$key] = $value;
-    }
-
-    /**
-     * @param \Ripple\Coroutine\Context|null $context
+     * @param Context|null $context
      *
      * @return string
      */
@@ -170,55 +113,5 @@ class Context implements Suspension
         }
 
         return spl_object_hash($context);
-    }
-
-    /**
-     * @param string|null $key
-     *
-     * @return mixed
-     */
-    public static function getValue(string|null $key = null): mixed
-    {
-        $hash = Context::getHash();
-        if (!$key) {
-            return Context::$context[$hash] ?? new Undefined();
-        }
-        return Context::$context[$hash][$key] ?? new Undefined();
-    }
-
-    /**
-     * @param string $key
-     *
-     * @return void
-     */
-    public static function removeValue(string $key): void
-    {
-        $hash = Context::getHash();
-        unset(Context::$context[$hash][$key]);
-    }
-
-    /**
-     * @param \Ripple\Coroutine\Context $targetContext
-     *
-     * @return void
-     */
-    public static function extend(Context $targetContext): void
-    {
-        $currentContext = getContext();
-        if ($currentContext === $targetContext) {
-            return;
-        }
-
-        $currentHash = Context::getHash($currentContext);
-        $targetHash  = Context::getHash($targetContext);
-        Context::$context[$currentHash] = (Context::$context[$targetHash] ?? []);
-    }
-
-    /**
-     * @return void
-     */
-    public static function clear(): void
-    {
-        unset(Context::$context[Context::getHash()]);
     }
 }

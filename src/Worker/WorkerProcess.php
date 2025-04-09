@@ -23,15 +23,15 @@ use function get_current_user;
 
 class WorkerProcess
 {
-    /*** @var \Ripple\Utils\Serialization\Zx7e */
+    /*** @var Zx7e */
     private Zx7e $zx7e;
 
     /*** @var array */
     private array $metadata;
 
     /**
-     * @param \Ripple\Process\Runtime $runtime
-     * @param \Ripple\Stream          $stream
+     * @param Runtime $runtime
+     * @param Stream $stream
      * @param int                     $index
      */
     public function __construct(private readonly Runtime $runtime, private readonly Stream $stream, private readonly int $index)
@@ -46,7 +46,7 @@ class WorkerProcess
     }
 
     /**
-     * @return \Ripple\Stream
+     * @return Stream
      */
     public function getStream(): Stream
     {
@@ -62,7 +62,7 @@ class WorkerProcess
     }
 
     /**
-     * @param \Ripple\Worker\Command $command
+     * @param Command $command
      *
      * @return bool
      */
@@ -106,7 +106,7 @@ class WorkerProcess
     }
 
     /**
-     * @return \Ripple\Process\Runtime
+     * @return Runtime
      */
     public function getRuntime(): Runtime
     {

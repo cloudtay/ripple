@@ -12,15 +12,20 @@
 
 namespace Ripple\Coroutine\Events;
 
+use Ripple\Coroutine\Context;
 use Ripple\Coroutine\Event\Event;
 
-class TerminateEvent extends Event
+class FinallyEvent extends Event
 {
+    /*** @var Context */
+    public readonly Context $coroutineContext;
+
     /**
-     *
+     * @param Context $coroutineContext
      */
-    public function __construct()
+    public function __construct(Context $coroutineContext)
     {
-        parent::__construct('coroutine.terminate');
+        parent::__construct('coroutine.finally', ['coroutineContext' => $coroutineContext]);
+        $this->coroutineContext = $coroutineContext;
     }
 }

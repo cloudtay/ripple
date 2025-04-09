@@ -12,52 +12,34 @@
 
 namespace Ripple\Coroutine\Events;
 
-use Fiber;
+use Ripple\Coroutine\Context;
 use Ripple\Coroutine\Event\Event;
 use Throwable;
-
-use function spl_object_hash;
 
 class ErrorEvent extends Event
 {
     /**
-     * @var Fiber
+     * @var Context
      */
-    private Fiber $fiber;
+    public readonly Context $coroutineContext;
 
     /**
      * @var Throwable
      */
-    private Throwable $error;
+    public readonly Throwable $error;
 
     /**
-     * @param Fiber     $fiber
+     * @param Context     $coroutineContext
      * @param Throwable $error
      */
-    public function __construct(Fiber $fiber, Throwable $error)
+    public function __construct(Context $coroutineContext, Throwable $error)
     {
         parent::__construct('coroutine.error', [
-            'fiber_id' => spl_object_hash($fiber),
+            'coroutineContext' => $coroutineContext,
             'error' => $error->getMessage()
         ]);
-        $this->fiber = $fiber;
+        $this->coroutineContext = $coroutineContext;
         $this->error = $error;
-    }
-
-    /**
-     * @return bool
-     */
-    public function handle(): bool
-    {
-        return true;
-    }
-
-    /**
-     * @return Fiber
-     */
-    public function getFiber(): Fiber
-    {
-        return $this->fiber;
     }
 
     /**

@@ -13,6 +13,7 @@
 namespace Ripple;
 
 use LogicException;
+use Ripple\Coroutine\Context;
 use Ripple\Coroutine\Coroutine;
 use Ripple\Utils\Output;
 use RuntimeException;
@@ -29,7 +30,7 @@ class WaitGroup
     /*** @var bool */
     protected bool $done = true;
 
-    /*** @var \Ripple\Coroutine\Context[] */
+    /*** @var Context[] */
     protected array $waiters = [];
 
     /*** @var int */

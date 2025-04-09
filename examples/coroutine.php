@@ -2,8 +2,6 @@
 
 include __DIR__ . '/../vendor/autoload.php';
 
-use Ripple\Event\EventTracer;
-
 use function Co\getContext;
 use function Co\go;
 use function Co\wait;
@@ -19,7 +17,6 @@ go(static function () {
 go(static function () {
     \Co\sleep(1);
     echo \microtime(true), ' > Coroutine 3', \PHP_EOL;
-    \var_dump(EventTracer::getInstance()->getTraces(getContext()));
 });
 
 $co = go(static function () {
@@ -39,5 +36,9 @@ $co2 = go(static function () {
 \Co\sleep(3);
 $co->terminate();
 echo \microtime(true), ' > Coroutine 4 terminated', \PHP_EOL;
+
+$testCo = go(static function () {
+    \var_dump(\spl_object_hash(getContext()));
+});
 
 wait();

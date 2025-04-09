@@ -12,51 +12,29 @@
 
 namespace Ripple\Coroutine\Events;
 
-use Fiber;
+use Ripple\Coroutine\Context;
 use Ripple\Coroutine\Event\Event;
 
-use function spl_object_hash;
-
-class EndEvent extends Event
+class CompleteEvent extends Event
 {
-    /**
-     * @var Fiber
-     */
-    private Fiber $fiber;
+    /*** @var Context */
+    public readonly Context $coroutineContext;
+
+    /*** @var mixed */
+    public readonly mixed $result;
 
     /**
-     * @var mixed
-     */
-    private mixed $result;
-
-    /**
-     * @param Fiber $fiber
+     * @param Context $coroutineContext
      * @param mixed  $result
      */
-    public function __construct(Fiber $fiber, mixed $result)
+    public function __construct(Context $coroutineContext, mixed $result)
     {
-        parent::__construct('coroutine.end', [
-            'fiber_id' => spl_object_hash($fiber),
+        parent::__construct('coroutine.complete', [
+            'coroutineContext' => $coroutineContext,
             'result' => $result
         ]);
-        $this->fiber = $fiber;
+        $this->coroutineContext = $coroutineContext;
         $this->result = $result;
-    }
-
-    /**
-     * @return bool
-     */
-    public function handle(): bool
-    {
-        return true;
-    }
-
-    /**
-     * @return Fiber
-     */
-    public function getFiber(): Fiber
-    {
-        return $this->fiber;
     }
 
     /**

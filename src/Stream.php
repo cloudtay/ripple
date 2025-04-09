@@ -14,6 +14,7 @@ namespace Ripple;
 
 use Closure;
 use Revolt\EventLoop;
+use Ripple\Coroutine\Context;
 use Ripple\Coroutine\Coroutine;
 use Ripple\Stream\Exception\ConnectionCloseException;
 use Ripple\Stream\Exception\ConnectionException;
@@ -275,9 +276,12 @@ class Stream extends StreamBase
         $resumed = false;
         if ($timeout > 0) {
             // If a timeout is set, the context will be canceled after the timeout
-            async(static function () use ($context, $timeout, &$resumed) {
+            async(function () use ($context, $timeout, &$resumed) {
                 \Co\sleep($timeout);
-                $resumed || Coroutine::throw($context, new ConnectionTimeoutException('Stream write timeout'));
+                if (!$resumed) {
+                    $this->close();
+                    Coroutine::throw($context, new ConnectionTimeoutException('Stream write timeout'));
+                }
             });
         }
 
@@ -330,7 +334,7 @@ class Stream extends StreamBase
     /*** @var bool */
     protected bool $clearBufferIsRunning = false;
 
-    /*** @var \Ripple\Coroutine\Context[] */
+    /*** @var Context[] */
     protected array $clearBufferWaiters = [];
 
     /**
@@ -339,7 +343,7 @@ class Stream extends StreamBase
      * @param string $string
      *
      * @return int
-     * @throws \Ripple\Stream\Exception\ConnectionException
+     * @throws ConnectionException
      */
     public function write(string $string): int
     {

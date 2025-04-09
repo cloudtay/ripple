@@ -12,16 +12,15 @@
 
 namespace Ripple\Coroutine\Exception;
 
-use Ripple\Coroutine\Event\Event;
 use RuntimeException;
 
 class TerminateException extends RuntimeException
 {
     /**
-     * @param \Ripple\Coroutine\Event\Event|null $event
+     * @param $message
      */
-    public function __construct(public readonly Event|null $event = null)
+    public function __construct(public $message = 'Coroutine terminated')
     {
-        parent::__construct('Coroutine terminated');
+        parent::__construct($message);
     }
 }

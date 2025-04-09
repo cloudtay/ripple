@@ -10,29 +10,23 @@
  * Contributions, suggestions, and feedback are always welcome!
  */
 
-namespace Ripple\Event;
+namespace Ripple\Coroutine\Event;
 
 use function array_map;
 
 class EventTrace
 {
-    /**
-     * @var \Ripple\Coroutine\Event\Event
-     */
+    /*** @var Event */
     private Event $event;
 
-    /**
-     * @var array
-     */
+    /*** @var array */
     private array $trace;
 
-    /**
-     * @var float
-     */
+    /*** @var float */
     private float $timestamp;
 
     /**
-     * @param \Ripple\Coroutine\Event\Event $event
+     * @param Event $event
      * @param array                         $trace
      * @param float                         $timestamp
      */
@@ -44,7 +38,7 @@ class EventTrace
     }
 
     /**
-     * @return \Ripple\Coroutine\Event\Event
+     * @return Event
      */
     public function getEvent(): Event
     {

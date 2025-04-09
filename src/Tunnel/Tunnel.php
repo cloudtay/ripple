@@ -13,6 +13,7 @@
 namespace Ripple\Tunnel;
 
 use Ripple\Socket;
+use Ripple\Stream\Exception\ConnectionException;
 
 use function is_string;
 use function str_starts_with;
@@ -45,7 +46,7 @@ abstract class Tunnel
      * @param bool                $wait
      *
      * @return static
-     * @throws \Ripple\Stream\Exception\ConnectionException
+     * @throws ConnectionException
      */
     public static function connect(Socket|string $target, array $payload, bool $wait = true): Tunnel
     {

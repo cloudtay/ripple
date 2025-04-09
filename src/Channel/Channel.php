@@ -17,6 +17,7 @@ use Ripple\Channel\Exception\ChannelException;
 use Ripple\File\Lock;
 use Ripple\Kernel;
 use Ripple\Stream;
+use Ripple\Stream\Exception\ConnectionException;
 use Ripple\Utils\Path;
 use Ripple\Utils\Serialization\Zx7e;
 use Throwable;
@@ -142,7 +143,7 @@ class Channel
     /**
      * @param string $name
      *
-     * @return \Ripple\Channel\Channel
+     * @return Channel
      */
     public static function open(string $name): Channel
     {
@@ -195,9 +196,10 @@ class Channel
                     if ($this->stream->read(1) === chr(Channel::FRAME_HEADER)) {
                         break;
                     } else {
-                        throw new Stream\Exception\ConnectionException('Failed to read frame header.');
+                        $this->stream->close();
+                        throw new ConnectionException('Failed to read frame header.');
                     }
-                } catch (Stream\Exception\ConnectionException) {
+                } catch (ConnectionException) {
                     $this->readLock->unlock();
                 }
             }

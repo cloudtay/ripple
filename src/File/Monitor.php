@@ -43,7 +43,7 @@ class Monitor
     public const REMOVE = 'remove';
 
     /*** @var int 默认检查间隔（秒） */
-    private int $interval = 1;
+    private int $interval;
 
     /*** @var Closure|null */
     public Closure|null $onTouch = null;
@@ -492,7 +492,7 @@ class Monitor
      *
      * @param int $seconds
      *
-     * @return \Ripple\File\Monitor
+     * @return Monitor
      */
     public function setInterval(int $seconds): Monitor
     {
@@ -503,7 +503,7 @@ class Monitor
     /**
      * 清除当前所有监控项
      *
-     * @return \Ripple\File\Monitor
+     * @return Monitor
      */
     public function clear(): Monitor
     {

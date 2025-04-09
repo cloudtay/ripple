@@ -12,6 +12,106 @@
 
 namespace Ripple\Coroutine\Event;
 
-class Event extends \Ripple\Event\Event
+use function microtime;
+use function uniqid;
+use function array_merge;
+
+class Event
 {
+    /*** @var string */
+    protected string $name;
+
+    /*** @var float */
+    protected float $timestamp;
+
+    /*** @var array */
+    protected array $context = [];
+
+    /*** @var string|null */
+    protected string|null $correlationId = null;
+
+    /*** @var bool */
+    protected bool $cancel = false;
+
+    /**
+     * @param string $name
+     * @param array  $context
+     */
+    public function __construct(string $name, array $context = [])
+    {
+        $this->name          = $name;
+        $this->context       = $context;
+        $this->timestamp     = microtime(true);
+        $this->correlationId = uniqid('event_', true);
+    }
+
+    /**
+     * @return string
+     */
+    public function getName(): string
+    {
+        return $this->name;
+    }
+
+    /**
+     * @return float
+     */
+    public function getTimestamp(): float
+    {
+        return $this->timestamp;
+    }
+
+    /**
+     * @return array
+     */
+    public function getContext(): array
+    {
+        return $this->context;
+    }
+
+    /**
+     * @return string|null
+     */
+    public function getCorrelationId(): string|null
+    {
+        return $this->correlationId;
+    }
+
+    /**
+     * @param array $context
+     *
+     * @return $this
+     */
+    public function withContext(array $context): Event
+    {
+        $this->context = array_merge($this->context, $context);
+        return $this;
+    }
+
+    /**
+     * @return bool
+     */
+    public function handle(): bool
+    {
+        if ($this->isCancel()) {
+            return false;
+        }
+        return true;
+    }
+
+    /**
+     * @return bool
+     */
+    public function isCancel(): bool
+    {
+        return $this->cancel;
+    }
+
+    /**
+     * @return void
+     */
+    public function cancel(): void
+    {
+        $this->cancel = true;
+    }
 }

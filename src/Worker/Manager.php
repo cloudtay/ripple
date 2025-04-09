@@ -43,7 +43,7 @@ class Manager
     protected int $processID;
 
     /**
-     * @param \Ripple\Worker\Worker $worker
+     * @param Worker $worker
      *
      * @return void
      */
@@ -58,7 +58,7 @@ class Manager
     }
 
     /**
-     * @return \Ripple\Worker\Worker[]
+     * @return Worker[]
      */
     public function getWorkers(): array
     {
@@ -149,7 +149,7 @@ class Manager
     }
 
     /**
-     * @param \Ripple\Worker\Command $command
+     * @param Command $command
      * @param string|null            $name
      * @param int|null $index
      *
@@ -260,7 +260,7 @@ class Manager
     /**
      * @param string $name
      *
-     * @return \Ripple\Worker\Worker|null
+     * @return Worker|null
      */
     public function get(string $name): Worker|null
     {

@@ -52,7 +52,7 @@ class Parallel extends Support
     /*** @var string */
     private string $autoloadFile;
 
-    /*** @var \Ripple\Channel\Channel */
+    /*** @var Channel */
     private Channel $channel;
 
     /*** @var Events */
@@ -86,7 +86,7 @@ class Parallel extends Support
     /**
      * @param bool $owner
      *
-     * @return \Ripple\Channel\Channel
+     * @return Channel
      */
     public static function openScalarChannel(bool $owner = false): Channel
     {

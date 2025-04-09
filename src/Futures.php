@@ -13,6 +13,7 @@
 namespace Ripple;
 
 use Iterator;
+use Ripple\Coroutine\Context;
 use Ripple\Coroutine\Coroutine;
 use Throwable;
 
@@ -28,10 +29,10 @@ class Futures implements Iterator
     /*** @var array */
     protected array $results = [];
 
-    /*** @var \Ripple\Coroutine\Context[] */
+    /*** @var Context[] */
     protected array $waiters = [];
 
-    /*** @param \Ripple\Promise[] $promises */
+    /*** @param Promise[] $promises */
     public function __construct(protected readonly array $promises)
     {
         foreach ($promises as $promise) {

@@ -14,7 +14,6 @@ namespace Ripple;
 
 use Closure;
 use Ripple\Coroutine\Exception\Exception;
-use Ripple\File\File;
 use Ripple\Stream\Exception\ConnectionException;
 use RuntimeException;
 use Throwable;
@@ -39,14 +38,8 @@ use function stream_socket_client;
 use function stream_socket_enable_crypto;
 use function stream_socket_get_name;
 use function stream_socket_server;
-use function strlen;
-use function substr;
-use function sys_get_temp_dir;
-use function uniqid;
 use function unlink;
 
-use const SO_SNDLOWAT;
-use const SOL_SOCKET;
 use const STREAM_CLIENT_ASYNC_CONNECT;
 use const STREAM_CLIENT_CONNECT;
 use const STREAM_CRYPTO_METHOD_SSLv23_CLIENT;
@@ -120,7 +113,7 @@ class Socket extends Stream
      * @param mixed|null $context
      *
      * @return Socket
-     * @throws \Ripple\Stream\Exception\ConnectionException
+     * @throws ConnectionException
      */
     public static function connectWithSSL(string $address, int|float $timeout = 0, mixed $context = null): Socket
     {
@@ -140,26 +133,27 @@ class Socket extends Stream
      */
     public static function connect(string $address, int|float $timeout = 0, mixed $context = null): Socket
     {
+        $connection = @stream_socket_client(
+            $address,
+            $_,
+            $_,
+            $timeout,
+            STREAM_CLIENT_ASYNC_CONNECT | STREAM_CLIENT_CONNECT,
+            $context
+        );
+
+        if (!$connection) {
+            throw (new ConnectionException('Failed to connect to the server.', ConnectionException::CONNECTION_ERROR));
+        }
+
+        $stream = new static($connection, $address);
         try {
-            $connection = @stream_socket_client(
-                $address,
-                $_,
-                $_,
-                $timeout,
-                STREAM_CLIENT_ASYNC_CONNECT | STREAM_CLIENT_CONNECT,
-                $context
-            );
-
-            if (!$connection) {
-                throw (new ConnectionException('Failed to connect to the server.', ConnectionException::CONNECTION_ERROR));
-            }
-
-            $stream = new static($connection, $address);
             $stream->waitForWriteable($timeout);
             $stream->cancelWriteable();
             return $stream;
-        } catch (Throwable $exception) {
-            throw new ConnectionException('Failed to connect to the server.', ConnectionException::CONNECTION_ERROR, $exception);
+        } catch (Throwable $e) {
+            $stream->close();
+            throw new ConnectionException($e->getMessage());
         }
     }
 
@@ -168,7 +162,7 @@ class Socket extends Stream
      * @param int|null  $cryptoMethod
      *
      * @return Socket
-     * @throws \Ripple\Stream\Exception\ConnectionException
+     * @throws ConnectionException
      */
     public function enableSSL(
         int|float $timeout = 0,
@@ -181,7 +175,8 @@ class Socket extends Stream
             return promise(function (Closure $resolve, Closure $reject, Promise $promise) use ($cryptoMethod, $timeout) {
                 $stream = $this;
                 if ($timeout > 0) {
-                    $timeoutEventID = delay(static function () use ($reject) {
+                    $timeoutEventID = delay(function () use ($reject) {
+                        $this->close();
                         $reject(new ConnectionException('SSL handshake timeout.', ConnectionException::CONNECTION_TIMEOUT));
                     }, $timeout);
                     $promise->finally(static fn () => cancel($timeoutEventID));
@@ -233,6 +228,7 @@ class Socket extends Stream
                 }
             })->await();
         } catch (Throwable $exception) {
+            // ConnectionException
             throw new ConnectionException('Failed to enable SSL.', ConnectionException::CONNECTION_CRYPTO, $exception);
         }
     }
@@ -330,7 +326,7 @@ class Socket extends Stream
      * @param bool   $wait
      *
      * @return int
-     * @throws \Ripple\Stream\Exception\ConnectionException
+     * @throws ConnectionException
      * @deprecated
      */
     public function writeInternal(string $string, bool $wait = true): int

@@ -66,7 +66,7 @@ function async(Closure $closure): Promise
  * If the rejected value is a non-Error object, it will be wrapped into a `PromiseRejectException` object,
  * The `getReason` method of this object can obtain the rejected value
  *
- * @param \Ripple\Promise $promise
+ * @param Promise $promise
  *
  * @return mixed
  * @throws Throwable
@@ -152,7 +152,7 @@ function defer(Closure $closure): void
  * @param Closure $closure
  * @param array   $argv
  *
- * @return \Ripple\Parallel\Future
+ * @return Future
  */
 function thread(Closure $closure, array $argv = []): Future
 {
@@ -252,7 +252,7 @@ function getContext(): Context
  * @param string $name
  * @param bool $owner
  *
- * @return \Ripple\Channel\Channel
+ * @return Channel
  */
 function channel(string $name, bool $owner = false): Channel
 {
@@ -262,7 +262,7 @@ function channel(string $name, bool $owner = false): Channel
 /**
  * @param string $name
  *
- * @return \Ripple\File\Lock
+ * @return Lock
  */
 function lock(string $name): Lock
 {
@@ -272,7 +272,7 @@ function lock(string $name): Lock
 /**
  * @param string|array $entrance
  *
- * @return \Ripple\Proc\Session|false
+ * @return Session|false
  */
 function proc(string|array $entrance = '/bin/sh'): Session|false
 {
@@ -282,7 +282,7 @@ function proc(string|array $entrance = '/bin/sh'): Session|false
 /**
  * @param Closure $closure
  *
- * @return \Ripple\Process\Task
+ * @return Task
  */
 function process(Closure $closure): Task
 {

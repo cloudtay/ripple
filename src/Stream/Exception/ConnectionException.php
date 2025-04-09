@@ -32,13 +32,11 @@ class ConnectionException extends Exception
     public const           CONNECTION_CRYPTO         = 256;
 
     public function __construct(
-        string               $message = "",
-        int                  $code = 0,
-        Throwable|null       $previous = null,
-        StreamInterface|null $stream = null,
-        bool                 $close = true
+        public $message = "",
+        public $code = 0,
+        public readonly Throwable|null       $previous = null,
+        public readonly StreamInterface|null $stream = null,
     ) {
         parent::__construct($message, $code, $previous);
-        $close && $stream?->close();
     }
 }

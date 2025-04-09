@@ -40,7 +40,7 @@ abstract class Worker extends WorkerContext
      */
     protected Zx7e $zx7e;
 
-    /*** @var \Ripple\Socket */
+    /*** @var Socket */
     protected Socket $parentSocket;
 
     /*** @var array */
@@ -52,7 +52,7 @@ abstract class Worker extends WorkerContext
     /**
      * Use the worker to send commands to other workers
      *
-     * @param \Ripple\Worker\Command $command
+     * @param Command $command
      * @param string|null            $name
      * @param int|null               $index
      *
@@ -141,7 +141,7 @@ abstract class Worker extends WorkerContext
     }
 
     /**
-     * @param \Ripple\Socket $parentStream
+     * @param Socket $parentStream
      * @param int            $index
      *
      * @return void

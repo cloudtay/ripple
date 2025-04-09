@@ -26,7 +26,7 @@ class Proc
     /**
      * @param string|array $entrance
      *
-     * @return \Ripple\Proc\Future
+     * @return Future
      */
     public static function exec(string|array $entrance = '/bin/sh'): Future
     {

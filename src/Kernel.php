@@ -18,6 +18,8 @@ use Revolt\EventLoop;
 use Revolt\EventLoop\UnsupportedFeatureException;
 use Ripple\Coroutine\Context;
 use Ripple\Coroutine\Coroutine;
+use Ripple\Coroutine\Event\EventTracer;
+use Ripple\Coroutine\Events\DeferEvent;
 use Ripple\Coroutine\SuspensionProxy;
 use Ripple\Process\Process;
 use Throwable;
@@ -43,7 +45,7 @@ class Kernel
     /*** @var Kernel */
     public static Kernel $instance;
 
-    /*** @var \Ripple\Coroutine\Context */
+    /*** @var Context */
     private Context $mainContext;
 
     /*** @var bool */
@@ -174,7 +176,7 @@ class Kernel
         }
 
         /*** compatibility */
-        $context instanceof Context && $context->defer($closure);
+        $context instanceof Context && EventTracer::getInstance()->trace(new DeferEvent($closure, $context));
     }
 
     /**

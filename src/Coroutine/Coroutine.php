@@ -16,16 +16,19 @@ use Closure;
 use Fiber;
 use JetBrains\PhpStorm\NoReturn;
 use Revolt\EventLoop;
-use Ripple\Coroutine\Events\EndEvent;
+use Ripple\Coroutine\Event\Event;
+use Ripple\Coroutine\Event\EventDispatcher;
+use Ripple\Coroutine\Event\EventTracer;
+use Ripple\Coroutine\Events\CompleteEvent;
+use Ripple\Coroutine\Events\DeferEvent;
 use Ripple\Coroutine\Events\ErrorEvent;
+use Ripple\Coroutine\Events\FinallyEvent;
 use Ripple\Coroutine\Events\ResumeEvent;
 use Ripple\Coroutine\Events\StartEvent;
 use Ripple\Coroutine\Events\SuspendEvent;
-use Ripple\Coroutine\Events\TerminateEvent;
 use Ripple\Coroutine\Exception\EscapeException;
 use Ripple\Coroutine\Exception\PromiseRejectException;
 use Ripple\Coroutine\Exception\TerminateException;
-use Ripple\Event\Event;
 use Ripple\Process\Process;
 use Ripple\Promise;
 use Ripple\Support;
@@ -33,15 +36,14 @@ use Ripple\Utils\Output;
 use Throwable;
 use WeakReference;
 use WeakMap;
-use Ripple\Event\EventDispatcher;
-use Ripple\Event\EventTracer;
 
 use function Co\delay;
 use function Co\forked;
 use function Co\getContext;
-use function array_shift;
 use function Co\go;
 use function gc_collect_cycles;
+use function spl_object_hash;
+use function array_pop;
 
 class Coroutine extends Support
 {
@@ -51,11 +53,14 @@ class Coroutine extends Support
     /*** @var WeakMap<object,WeakReference<Context>> */
     private WeakMap $fiber2context;
 
-    /*** @var \Ripple\Event\EventDispatcher */
+    /*** @var EventDispatcher */
     private EventDispatcher $dispatcher;
 
-    /*** @var \Ripple\Event\EventTracer */
+    /*** @var EventTracer */
     private EventTracer $tracer;
+
+    /*** @var array */
+    private array $defers = [];
 
     /**
      *
@@ -66,6 +71,23 @@ class Coroutine extends Support
         $this->fiber2context = new WeakMap();
         $this->dispatcher    = EventDispatcher::getInstance();
         $this->tracer        = EventTracer::getInstance();
+
+        $this->dispatcher->addListener('coroutine.start', function (StartEvent $event) {
+            $this->defers[spl_object_hash($event->coroutineContext)] = [];
+        });
+
+        $this->dispatcher->addListener('coroutine.finally', function (FinallyEvent $event) {
+            /*** @var DeferEvent $defer */
+            while ($defer = array_pop($this->defers[spl_object_hash($event->coroutineContext)])) {
+                $defer->handle();
+            }
+
+            unset($this->defers[spl_object_hash($event->coroutineContext)]);
+        });
+
+        $this->dispatcher->addListener('coroutine.defer', function (DeferEvent $event) {
+            $this->defers[spl_object_hash($event->coroutineContext)][] = $event;
+        });
     }
 
     /**
@@ -126,10 +148,7 @@ class Coroutine extends Support
             Coroutine::getInstance()->handleEscapeException($exception);
         } finally {
             gc_collect_cycles();
-
-            while ($event = array_shift($context->eventQueue)) {
-                Coroutine::getInstance()->dispatchEvent($event);
-            }
+            $context->isTerminate && throw new TerminateException();
         }
 
         return $result;
@@ -173,7 +192,7 @@ class Coroutine extends Support
     /**
      * @param Closure $closure
      *
-     * @return \Ripple\Coroutine\Context
+     * @return Context
      */
     public function go(Closure $closure): Context
     {
@@ -183,26 +202,21 @@ class Coroutine extends Support
             Context::extend($parentContext);
 
             try {
-                $fiber = Fiber::getCurrent();
-                $this->dispatchEvent(new StartEvent($fiber));
-
+                $this->dispatchEvent(new StartEvent($context));
                 $result = $closure();
+                $this->dispatchEvent(new CompleteEvent($context, $result));
 
-                $this->dispatchEvent(new EndEvent($fiber, $result));
             } catch (EscapeException $exception) {
-                $fiber = Fiber::getCurrent();
-
-                $this->dispatchEvent(new ErrorEvent($fiber, $exception));
                 throw $exception;
-            } catch (Throwable $exception) {
-                $fiber = Fiber::getCurrent();
 
-                $this->dispatchEvent(new ErrorEvent($fiber, $exception));
+            } catch (Throwable $exception) {
+                $this->dispatchEvent(new ErrorEvent($context, $exception));
+
             } finally {
+                $this->dispatchEvent(new FinallyEvent($context));
+
                 Context::clear();
                 $this->tracer->clear($context);
-
-                $this->processDefers($context);
             }
         });
 
@@ -272,7 +286,7 @@ class Coroutine extends Support
     }
 
     /**
-     * @return \Ripple\Coroutine\Context
+     * @return Context
      */
     public function getContext(): Context
     {
@@ -281,7 +295,6 @@ class Coroutine extends Support
         }
         return ($this->fiber2context[$fiber] ?? null)?->get() ?? new SuspensionProxy(EventLoop::getSuspension());
     }
-
 
     /**
      * @param EscapeException $exception
@@ -293,7 +306,6 @@ class Coroutine extends Support
     {
         Process::getInstance()->processedInMain($exception->lastWords);
     }
-
 
     /**
      * @param int|float $second
@@ -309,26 +321,12 @@ class Coroutine extends Support
     }
 
     /**
-     * @param \Ripple\Coroutine\Context $context
-     *
-     * @return void
-     */
-    private function processDefers(Context $context): void
-    {
-        $context->processDefers();
-    }
-
-    /**
-     * @param \Ripple\Event\Event $event
+     * @param Event $event
      *
      * @return void
      */
     protected function dispatchEvent(Event $event): void
     {
         $this->tracer->trace($event);
-        if ($event instanceof TerminateEvent) {
-            throw new TerminateException($event);
-        }
-        $this->dispatcher->dispatch($event);
     }
 }

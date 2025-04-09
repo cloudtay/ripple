@@ -63,7 +63,7 @@ abstract class WorkerContext
     /*** @var bool */
     private bool $terminated = false;
 
-    /*** @var \Ripple\Worker\Manager */
+    /*** @var Manager */
     private Manager $manager;
 
     /*** @var array */
@@ -177,7 +177,7 @@ abstract class WorkerContext
     }
 
     /**
-     * @param \Ripple\Socket $parentStream
+     * @param Socket $parentStream
      * @param int            $index
      *
      * @return void

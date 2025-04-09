@@ -43,7 +43,7 @@ class Future
 
     /**
      * @param \parallel\Future  $parallelFuture
-     * @param \parallel\Runtime $runtime
+     * @param Runtime $runtime
      */
     public function __construct(private readonly \parallel\Future $parallelFuture, private readonly Runtime $runtime)
     {
@@ -139,7 +139,7 @@ class Future
     }
 
     /**
-     * @return \parallel\Runtime
+     * @return Runtime
      */
     public function getRuntime(): Runtime
     {

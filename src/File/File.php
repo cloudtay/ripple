@@ -111,7 +111,7 @@ class File extends Support
     }
 
     /**
-     * @return \Ripple\File\Monitor
+     * @return Monitor
      */
     public function monitor(): Monitor
     {

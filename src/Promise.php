@@ -152,7 +152,7 @@ class Promise
      *
      * @param Promise[] $promises
      *
-     * @return \Ripple\Promise
+     * @return Promise
      */
     public static function all(array $promises): Promise
     {
@@ -232,7 +232,7 @@ class Promise
      *
      * @param Promise[] $promises
      *
-     * @return \Ripple\Promise
+     * @return Promise
      */
     public static function allSettled(array $promises): Promise
     {
@@ -367,7 +367,7 @@ class Promise
     /**
      * @param array $promises
      *
-     * @return \Ripple\Futures
+     * @return Futures
      */
     public static function futures(array $promises): Futures
     {

@@ -18,7 +18,7 @@ use Throwable;
 
 class Future
 {
-    /*** @var \Ripple\Promise */
+    /*** @var Promise */
     protected Promise $promise;
 
     /*** @var string */
@@ -31,7 +31,7 @@ class Future
     protected string $error;
 
     /***
-     * @param \Ripple\Proc\Session $session
+     * @param Session $session
      */
     public function __construct(protected readonly Session $session)
     {
@@ -97,7 +97,7 @@ class Future
     }
 
     /**
-     * @return \Ripple\Promise
+     * @return Promise
      */
     public function getPromise(): Promise
     {
@@ -105,7 +105,7 @@ class Future
     }
 
     /**
-     * @return \Ripple\Proc\Session
+     * @return Session
      */
     public function getSession(): Session
     {

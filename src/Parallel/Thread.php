@@ -34,9 +34,9 @@ class Thread
     }
 
     /**
-     * @param \parallel\Runtime $runtime
+     * @param Runtime $runtime
      *
-     * @return \Ripple\Parallel\Future
+     * @return Future
      */
     public function __invoke(Runtime $runtime): Future
     {

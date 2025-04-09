@@ -10,27 +10,22 @@
  * Contributions, suggestions, and feedback are always welcome!
  */
 
-namespace Ripple\Event;
+namespace Ripple\Coroutine\Event;
 
 use Ripple\Utils\Output;
 use Throwable;
 use Closure;
 
-use function Co\go;
 use function uasort;
 use function uniqid;
 use function gc_collect_cycles;
 
 class EventDispatcher
 {
-    /**
-     * @var EventDispatcher|null
-     */
+    /*** @var EventDispatcher|null */
     private static EventDispatcher|null $instance = null;
 
-    /**
-     * @var array<string,array<callable>>
-     */
+    /*** @var array<string,array<callable>> */
     private array $listeners = [];
 
     /**
@@ -98,12 +93,12 @@ class EventDispatcher
         }
 
         foreach ($this->listeners[$eventName] as $listener) {
-            if ($event->isPropagationStopped()) {
+            if ($event->isCancel()) {
                 break;
             }
 
             try {
-                go($listener['callable'])($event);
+                $listener['callable']($event);
             } catch (Throwable $e) {
                 Output::error($e->getMessage());
             }
