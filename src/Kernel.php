@@ -23,6 +23,7 @@ use Ripple\Coroutine\Events\DeferEvent;
 use Ripple\Coroutine\SuspensionProxy;
 use Ripple\Process\Process;
 use Throwable;
+use EventBase;
 
 use function call_user_func;
 use function Co\async;
@@ -35,6 +36,7 @@ use function fopen;
 use function ini_set;
 use function getmygid;
 use function posix_getpid;
+use function class_exists;
 
 /**
  * @Author cclilshy
@@ -57,6 +59,12 @@ class Kernel
     /*** @var bool */
     private bool $mainRunning = true;
 
+    /*** @var string */
+    private string $libEventMethod;
+
+    /**
+     *
+     */
     public function __construct()
     {
         ini_set('memory_limit', -1);
@@ -65,6 +73,9 @@ class Kernel
         $this->parallel       = extension_loaded('parallel');
         $this->processControl = extension_loaded('pcntl') && extension_loaded('posix');
         $this->defineConstants();
+        if (class_exists(EventBase::class)) {
+            $this->libEventMethod = (new EventBase())->getMethod();
+        }
     }
 
     /**
@@ -277,5 +288,16 @@ class Kernel
     public function supportProcessControl(): bool
     {
         return $this->processControl;
+    }
+
+    /**
+     * @return string|null
+     */
+    public function getLibEventMethod(): string|null
+    {
+        if (!isset($this->libEventMethod)) {
+            return null;
+        }
+        return $this->libEventMethod;
     }
 }

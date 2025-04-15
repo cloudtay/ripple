@@ -12,16 +12,18 @@
 
 namespace Ripple\File;
 
-use Closure;
+use Ripple\Coroutine;
 use Ripple\File\Exception\FileException;
+use Ripple\Kernel;
 use Ripple\Stream;
 use Ripple\Support;
 use Throwable;
 
 use function array_shift;
 use function Co\forked;
-use function Co\promise;
+use function Co\getContext;
 use function fopen;
+use function file_get_contents;
 
 /**
  * @Author cclilshy
@@ -56,44 +58,37 @@ class File extends Support
     /**
      * @param string $path
      *
-     * @return string
+     * @return string|false
      * @throws FileException
      */
-    public static function getContents(string $path): string
+    public static function getContents(string $path): string|false
     {
+        if (Kernel::getInstance()->getLibEventMethod() === 'epoll') {
+            return file_get_contents($path);
+        }
+
         try {
-            return promise(static function (Closure $resolve, Closure $reject) use ($path) {
-                if (!$resource = fopen($path, 'r')) {
-                    $reject(new FileException('Failed to open file: ' . $path));
-                    return;
+            if (!$resource = fopen($path, 'r')) {
+                throw (new FileException('Failed to open file: ' . $path));
+            }
+
+            $stream = new Stream($resource);
+            $stream->setBlocking(false);
+            $content = '';
+            $context = getContext();
+            $stream->onReadable(static function (Stream $stream) use (&$content, $context) {
+                $fragment = '';
+                while ($buffer = $stream->read(8192)) {
+                    $fragment .= $buffer;
                 }
 
-                $stream = new Stream($resource);
-                $stream->setBlocking(false);
-                $content = '';
-
-                $stream->onReadable(static function (Stream $stream) use ($resolve, $reject, &$content) {
-                    $fragment = '';
-                    while ($buffer = $stream->read(8192)) {
-                        $fragment .= $buffer;
-                    }
-
-                    if ($fragment === '') {
-                        if ($stream->eof()) {
-                            $stream->close();
-                            $resolve($content);
-                        }
-                        return;
-                    }
-
-                    $content .= $fragment;
-
-                    if ($stream->eof()) {
-                        $stream->close();
-                        $resolve($content);
-                    }
-                });
-            })->await();
+                $content .= $fragment;
+                if ($stream->eof()) {
+                    $stream->close();
+                    Coroutine::resume($context, $content);
+                }
+            });
+            return Coroutine::suspend();
         } catch (Throwable $exception) {
             throw new FileException($exception->getMessage());
         }
