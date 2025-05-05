@@ -36,6 +36,7 @@ class ContextData
         $hash = Context::getHash();
         if (is_array($key)) {
             ContextData::$context[$hash] = array_merge(ContextData::$context[$hash] ?? [], $key);
+            return;
         }
 
         ContextData::$context[$hash][$key] = $value;
