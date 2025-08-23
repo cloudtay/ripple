@@ -66,9 +66,6 @@ abstract class WorkerContext
     /*** @var Manager */
     private Manager $manager;
 
-    /*** @var array */
-    private array $restartAttempts = [];
-
     /**
      * @Context  manager
      * @Author   cclilshy
@@ -217,17 +214,8 @@ abstract class WorkerContext
 
         // Restart the process
         if (!$this->terminated) {
-            $this->restartAttempts[$index] = ($this->restartAttempts[$index] ?? 0) + 1;
-
-            if ($this->restartAttempts[$index] > WorkerContext::MAX_RESTART_ATTEMPTS) {
-                Output::warning('Worker process has exited too many times, please check the code.');
-                return;
-            }
-
-            $delay = min(0.1 * pow(2, $this->restartAttempts[$index] - 1), 30);
-            delay(function () use ($index) {
-                $this->guard($index);
-            }, $delay);
+            \Co\sleep(1);
+            $this->guard($index);
         }
     }
 

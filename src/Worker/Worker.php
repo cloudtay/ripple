@@ -101,7 +101,7 @@ abstract class Worker extends WorkerContext
      * @Date   2024/8/17 17:32
      * @return int|false
      */
-    protected function getSyncID(): int|false
+    final public function getSyncID(): int|false
     {
         try {
             return promise(function (Closure $resolve, Closure $reject) {
@@ -122,7 +122,7 @@ abstract class Worker extends WorkerContext
     /**
      * @return array|false
      */
-    protected function getManagerMateData(): array|false
+    final public function getManagerMateData(): array|false
     {
         try {
             return promise(function (Closure $resolve, Closure $reject) {
