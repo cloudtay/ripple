@@ -51,12 +51,12 @@ class Stream implements StreamInterface
     }
 
     /**
-     * @param int|null $length
+     * @param int $length
      *
      * @return string
      * @throws ConnectionException
      */
-    public function read(int|null $length): string
+    public function read(int $length): string
     {
         $content = @fread($this->stream, $length);
         if ($content === false) {

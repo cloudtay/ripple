@@ -27,7 +27,7 @@ $worker  = new class () extends Ripple\Worker\Worker {
     }
 
     /**
-     * @param \Ripple\Worker\Manager $manager
+     * @param Manager $manager
      *
      * @return void
      */
@@ -37,7 +37,7 @@ $worker  = new class () extends Ripple\Worker\Worker {
     }
 
     /**
-     * @param \Ripple\Worker\Command $command
+     * @param Command $command
      *
      * @return void
      */
@@ -71,7 +71,7 @@ $worker2 = new class () extends Ripple\Worker\Worker {
     }
 
     /**
-     * @param \Ripple\Worker\Manager $manager
+     * @param Manager $manager
      *
      * @return void
      */

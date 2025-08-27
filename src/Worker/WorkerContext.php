@@ -43,11 +43,6 @@ abstract class WorkerContext
     public const COMMAND_TERMINATE = '__worker__.terminate';
     public const COMMAND_SYNC_ID   = '__worker__.sync.id';
 
-    /**
-     *
-     */
-    private const MAX_RESTART_ATTEMPTS = 10;
-
     /*** @var string */
     protected string $name;
 
