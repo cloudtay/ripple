@@ -16,25 +16,19 @@ use Psr\Http\Message\StreamInterface;
 use Throwable;
 
 /**
- * 应用层连接异常基类
+ * 框架内部异常 - 用于内部控制流
  * 
- * 此异常及其子类用于表示应用层可以捕获和处理的连接相关错误。
- * 如超时、连接被拒绝、握手失败等用户代码可以合理处理的情况。
- * 
- * 注意：底层 I/O 失败（如 read/write 失败）使用 StreamInternalException，
- * 不应被应用层捕获，而应穿透到框架的兜底处理区域。
+ * 警告：此异常用于框架内部控制流，应用代码不应捕获此异常！
+ * 当底层 I/O 操作失败时，此异常会穿透作用域到框架的兜底区域进行连接清理。
  * 
  * @Author cclilshy
  * @Date   2024/8/16 09:37
  */
-class ConnectionException extends Exception
+final class StreamInternalException extends Exception
 {
-    public const           CONNECTION_CLOSED         = 2;
-    public const           CONNECTION_TIMEOUT        = 4;
-    public const           CONNECTION_HANDSHAKE_FAIL = 32;
-    public const           CONNECTION_ACCEPT_FAIL    = 64;
-    public const           ERROR_ILLEGAL_CONTENT     = 128;
-    public const           CONNECTION_CRYPTO         = 256;
+    public const CONNECTION_ERROR      = 1;
+    public const CONNECTION_READ_FAIL  = 16;
+    public const CONNECTION_WRITE_FAIL = 8;
 
     public function __construct(
         public $message = "",

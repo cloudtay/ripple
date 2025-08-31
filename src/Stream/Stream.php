@@ -13,6 +13,7 @@
 namespace Ripple\Stream;
 
 use Ripple\Stream\Exception\ConnectionException;
+use Ripple\Stream\Exception\StreamInternalException;
 
 use function fclose;
 use function feof;
@@ -54,14 +55,14 @@ class Stream implements StreamInterface
      * @param int $length
      *
      * @return string
-     * @throws ConnectionException
+     * @throws StreamInternalException
      */
     public function read(int $length): string
     {
         $content = @fread($this->stream, $length);
         if ($content === false) {
             $this->close();
-            throw new ConnectionException('Unable to read from stream', ConnectionException::CONNECTION_READ_FAIL);
+            throw new StreamInternalException('Unable to read from stream', StreamInternalException::CONNECTION_READ_FAIL);
         }
         return $content;
     }
@@ -81,14 +82,14 @@ class Stream implements StreamInterface
      * @param string $string
      *
      * @return int
-     * @throws ConnectionException
+     * @throws StreamInternalException
      */
     public function write(string $string): int
     {
         $result = @fwrite($this->stream, $string);
         if ($result === false) {
             $this->close();
-            throw new ConnectionException('Unable to write to stream', ConnectionException::CONNECTION_WRITE_FAIL);
+            throw new StreamInternalException('Unable to write to stream', StreamInternalException::CONNECTION_WRITE_FAIL);
         }
         return $result;
     }

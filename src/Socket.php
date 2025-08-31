@@ -15,6 +15,8 @@ namespace Ripple;
 use Closure;
 use Ripple\Coroutine\Exception\Exception;
 use Ripple\Stream\Exception\ConnectionException;
+use Ripple\Stream\Exception\ConnectionHandshakeException;
+use Ripple\Stream\Exception\StreamInternalException;
 use RuntimeException;
 use Throwable;
 
@@ -143,7 +145,7 @@ class Socket extends Stream
         );
 
         if (!$connection) {
-            throw (new ConnectionException('Failed to connect to the server.', ConnectionException::CONNECTION_ERROR));
+            throw (new StreamInternalException('Failed to connect to the server.', StreamInternalException::CONNECTION_ERROR));
         }
 
         $stream = new static($connection, $address);
@@ -153,7 +155,7 @@ class Socket extends Stream
             return $stream;
         } catch (Throwable $e) {
             $stream->close();
-            throw new ConnectionException($e->getMessage());
+            throw new StreamInternalException($e->getMessage());
         }
     }
 
@@ -177,7 +179,7 @@ class Socket extends Stream
                 if ($timeout > 0) {
                     $timeoutEventID = delay(function () use ($reject) {
                         $this->close();
-                        $reject(new ConnectionException('SSL handshake timeout.', ConnectionException::CONNECTION_TIMEOUT));
+                        $reject(new ConnectionHandshakeException('SSL handshake timeout.'));
                     }, $timeout);
                     $promise->finally(static fn () => cancel($timeoutEventID));
                 }
@@ -190,7 +192,7 @@ class Socket extends Stream
 
                 if ($handshakeResult === false) {
                     $stream->close();
-                    $reject(new ConnectionException('Failed to enable crypto.', ConnectionException::CONNECTION_CRYPTO));
+                    $reject(new ConnectionHandshakeException('Failed to enable crypto.'));
                     return;
                 }
 
@@ -229,7 +231,7 @@ class Socket extends Stream
             })->await();
         } catch (Throwable $exception) {
             // ConnectionException
-            throw new ConnectionException('Failed to enable SSL.', ConnectionException::CONNECTION_CRYPTO, $exception);
+            throw new ConnectionHandshakeException('Failed to enable SSL.', $exception);
         }
     }
 
@@ -293,14 +295,14 @@ class Socket extends Stream
      * @param int|null $flags
      *
      * @return int
-     * @throws ConnectionException
+     * @throws StreamInternalException
      */
     public function receive(int $length, mixed &$target, int|null $flags = 0): int
     {
         $realLength = socket_recv($this->socket, $target, $length, $flags);
         if ($realLength === false) {
             $this->close();
-            throw new ConnectionException('Unable to read from stream', ConnectionException::CONNECTION_READ_FAIL);
+            throw new StreamInternalException('Unable to read from stream', StreamInternalException::CONNECTION_READ_FAIL);
         }
         return $realLength;
     }
@@ -309,7 +311,7 @@ class Socket extends Stream
      * @param string $string
      *
      * @return int
-     * @throws ConnectionException
+     * @throws StreamInternalException
      */
     public function write(string $string): int
     {
@@ -317,7 +319,7 @@ class Socket extends Stream
             return $this->writeInternal($string);
         } catch (Throwable $exception) {
             $this->close();
-            throw new ConnectionException($exception->getMessage(), ConnectionException::CONNECTION_WRITE_FAIL);
+            throw new StreamInternalException($exception->getMessage(), StreamInternalException::CONNECTION_WRITE_FAIL);
         }
     }
 
@@ -326,7 +328,7 @@ class Socket extends Stream
      * @param bool   $wait
      *
      * @return int
-     * @throws ConnectionException
+     * @throws StreamInternalException
      * @deprecated
      */
     public function writeInternal(string $string, bool $wait = true): int

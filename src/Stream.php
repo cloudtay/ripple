@@ -18,6 +18,7 @@ use Ripple\Coroutine\Context;
 use Ripple\Coroutine\Coroutine;
 use Ripple\Stream\Exception\ConnectionCloseException;
 use Ripple\Stream\Exception\ConnectionException;
+use Ripple\Stream\Exception\StreamInternalException;
 use Ripple\Stream\Exception\ConnectionTimeoutException;
 use Ripple\Stream\Stream as StreamBase;
 use Ripple\Utils\Format;
@@ -366,7 +367,7 @@ class Stream extends StreamBase
             return strlen($string);
         } catch (Throwable) {
             $this->close();
-            throw new ConnectionException('Unable to write to stream', ConnectionException::CONNECTION_WRITE_FAIL);
+            throw new StreamInternalException('Unable to write to stream', StreamInternalException::CONNECTION_WRITE_FAIL);
         }
     }
 
@@ -420,7 +421,7 @@ class Stream extends StreamBase
         foreach ($waiters as $waiter) {
             \Ripple\Coroutine::throw(
                 $waiter,
-                new ConnectionException('Unable to write to stream', ConnectionException::CONNECTION_WRITE_FAIL)
+                new StreamInternalException('Unable to write to stream', StreamInternalException::CONNECTION_WRITE_FAIL)
             );
         }
     }

@@ -18,6 +18,7 @@ use Ripple\File\Lock;
 use Ripple\Kernel;
 use Ripple\Stream;
 use Ripple\Stream\Exception\ConnectionException;
+use Ripple\Stream\Exception\StreamInternalException;
 use Ripple\Utils\Path;
 use Ripple\Utils\Serialization\Zx7e;
 use Throwable;
@@ -199,6 +200,10 @@ class Channel
                         $this->stream->close();
                         throw new ConnectionException('Failed to read frame header.');
                     }
+                } catch (StreamInternalException $e) {
+                    // 内部异常转换为应用层异常
+                    $this->readLock->unlock();
+                    throw new ConnectionException('Connection lost while reading frame header.', 0, $e);
                 } catch (ConnectionException) {
                     $this->readLock->unlock();
                 }
