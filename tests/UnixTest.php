@@ -5,7 +5,7 @@ namespace Tests;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 use Ripple\Socket;
-use Ripple\Stream\Exception\ConnectionException;
+use Ripple\Stream\Exception\TransportException;
 use Ripple\Utils\Output;
 use Throwable;
 
@@ -47,7 +47,7 @@ class UnixTest extends TestCase
         defer(function () use ($path) {
             try {
                 $this->call($path);
-            } catch (ConnectionException $exception) {
+            } catch (TransportException $exception) {
                 Output::error($exception->getMessage());
             }
         });

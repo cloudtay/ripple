@@ -12,18 +12,11 @@
 
 namespace Ripple\Stream\Exception;
 
-use Throwable;
+use RuntimeException;
 
 /**
- * Timeout exception that can be handled by user code
- * This represents a recoverable timeout condition
+ * Base exception for all stream-related exceptions that can be handled by user code
  */
-class ConnectionTimeoutException extends TransportTimeoutException
+class StreamException extends RuntimeException
 {
-    public function __construct(
-        string $message = "Connection timeout",
-        ?Throwable $previous = null,
-    ) {
-        parent::__construct($message, 0, $previous);
-    }
 }

@@ -15,7 +15,7 @@ namespace Ripple\Worker;
 use Closure;
 use JetBrains\PhpStorm\NoReturn;
 use Ripple\Socket;
-use Ripple\Stream\Exception\ConnectionException;
+use Ripple\Stream\Exception\TransportException;
 use Ripple\Utils\Output;
 use Ripple\Utils\Serialization\Zx7e;
 use Throwable;
@@ -90,7 +90,7 @@ abstract class Worker extends WorkerContext
     {
         try {
             $this->parentSocket->write($this->zx7e->encodeFrame($command->__toString()));
-        } catch (ConnectionException $exception) {
+        } catch (TransportException $exception) {
             Output::error($exception->getMessage());
 
             // Writing a message to the parent process fails. There is only one possibility that the parent process has exited.

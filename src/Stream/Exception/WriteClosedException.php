@@ -12,18 +12,10 @@
 
 namespace Ripple\Stream\Exception;
 
-use Psr\Http\Message\StreamInterface;
-use Throwable;
-
-class ConnectionCloseException extends ConnectionException
+/**
+ * Exception thrown when attempting to write to a write-closed stream
+ * This is a recoverable exception that indicates the write side has been shut down
+ */
+class WriteClosedException extends TransportException
 {
-    public function __construct(string $message = "", Throwable|null $previous = null, StreamInterface|null $stream = null)
-    {
-        parent::__construct(
-            $message,
-            ConnectionException::CONNECTION_CLOSED,
-            $previous,
-            $stream
-        );
-    }
 }

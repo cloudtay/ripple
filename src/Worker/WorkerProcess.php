@@ -14,7 +14,7 @@ namespace Ripple\Worker;
 
 use Ripple\Process\Runtime;
 use Ripple\Stream;
-use Ripple\Stream\Exception\ConnectionException;
+use Ripple\Stream\Exception\TransportException;
 use Ripple\Utils\Output;
 use Ripple\Utils\Serialization\Zx7e;
 
@@ -71,7 +71,7 @@ class WorkerProcess
         try {
             $this->stream->write($this->zx7e->encodeFrame($command->__toString()));
             return true;
-        } catch (ConnectionException $e) {
+        } catch (TransportException $e) {
             Output::warning($e->getMessage());
             return false;
         }

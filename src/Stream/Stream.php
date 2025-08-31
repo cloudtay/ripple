@@ -61,7 +61,7 @@ class Stream implements StreamInterface
         $content = @fread($this->stream, $length);
         if ($content === false) {
             $this->close();
-            throw new ConnectionException('Unable to read from stream', ConnectionException::CONNECTION_READ_FAIL);
+            throw new ConnectionException(ConnectionAbortReason::RESET, 'Unable to read from stream');
         }
         return $content;
     }
@@ -88,7 +88,7 @@ class Stream implements StreamInterface
         $result = @fwrite($this->stream, $string);
         if ($result === false) {
             $this->close();
-            throw new ConnectionException('Unable to write to stream', ConnectionException::CONNECTION_WRITE_FAIL);
+            throw new ConnectionException(ConnectionAbortReason::WRITE_FAILURE, 'Unable to write to stream');
         }
         return $result;
     }
