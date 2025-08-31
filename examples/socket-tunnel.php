@@ -2,7 +2,7 @@
 
 include __DIR__ . '/../vendor/autoload.php';
 
-use Ripple\Stream\Exception\ConnectionException;
+use Ripple\Stream\Exception\TransportException;
 use Ripple\Tunnel\Socks5;
 use Ripple\Utils\Output;
 
@@ -26,7 +26,7 @@ try {
         }
         echo $data;
     });
-} catch (ConnectionException $e) {
+} catch (TransportException $e) {
     Output::warning($e->getMessage());
     exit(1);
 }
@@ -53,7 +53,7 @@ try {
         }
         echo $data;
     });
-} catch (ConnectionException $e) {
+} catch (TransportException $e) {
     Output::warning($e->getMessage());
     exit(1);
 }

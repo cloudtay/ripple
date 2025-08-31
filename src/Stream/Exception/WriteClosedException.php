@@ -12,18 +12,10 @@
 
 namespace Ripple\Stream\Exception;
 
-use Throwable;
-
 /**
- * Timeout exception that can be handled by user code
- * This represents a recoverable timeout condition
+ * Exception thrown when attempting to write to a write-closed stream
+ * This is a recoverable exception that indicates the write side has been shut down
  */
-class ConnectionTimeoutException extends TransportTimeoutException
+class WriteClosedException extends TransportException
 {
-    public function __construct(
-        string $message = "Connection timeout",
-        ?Throwable $previous = null,
-    ) {
-        parent::__construct($message, 0, $previous);
-    }
 }
