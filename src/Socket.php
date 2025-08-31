@@ -17,6 +17,7 @@ use Ripple\Coroutine\Exception\Exception;
 use Ripple\Stream\ConnectionAbortReason;
 use Ripple\Stream\Exception\ConnectionException;
 use Ripple\Stream\Exception\TransportException;
+use Ripple\Stream\Exception\TransportTimeoutException;
 use RuntimeException;
 use Throwable;
 
@@ -179,7 +180,7 @@ class Socket extends Stream
                 if ($timeout > 0) {
                     $timeoutEventID = delay(function () use ($reject) {
                         $this->close();
-                        $reject(new ConnectionException('SSL handshake timeout.', ConnectionException::CONNECTION_TIMEOUT));
+                        $reject(new TransportTimeoutException('SSL handshake timeout'));
                     }, $timeout);
                     $promise->finally(static fn () => cancel($timeoutEventID));
                 }
@@ -192,7 +193,7 @@ class Socket extends Stream
 
                 if ($handshakeResult === false) {
                     $stream->close();
-                    $reject(new ConnectionException('Failed to enable crypto.', ConnectionException::CONNECTION_CRYPTO));
+                    $reject(new TransportException('Failed to enable crypto'));
                     return;
                 }
 

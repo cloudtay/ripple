@@ -22,8 +22,8 @@ readonly class CloseEvent
         public string $initiator, // 'peer' | 'local' | 'system'
         public ?string $message = null,
         public ?\Throwable $lastError = null,
-        public ?int $timestamp = null
+        public int $timestamp = null
     ) {
-        $this->timestamp ??= time();
+        $this->timestamp = $timestamp ?? time();
     }
 }

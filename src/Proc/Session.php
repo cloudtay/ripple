@@ -14,7 +14,7 @@ namespace Ripple\Proc;
 
 use Closure;
 use Ripple\Kernel;
-use Ripple\Stream\Exception\ConnectionException;
+use Ripple\Stream\Exception\TransportException;
 use Ripple\Utils\Output;
 use Throwable;
 
@@ -209,7 +209,7 @@ class Session
         try {
             $this->streamStdInput->write($content);
             return true;
-        } catch (ConnectionException $exception) {
+        } catch (TransportException $exception) {
             Output::error($exception->getMessage());
             $this->close();
             return false;

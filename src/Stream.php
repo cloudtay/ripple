@@ -33,6 +33,8 @@ use function call_user_func_array;
 use function Co\async;
 use function Co\cancel;
 use function Co\getContext;
+use function feof;
+use function fread;
 use function is_resource;
 use function stream_set_blocking;
 use function get_resource_id;
@@ -169,7 +171,7 @@ class Stream extends StreamBase
         $closeOID = $this->onClose(static function () use ($context) {
             Coroutine::throw(
                 $context,
-                new ConnectionCloseException('Stream has been closed', null)
+                new TransportException('Stream has been closed')
             );
         });
 
@@ -209,7 +211,12 @@ class Stream extends StreamBase
                 $this->cancelReadable();
                 $this->cancelWriteable();
                 parent::close();
-                $this->emitCloseEvent($e->reason, 'system', $e);
+                
+                // Extract reason from ConnectionException if available
+                $reason = ($e instanceof ConnectionException) 
+                    ? $e->reason 
+                    : ConnectionAbortReason::RESET;
+                $this->emitCloseEvent($reason, 'system', $e);
             } catch (Throwable $exception) {
                 Output::error($exception->getMessage());
             }
@@ -418,7 +425,7 @@ class Stream extends StreamBase
         $closeOID = $this->onClose(static function () use ($context) {
             Coroutine::throw(
                 $context,
-                new ConnectionCloseException('Stream has been closed')
+                new TransportException('Stream has been closed')
             );
         });
 
@@ -460,7 +467,12 @@ class Stream extends StreamBase
                 $this->cancelReadable();
                 $this->cancelWriteable();
                 parent::close();
-                $this->emitCloseEvent($e->reason, 'system', $e);
+                
+                // Extract reason from ConnectionException if available
+                $reason = ($e instanceof ConnectionException) 
+                    ? $e->reason 
+                    : ConnectionAbortReason::RESET;
+                $this->emitCloseEvent($reason, 'system', $e);
             } catch (Throwable $exception) {
                 Output::error($exception->getMessage());
             }
@@ -551,8 +563,11 @@ class Stream extends StreamBase
                 $this->startClearBuffer();
             }
 
-            $this->clearBufferWaiters[] = getContext();
-            Coroutine::suspend(end($this->clearBufferWaiters));
+            // Only suspend if there's still buffered data to write
+            if ($this->buffer !== '') {
+                $this->clearBufferWaiters[] = getContext();
+                Coroutine::suspend(end($this->clearBufferWaiters));
+            }
             return strlen($string);
         } catch (AbortConnection $e) {
             // Re-throw internal control flow exception
@@ -654,7 +669,7 @@ class Stream extends StreamBase
         foreach ($waiters as $waiter) {
             \Ripple\Coroutine::throw(
                 $waiter,
-                new ConnectionException('Unable to write to stream', ConnectionException::CONNECTION_WRITE_FAIL)
+                new TransportException('Unable to write to stream - connection closed')
             );
         }
     }
