@@ -13,6 +13,7 @@
 namespace Ripple\Stream;
 
 use Ripple\Stream\Exception\ConnectionException;
+use Ripple\Stream\Exception\ConnectionStateException;
 use Ripple\Stream\Exception\StreamInternalException;
 
 use function fclose;
@@ -100,6 +101,63 @@ class Stream implements StreamInterface
     public function eof(): bool
     {
         return feof($this->stream);
+    }
+
+    /**
+     * 检查连接是否仍然活跃（非阻塞）
+     * 
+     * @return bool
+     */
+    public function isAlive(): bool
+    {
+        if (!is_resource($this->stream)) {
+            return false;
+        }
+        
+        // 检查流是否已到达末尾
+        if ($this->eof()) {
+            return false;
+        }
+        
+        return true;
+    }
+
+    /**
+     * 断言连接仍然活跃，如果连接已关闭则抛出异常
+     * 
+     * @throws ConnectionStateException
+     */
+    public function assertAlive(): void
+    {
+        if (!is_resource($this->stream)) {
+            throw new ConnectionStateException(
+                'Connection is closed (resource freed)',
+                ConnectionStateException::CONNECTION_LOST
+            );
+        }
+        
+        if ($this->eof()) {
+            throw new ConnectionStateException(
+                'Connection closed by peer',
+                ConnectionStateException::PEER_CLOSED
+            );
+        }
+    }
+
+    /**
+     * 检查是否为半关闭状态（对端关闭写端但读端仍开放）
+     * 
+     * @return bool
+     */
+    public function isHalfClosed(): bool
+    {
+        if (!is_resource($this->stream)) {
+            return false;
+        }
+        
+        // 尝试非阻塞读取来检测半关闭状态
+        $meta = stream_get_meta_data($this->stream);
+        return $meta['eof'] ?? false;
     }
 
     /**

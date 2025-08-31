@@ -7,7 +7,8 @@ Exception (基础异常)
 ├── StreamInternalException (框架内部异常) ⚠️ 禁止应用层捕获
 └── ConnectionException (应用层连接异常基类)
     ├── ConnectionTimeoutException (连接超时)
-    ├── ConnectionCloseException (连接关闭)
+    ├── ConnectionStateException (连接状态检测) ⭐ 新增
+    ├── ConnectionCloseException (连接关闭) ⚠️ 建议废弃
     └── ConnectionHandshakeException (握手失败)
 ```
 
@@ -32,13 +33,71 @@ Exception (基础异常)
 
 **子类异常**:
 - `ConnectionTimeoutException`: 连接超时，用户可重试
-- `ConnectionCloseException`: 连接被关闭，用户可重连
+- `ConnectionStateException`: 连接状态检测，用于主动状态查询
 - `ConnectionHandshakeException`: 握手失败，用户可降级或重试
+- `ConnectionCloseException`: ⚠️ 建议废弃，功能合并到 ConnectionStateException
 
 **处理方式**:
 - ✅ 应用层可以捕获
 - ✅ 用户可以实施重试、降级等策略
 - ✅ 用于业务逻辑处理
+
+## 连接关闭检测方法
+
+### 1. 被动检测 - onClose 回调
+```php
+$stream->onClose(function () {
+    Output::info("连接已关闭，执行清理工作");
+    // 适用于：资源清理、级联关闭、状态重置
+});
+```
+
+### 2. 主动检测 - 状态查询
+```php
+// 非阻塞检查
+if (!$stream->isAlive()) {
+    Output::warning("连接已关闭");
+}
+
+// 断言检查（会抛出异常）
+try {
+    $stream->assertAlive();
+    // 连接正常，继续操作
+} catch (ConnectionStateException $e) {
+    if ($e->isGracefulClose()) {
+        // 优雅关闭，无需重连
+    } else {
+        // 异常关闭，需要重连
+    }
+}
+```
+
+### 3. 半关闭检测
+```php
+$stream->onReadable(function () use ($stream) {
+    $data = $stream->read(1024);
+    if ($data === '' && $stream->isHalfClosed()) {
+        // 对端关闭写端，发送确认后关闭
+        $stream->write("ACK\n");
+        $stream->close();
+    }
+});
+```
+
+### 4. 连接池健康检查
+```php
+class ConnectionPool {
+    public function getHealthyConnection(): ?Socket {
+        foreach ($this->connections as $conn) {
+            if ($conn->isAlive()) {
+                return $conn;
+            }
+            $this->removeDeadConnection($conn);
+        }
+        return null;
+    }
+}
+```
 
 ## 使用示例
 
