@@ -18,17 +18,17 @@ use Throwable;
 
 /**
  * @internal
- * 
+ *
  * Internal control-flow exception used exclusively by the reactor to terminate connections.
  * This exception should NEVER be caught by user code or extended by application-level exceptions.
- * 
+ *
  * When this exception is thrown, it signals that the connection must be immediately closed
  * and all related event monitoring must be cancelled. The reactor's exception boundary
  * will catch this exception, perform cleanup, and emit onClose events.
- * 
+ *
  * User code should use onClose, onReadableEnd, and onWritableEnd events to handle
  * connection lifecycle events instead of catching this exception.
- * 
+ *
  * @Author cclilshy
  * @Date   2024/8/16 09:37
  */

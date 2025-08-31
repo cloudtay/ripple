@@ -41,13 +41,15 @@ use function get_resource_id;
 use function substr;
 use function strlen;
 use function end;
+use function error_get_last;
+use function str_contains;
 
 /**
  * Enhanced Stream class with proper connection lifecycle management
  *
  * This class provides application-layer stream functionality with:
  * - Event-driven I/O (onReadable/onWriteable)
- * - Connection lifecycle events (onClose/onReadableEnd/onWritableEnd)  
+ * - Connection lifecycle events (onClose/onReadableEnd/onWritableEnd)
  * - Half-close support for protocols that need it
  * - Proper exception handling with clear separation between:
  *   - Internal control-flow exceptions (ConnectionException - DO NOT CATCH)
@@ -211,10 +213,10 @@ class Stream extends StreamBase
                 $this->cancelReadable();
                 $this->cancelWriteable();
                 parent::close();
-                
+
                 // Extract reason from ConnectionException if available
-                $reason = ($e instanceof ConnectionException) 
-                    ? $e->reason 
+                $reason = ($e instanceof ConnectionException)
+                    ? $e->reason
                     : ConnectionAbortReason::RESET;
                 $this->emitCloseEvent($reason, 'system', $e);
             } catch (Throwable $exception) {
@@ -306,10 +308,10 @@ class Stream extends StreamBase
         if (!$this->isReadOpen) {
             return; // Already emitted
         }
-        
+
         $this->isReadOpen = false;
         $this->cancelReadable();
-        
+
         foreach ($this->onReadableEndCallbacks as $callback) {
             try {
                 call_user_func($callback, $this);
@@ -328,10 +330,10 @@ class Stream extends StreamBase
         if (!$this->isWriteOpen) {
             return; // Already emitted
         }
-        
+
         $this->isWriteOpen = false;
         $this->cancelWriteable();
-        
+
         foreach ($this->onWritableEndCallbacks as $callback) {
             try {
                 call_user_func($callback, $this);
@@ -350,10 +352,10 @@ class Stream extends StreamBase
         if ($this->isClosing) {
             return; // Already closing
         }
-        
+
         $this->isClosing = true;
         $closeEvent = new CloseEvent($reason, $initiator, null, $lastError);
-        
+
         foreach ($this->onCloseCallbacks as $callback) {
             try {
                 call_user_func($callback, $closeEvent);
@@ -467,10 +469,10 @@ class Stream extends StreamBase
                 $this->cancelReadable();
                 $this->cancelWriteable();
                 parent::close();
-                
+
                 // Extract reason from ConnectionException if available
-                $reason = ($e instanceof ConnectionException) 
-                    ? $e->reason 
+                $reason = ($e instanceof ConnectionException)
+                    ? $e->reason
                     : ConnectionAbortReason::RESET;
                 $this->emitCloseEvent($reason, 'system', $e);
             } catch (Throwable $exception) {
@@ -493,7 +495,7 @@ class Stream extends StreamBase
             // Fatal I/O error - throw internal exception for immediate termination
             throw new ConnectionException(ConnectionAbortReason::RESET, 'Unable to read from stream');
         }
-        
+
         if ($content === '' && feof($this->stream)) {
             // EOF detected - handle based on half-close support
             if ($this->supportsHalfClose && !empty($this->onReadableEndCallbacks)) {
@@ -505,7 +507,7 @@ class Stream extends StreamBase
                 throw new ConnectionException(ConnectionAbortReason::PEER_CLOSED, 'Peer closed connection');
             }
         }
-        
+
         return $content;
     }
 
@@ -585,11 +587,11 @@ class Stream extends StreamBase
     private function writeToSocket(string $data): int
     {
         $result = @parent::write($data);
-        
+
         if ($result === false) {
             $error = error_get_last();
             $errorMsg = $error['message'] ?? 'Unknown write error';
-            
+
             // Classify the error
             if (str_contains($errorMsg, 'Broken pipe') || str_contains($errorMsg, 'EPIPE')) {
                 // Peer closed read side
@@ -605,7 +607,7 @@ class Stream extends StreamBase
                 throw new ConnectionException(ConnectionAbortReason::WRITE_FAILURE, 'Write failed: ' . $errorMsg);
             }
         }
-        
+
         return $result;
     }
 
@@ -617,14 +619,14 @@ class Stream extends StreamBase
         $this->onWriteable(function () {
             try {
                 $writeLength = $this->writeToSocket($this->buffer);
-                
+
                 if ($writeLength === 0 && !$this->isWriteOpen) {
                     // Write side closed during half-close
                     $this->clearBufferIsRunning = false;
                     $this->failAllWaiters();
                     return;
                 }
-                
+
                 $this->buffer = substr($this->buffer, $writeLength);
 
                 if ($this->buffer === '') {
