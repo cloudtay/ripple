@@ -12,18 +12,12 @@
 
 namespace Ripple\Stream\Exception;
 
-use Throwable;
-
 /**
- * Timeout exception that can be handled by user code
- * This represents a recoverable timeout condition
+ * @internal
+ * 
+ * Marker interface for internal exceptions that should trigger immediate connection termination.
+ * Only the reactor's exception boundary should catch exceptions implementing this interface.
  */
-class ConnectionTimeoutException extends TransportTimeoutException
+interface AbortConnection
 {
-    public function __construct(
-        string $message = "Connection timeout",
-        ?Throwable $previous = null,
-    ) {
-        parent::__construct($message, 0, $previous);
-    }
 }

@@ -17,7 +17,8 @@ use Ripple\Channel\Exception\ChannelException;
 use Ripple\File\Lock;
 use Ripple\Kernel;
 use Ripple\Stream;
-use Ripple\Stream\Exception\ConnectionException;
+use Ripple\Stream\Exception\AbortConnection;
+use Ripple\Stream\Exception\TransportException;
 use Ripple\Utils\Path;
 use Ripple\Utils\Serialization\Zx7e;
 use Throwable;
@@ -193,14 +194,25 @@ class Channel
 
             if ($this->readLock->lock(blocking: false)) {
                 try {
-                    if ($this->stream->read(1) === chr(Channel::FRAME_HEADER)) {
+                    $header = $this->stream->read(1);
+                    if ($header === chr(Channel::FRAME_HEADER)) {
                         break;
+                    } elseif ($header === '') {
+                        // EOF - connection closed
+                        $this->readLock->unlock();
+                        throw new TransportException('Connection closed while reading frame header');
                     } else {
+                        // Invalid frame header
                         $this->stream->close();
-                        throw new ConnectionException('Failed to read frame header.');
+                        throw new TransportException('Invalid frame header received');
                     }
-                } catch (ConnectionException) {
+                } catch (AbortConnection $e) {
+                    // Internal control flow exception - re-throw to let reactor handle
                     $this->readLock->unlock();
+                    throw $e;
+                } catch (TransportException $e) {
+                    $this->readLock->unlock();
+                    throw $e;
                 }
             }
         }
