@@ -12,6 +12,10 @@
 
 namespace Ripple\Stream;
 
+use Throwable;
+
+use function time;
+
 /**
  * Event object containing information about connection closure
  */
@@ -21,9 +25,9 @@ readonly class CloseEvent
         public ConnectionAbortReason $reason,
         public string $initiator, // 'peer' | 'local' | 'system'
         public ?string $message = null,
-        public ?\Throwable $lastError = null,
-        public ?int $timestamp = null
+        public ?Throwable $lastError = null,
+        public int $timestamp = null
     ) {
-        $this->timestamp ??= time();
+        $this->timestamp = $timestamp ?? time();
     }
 }

@@ -14,7 +14,7 @@ namespace Ripple\Stream\Exception;
 
 /**
  * @internal
- * 
+ *
  * Marker interface for internal exceptions that should trigger immediate connection termination.
  * Only the reactor's exception boundary should catch exceptions implementing this interface.
  */

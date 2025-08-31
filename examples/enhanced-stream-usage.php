@@ -12,7 +12,7 @@ use function Co\wait;
 
 /**
  * Example demonstrating proper usage of the enhanced Stream API
- * 
+ *
  * This example shows:
  * 1. How to handle connection lifecycle events (onClose, onReadableEnd)
  * 2. Proper exception handling (catch TransportException, not ConnectionException)
@@ -22,22 +22,22 @@ use function Co\wait;
 try {
     $stream = Socket::connect('tcp://httpbin.org:80');
     $stream->setBlocking(false);
-    
+
     // Register connection lifecycle events
     $stream->onClose(function (CloseEvent $event) {
         Output::info("Connection closed: {$event->reason->value} by {$event->initiator}");
     });
-    
+
     $stream->onReadableEnd(function () use ($stream) {
         Output::info("Read side closed - server finished sending response");
         // We can still write if needed, but in HTTP we typically close now
         $stream->close();
     });
-    
+
     // Send HTTP request
     $request = "GET /get HTTP/1.1\r\nHost: httpbin.org\r\nConnection: close\r\n\r\n";
     $stream->write($request);
-    
+
     // Read response
     $stream->onReadable(function () use ($stream) {
         try {
@@ -57,7 +57,7 @@ try {
         }
         // Note: We NEVER catch ConnectionException - that's handled internally by the reactor
     });
-    
+
 } catch (TransportException $e) {
     // Connection establishment failed - this is recoverable
     Output::error("Failed to connect: {$e->getMessage()}");
