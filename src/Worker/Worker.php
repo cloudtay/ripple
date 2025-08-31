@@ -27,6 +27,8 @@ use function count;
 use function memory_get_peak_usage;
 use function memory_get_usage;
 use function sys_getloadavg;
+use function function_exists;
+use function cli_set_process_title;
 
 /**
  * @Author cclilshy
@@ -148,6 +150,11 @@ abstract class Worker extends WorkerContext
      */
     final protected function onProcess(Socket $parentStream, int $index): void
     {
+        /*** @compatible:Windows */
+        if (function_exists('cli_set_process_title')) {
+            cli_set_process_title("ripple-{$this->name}");
+        }
+
         $this->parentSocket = $parentStream;
 
         $this->zx7e = new Zx7e();
