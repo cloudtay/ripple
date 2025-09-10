@@ -12,31 +12,33 @@
 
 namespace Ripple\Stream\Exception;
 
-use Psr\Http\Message\StreamInterface;
+use Ripple\Stream\ConnectionAbortReason;
+use RuntimeException;
 use Throwable;
 
 /**
+ * @internal
+ *
+ * Internal control-flow exception used exclusively by the reactor to terminate connections.
+ * This exception should NEVER be caught by user code or extended by application-level exceptions.
+ *
+ * When this exception is thrown, it signals that the connection must be immediately closed
+ * and all related event monitoring must be cancelled. The reactor's exception boundary
+ * will catch this exception, perform cleanup, and emit onClose events.
+ *
+ * User code should use onClose, onReadableEnd, and onWritableEnd events to handle
+ * connection lifecycle events instead of catching this exception.
+ *
  * @Author cclilshy
  * @Date   2024/8/16 09:37
  */
-class ConnectionException extends Exception
+final class ConnectionException extends RuntimeException implements AbortConnection
 {
-    public const           CONNECTION_ERROR          = 1;
-    public const           CONNECTION_CLOSED         = 2;
-    public const           CONNECTION_TIMEOUT        = 4;
-    public const           CONNECTION_WRITE_FAIL     = 8;
-    public const           CONNECTION_READ_FAIL      = 16;
-    public const           CONNECTION_HANDSHAKE_FAIL = 32;
-    public const           CONNECTION_ACCEPT_FAIL    = 64;
-    public const           ERROR_ILLEGAL_CONTENT     = 128;
-    public const           CONNECTION_CRYPTO         = 256;
-
     public function __construct(
-        public $message = "",
-        public $code = 0,
-        public readonly Throwable|null       $previous = null,
-        public readonly StreamInterface|null $stream = null,
+        public readonly ConnectionAbortReason $reason,
+        string $message = '',
+        Throwable|null $previous = null
     ) {
-        parent::__construct($message, $code, $previous);
+        parent::__construct($message ?: $reason->value, 0, $previous);
     }
 }

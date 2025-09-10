@@ -19,12 +19,9 @@ use Ripple\Utils\Output;
 use Ripple\Utils\Serialization\Zx7e;
 
 use function Co\async;
-use function Co\delay;
 use function Co\process;
 use function socket_create_pair;
 use function socket_export_stream;
-use function min;
-use function pow;
 use function is_int;
 
 use const AF_INET;

@@ -59,8 +59,8 @@ class Kernel
     /*** @var bool */
     private bool $mainRunning = true;
 
-    /*** @var string */
-    private string $libEventMethod;
+    /*** @var string|null */
+    private string|null $libEventMethod = null;
 
     /**
      *

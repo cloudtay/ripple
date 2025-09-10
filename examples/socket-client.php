@@ -3,7 +3,7 @@
 include __DIR__ . '/../vendor/autoload.php';
 
 use Ripple\Socket;
-use Ripple\Stream\Exception\ConnectionException;
+use Ripple\Stream\Exception\TransportException;
 use Ripple\Utils\Output;
 
 use function Co\wait;
@@ -14,7 +14,7 @@ try {
     #  Enable SSL
     // $connection->enableSSL();
     $connection->setBlocking(false);
-} catch (ConnectionException $e) {
+} catch (TransportException $e) {
     Output::warning($e->getMessage());
     exit(1);
 }

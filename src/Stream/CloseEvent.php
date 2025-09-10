@@ -10,20 +10,24 @@
  * Contributions, suggestions, and feedback are always welcome!
  */
 
-namespace Ripple\Stream\Exception;
+namespace Ripple\Stream;
 
 use Throwable;
 
+use function time;
+
 /**
- * Timeout exception that can be handled by user code
- * This represents a recoverable timeout condition
+ * Event object containing information about connection closure
  */
-class ConnectionTimeoutException extends TransportTimeoutException
+class CloseEvent
 {
     public function __construct(
-        string $message = "Connection timeout",
-        Throwable|null $previous = null,
+        public ConnectionAbortReason $reason,
+        public string $initiator, // 'peer' | 'local' | 'system'
+        public string|null $message = null,
+        public Throwable|null $lastError = null,
+        public int|null $timestamp = null
     ) {
-        parent::__construct($message, 0, $previous);
+        $this->timestamp = $timestamp ?? time();
     }
 }

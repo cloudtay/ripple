@@ -102,6 +102,50 @@ class Coroutine extends Support
     }
 
     /**
+     * @param Closure $closure
+     *
+     * @return Context
+     */
+    public function go(Closure $closure): Context
+    {
+        $context       = null;
+        $parentContext = getContext();
+        $context       = new Context(function () use ($closure, $parentContext, &$context) {
+            Context::extend($parentContext);
+
+            try {
+                $this->dispatchEvent(new StartEvent($context));
+                $result = $closure();
+                $this->dispatchEvent(new CompleteEvent($context, $result));
+
+            } catch (EscapeException $exception) {
+                throw $exception;
+
+            } catch (Throwable $exception) {
+                $this->dispatchEvent(new ErrorEvent($context, $exception));
+
+            } finally {
+                $this->dispatchEvent(new FinallyEvent($context));
+
+                Context::clear();
+                $this->tracer->clear($context);
+            }
+        });
+
+        $this->fiber2context[$context->fiber] = WeakReference::create($context);
+
+        try {
+            $context->start();
+        } catch (EscapeException $exception) {
+            $this->handleEscapeException($exception);
+        } catch (Throwable $exception) {
+            // 有预期之外的异常泄漏
+            Output::exception($exception);
+        }
+        return $context;
+    }
+
+    /**
      *
      * The coroutine that cannot be restored can only throw an exception.
      * If it is a ripple type exception, it will be caught and the contract will be rejected.
@@ -169,6 +213,41 @@ class Coroutine extends Support
     }
 
     /**
+     * @return Context
+     */
+    public function getContext(): Context
+    {
+        if (!$fiber = Fiber::getCurrent()) {
+            return new SuspensionProxy(EventLoop::getSuspension());
+        }
+        return ($this->fiber2context[$fiber] ?? null)?->get() ?? new SuspensionProxy(EventLoop::getSuspension());
+    }
+
+    /**
+     * @param EscapeException $exception
+     *
+     * @return void
+     */
+    #[NoReturn]
+    public function handleEscapeException(EscapeException $exception): void
+    {
+        Process::getInstance()->processedInMain($exception->lastWords);
+    }
+
+    /**
+     * @param int|float $second
+     *
+     * @return int|float
+     * @throws Throwable
+     */
+    public function sleep(int|float $second): int|float
+    {
+        $context = getContext();
+        delay(static fn () => Coroutine::resume($context, $second), $second);
+        return Coroutine::suspend($context);
+    }
+
+    /**
      * @param Closure $closure
      *
      * @return Promise
@@ -187,50 +266,6 @@ class Coroutine extends Support
                 }
             });
         });
-    }
-
-    /**
-     * @param Closure $closure
-     *
-     * @return Context
-     */
-    public function go(Closure $closure): Context
-    {
-        $context       = null;
-        $parentContext = getContext();
-        $context       = new Context(function () use ($closure, $parentContext, &$context) {
-            Context::extend($parentContext);
-
-            try {
-                $this->dispatchEvent(new StartEvent($context));
-                $result = $closure();
-                $this->dispatchEvent(new CompleteEvent($context, $result));
-
-            } catch (EscapeException $exception) {
-                throw $exception;
-
-            } catch (Throwable $exception) {
-                $this->dispatchEvent(new ErrorEvent($context, $exception));
-
-            } finally {
-                $this->dispatchEvent(new FinallyEvent($context));
-
-                Context::clear();
-                $this->tracer->clear($context);
-            }
-        });
-
-        $this->fiber2context[$context->fiber] = WeakReference::create($context);
-
-        try {
-            $context->start();
-        } catch (EscapeException $exception) {
-            $this->handleEscapeException($exception);
-        } catch (Throwable $exception) {
-            // 有预期之外的异常泄漏
-            Output::exception($exception);
-        }
-        return $context;
     }
 
     /**
@@ -283,41 +318,6 @@ class Coroutine extends Support
             return $this->await($result);
         }
         return $result;
-    }
-
-    /**
-     * @return Context
-     */
-    public function getContext(): Context
-    {
-        if (!$fiber = Fiber::getCurrent()) {
-            return new SuspensionProxy(EventLoop::getSuspension());
-        }
-        return ($this->fiber2context[$fiber] ?? null)?->get() ?? new SuspensionProxy(EventLoop::getSuspension());
-    }
-
-    /**
-     * @param EscapeException $exception
-     *
-     * @return void
-     */
-    #[NoReturn]
-    public function handleEscapeException(EscapeException $exception): void
-    {
-        Process::getInstance()->processedInMain($exception->lastWords);
-    }
-
-    /**
-     * @param int|float $second
-     *
-     * @return int|float
-     * @throws Throwable
-     */
-    public function sleep(int|float $second): int|float
-    {
-        $context = getContext();
-        delay(static fn () => Coroutine::resume($context, $second), $second);
-        return Coroutine::suspend($context);
     }
 
     /**
