@@ -102,6 +102,50 @@ class Coroutine extends Support
     }
 
     /**
+     * @param Closure $closure
+     *
+     * @return Context
+     */
+    public function go(Closure $closure): Context
+    {
+        $context       = null;
+        $parentContext = getContext();
+        $context       = new Context(function () use ($closure, $parentContext, &$context) {
+            Context::extend($parentContext);
+
+            try {
+                $this->dispatchEvent(new StartEvent($context));
+                $result = $closure();
+                $this->dispatchEvent(new CompleteEvent($context, $result));
+
+            } catch (EscapeException $exception) {
+                throw $exception;
+
+            } catch (Throwable $exception) {
+                $this->dispatchEvent(new ErrorEvent($context, $exception));
+
+            } finally {
+                $this->dispatchEvent(new FinallyEvent($context));
+
+                Context::clear();
+                $this->tracer->clear($context);
+            }
+        });
+
+        $this->fiber2context[$context->fiber] = WeakReference::create($context);
+
+        try {
+            $context->start();
+        } catch (EscapeException $exception) {
+            $this->handleEscapeException($exception);
+        } catch (Throwable $exception) {
+            // 有预期之外的异常泄漏
+            Output::exception($exception);
+        }
+        return $context;
+    }
+
+    /**
      *
      * The coroutine that cannot be restored can only throw an exception.
      * If it is a ripple type exception, it will be caught and the contract will be rejected.
@@ -169,123 +213,6 @@ class Coroutine extends Support
     }
 
     /**
-     * @param Closure $closure
-     *
-     * @return Promise
-     */
-    public function async(Closure $closure): Promise
-    {
-        return new Promise(static function (Closure $resolve, Closure $reject) use ($closure) {
-            go(static function () use ($resolve, $reject, $closure) {
-                try {
-                    $result = $closure();
-                    $resolve($result);
-                } catch (EscapeException $exception) {
-                    throw $exception;
-                } catch (Throwable $exception) {
-                    $reject($exception);
-                }
-            });
-        });
-    }
-
-    /**
-     * @param Closure $closure
-     *
-     * @return Context
-     */
-    public function go(Closure $closure): Context
-    {
-        $context       = null;
-        $parentContext = getContext();
-        $context       = new Context(function () use ($closure, $parentContext, &$context) {
-            Context::extend($parentContext);
-
-            try {
-                $this->dispatchEvent(new StartEvent($context));
-                $result = $closure();
-                $this->dispatchEvent(new CompleteEvent($context, $result));
-
-            } catch (EscapeException $exception) {
-                throw $exception;
-
-            } catch (Throwable $exception) {
-                $this->dispatchEvent(new ErrorEvent($context, $exception));
-
-            } finally {
-                $this->dispatchEvent(new FinallyEvent($context));
-
-                Context::clear();
-                $this->tracer->clear($context);
-            }
-        });
-
-        $this->fiber2context[$context->fiber] = WeakReference::create($context);
-
-        try {
-            $context->start();
-        } catch (EscapeException $exception) {
-            $this->handleEscapeException($exception);
-        } catch (Throwable $exception) {
-            // 有预期之外的异常泄漏
-            Output::exception($exception);
-        }
-        return $context;
-    }
-
-    /**
-     * This method is different from onReject, which allows accepting any type of rejected futures object.
-     * When await promise is rejected, an error will be thrown instead of returning the rejected value.
-     *
-     * If the rejected value is a non-Error object, it will be wrapped into a `PromiseRejectException` object,
-     * The `getReason` method of this object can obtain the rejected value
-     *
-     * @param Promise $promise
-     *
-     * @return mixed
-     * @throws Throwable
-     */
-    public function await(Promise $promise): mixed
-    {
-        if ($promise->getStatus() === Promise::FULFILLED) {
-            $result = $promise->getResult();
-            if ($result instanceof Promise) {
-                return $this->await($result);
-            }
-            return $result;
-        }
-
-        if ($promise->getStatus() === Promise::REJECTED) {
-            if ($promise->getResult() instanceof Throwable) {
-                throw $promise->getResult();
-            } else {
-                throw new PromiseRejectException($promise->getResult());
-            }
-        }
-
-        $context = getContext();
-
-        /**
-         * To determine your own control over preparing Fiber, you must be responsible for the subsequent status of Fiber.
-         */
-        // When the status of the awaited Promise is completed
-        $promise
-            ->then(static fn (mixed $result) => Coroutine::resume($context, $result))
-            ->except(static function (mixed $result) use ($context) {
-                $result instanceof Throwable
-                    ? Coroutine::throw($context, $result)
-                    : Coroutine::throw($context, new PromiseRejectException($result));
-            });
-
-        // Confirm that you have prepared to handle Fiber recovery and take over control of Fiber by suspending it
-        $result = Coroutine::suspend($context);
-        if ($result instanceof Promise) {
-            return $this->await($result);
-        }
-        return $result;
-    }
-
-    /**
      * @return Context
      */
     public function getContext(): Context
@@ -317,6 +244,71 @@ class Coroutine extends Support
     {
         $context = getContext();
         delay(static fn () => Coroutine::resume($context, $second), $second);
+        return Coroutine::suspend($context);
+    }
+
+    /**
+     * @param Closure $closure
+     *
+     * @return Promise
+     */
+    public function async(Closure $closure): Promise
+    {
+        return new Promise(static function (Closure $resolve, Closure $reject) use ($closure) {
+            go(static function () use ($resolve, $reject, $closure) {
+                try {
+                    $result = $closure();
+                    $resolve($result);
+                } catch (EscapeException $exception) {
+                    throw $exception;
+                } catch (Throwable $exception) {
+                    $reject($exception);
+                }
+            });
+        });
+    }
+
+    /**
+     * This method is different from onReject, which allows accepting any type of rejected futures object.
+     * When await promise is rejected, an error will be thrown instead of returning the rejected value.
+     *
+     * If the rejected value is a non-Error object, it will be wrapped into a `PromiseRejectException` object,
+     * The `getReason` method of this object can obtain the rejected value
+     *
+     * @param Promise $promise
+     *
+     * @return mixed
+     * @throws Throwable
+     */
+    public function await(Promise $promise): mixed
+    {
+        if ($promise->getStatus() === Promise::FULFILLED) {
+            return $promise->getResult();
+        }
+
+        if ($promise->getStatus() === Promise::REJECTED) {
+            if ($promise->getResult() instanceof Throwable) {
+                throw $promise->getResult();
+            } else {
+                throw new PromiseRejectException($promise->getResult());
+            }
+        }
+
+        $context = getContext();
+
+        /**
+         * To determine your own control over preparing Fiber, you must be responsible for the subsequent status of Fiber.
+         */
+        // When the status of the awaited Promise is completed
+        $promise
+            ->then(static fn (mixed $result) => Coroutine::resume($context, $result))
+            ->except(static function (mixed $result) use ($context) {
+                $result instanceof Throwable
+                    ? Coroutine::throw($context, $result)
+                    : Coroutine::throw($context, new PromiseRejectException($result));
+            });
+
+        // Confirm that you have prepared to handle Fiber recovery and take over control of Fiber by suspending it
         return Coroutine::suspend($context);
     }
 
