@@ -12,17 +12,11 @@
 
 namespace Ripple\File;
 
-use Ripple\Coroutine;
-use Ripple\File\Exception\FileException;
-use Ripple\Kernel;
 use Ripple\Stream;
 use Ripple\Support;
-use Throwable;
 
 use function array_shift;
 use function Co\forked;
-use function Co\getContext;
-use function Co\thread;
 use function fopen;
 use function file_get_contents;
 
@@ -57,44 +51,14 @@ class File extends Support
     }
 
     /**
+     * @deprecated
      * @param string $path
      *
      * @return string|false
-     * @throws FileException
      */
     public static function getContents(string $path): string|false
     {
-        try {
-            $kernel = Kernel::getInstance();
-            $libEventMethod = $kernel->getLibEventMethod();
-            if (!$libEventMethod || $libEventMethod === 'epoll') {
-                return file_get_contents($path);
-            }
-
-            if (!$resource = fopen($path, 'r')) {
-                throw (new FileException('Failed to open file: ' . $path));
-            }
-
-            $stream = new Stream($resource);
-            $stream->setBlocking(false);
-            $content = '';
-            $context = getContext();
-            $stream->onReadable(static function (Stream $stream) use (&$content, $context) {
-                $fragment = '';
-                while ($buffer = $stream->read(8192)) {
-                    $fragment .= $buffer;
-                }
-
-                $content .= $fragment;
-                if ($stream->eof()) {
-                    $stream->close();
-                    Coroutine::resume($context, $content);
-                }
-            });
-            return Coroutine::suspend();
-        } catch (Throwable $exception) {
-            throw new FileException($exception->getMessage());
-        }
+        return file_get_contents($path);
     }
 
     /**

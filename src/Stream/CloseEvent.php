@@ -24,9 +24,9 @@ class CloseEvent
     public function __construct(
         public ConnectionAbortReason $reason,
         public string $initiator, // 'peer' | 'local' | 'system'
-        public ?string $message = null,
-        public ?Throwable $lastError = null,
-        public ?int $timestamp = null
+        public string|null $message = null,
+        public Throwable|null $lastError = null,
+        public int|null $timestamp = null
     ) {
         $this->timestamp = $timestamp ?? time();
     }

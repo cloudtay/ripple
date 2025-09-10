@@ -347,7 +347,7 @@ class Stream extends StreamBase
      * @internal
      * Emit close event with reason
      */
-    private function emitCloseEvent(ConnectionAbortReason $reason, string $initiator, ?Throwable $lastError = null): void
+    private function emitCloseEvent(ConnectionAbortReason $reason, string $initiator, Throwable|null $lastError = null): void
     {
         if ($this->isClosing) {
             return; // Already closing

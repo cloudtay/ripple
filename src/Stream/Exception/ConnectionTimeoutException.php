@@ -22,7 +22,7 @@ class ConnectionTimeoutException extends TransportTimeoutException
 {
     public function __construct(
         string $message = "Connection timeout",
-        ?Throwable $previous = null,
+        Throwable|null $previous = null,
     ) {
         parent::__construct($message, 0, $previous);
     }

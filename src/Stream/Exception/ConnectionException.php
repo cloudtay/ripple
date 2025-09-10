@@ -37,7 +37,7 @@ final class ConnectionException extends RuntimeException implements AbortConnect
     public function __construct(
         public readonly ConnectionAbortReason $reason,
         string $message = '',
-        ?Throwable $previous = null
+        Throwable|null $previous = null
     ) {
         parent::__construct($message ?: $reason->value, 0, $previous);
     }
