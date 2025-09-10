@@ -6,7 +6,7 @@ The Stream module uses a clear exception hierarchy that separates internal contr
 
 ## Exception Hierarchy
 
-```
+```text
 RuntimeException
 ├── StreamException (base for user-catchable exceptions)
 │   └── TransportException (recoverable transport errors)
@@ -62,6 +62,7 @@ try {
 Instead of catching exceptions, use lifecycle events to handle connection state changes:
 
 ### onClose(CloseEvent)
+
 Triggered once when the connection terminates.
 
 ```php
@@ -72,6 +73,7 @@ $stream->onClose(function (CloseEvent $event) {
 ```
 
 **CloseEvent** provides:
+
 - `reason`: ConnectionAbortReason enum (PEER_CLOSED, RESET, TIMEOUT, etc.)
 - `initiator`: 'peer' | 'local' | 'system'
 - `message`: Optional descriptive message
@@ -79,6 +81,7 @@ $stream->onClose(function (CloseEvent $event) {
 - `timestamp`: When the close occurred
 
 ### onReadableEnd()
+
 Triggered when the read side closes (EOF) but connection may still be writable.
 
 ```php
@@ -91,6 +94,7 @@ $stream->onReadableEnd(function () use ($stream) {
 ```
 
 ### onWritableEnd()
+
 Triggered when the write side closes but connection may still be readable.
 
 ```php
@@ -114,23 +118,29 @@ $stream->supportsHalfClose = true; // Default: true
 ### Behavior
 
 When `supportsHalfClose = true`:
+
 - `read()` returning EOF triggers `onReadableEnd()` if registered, otherwise throws `ConnectionException`
 - `write()` getting EPIPE triggers `onWritableEnd()` if registered, otherwise throws `ConnectionException`
 
 When `supportsHalfClose = false`:
+
 - EOF or EPIPE immediately throws `ConnectionException` for reactor termination
 
 ## Error Classification
 
 ### Fatal Errors (→ ConnectionException)
+
 These errors indicate the connection is no longer usable:
+
 - Peer closed connection (EOF without half-close support)
 - Connection reset by peer (ECONNRESET)
 - TLS fatal alerts
 - Broken pipe (EPIPE without half-close support)
 
 ### Recoverable Errors (→ TransportException)
+
 These errors can be handled by application logic:
+
 - Connection timeouts (can retry)
 - Write to closed stream (can detect and handle)
 - Protocol-level errors (application can decide response)
@@ -139,6 +149,7 @@ These errors can be handled by application logic:
 ## Migration from Old API
 
 ### Before
+
 ```php
 try {
     $data = $stream->read(1024);
@@ -150,6 +161,7 @@ try {
 ```
 
 ### After
+
 ```php
 // Use events for lifecycle management
 $stream->onClose(function (CloseEvent $event) {
@@ -181,6 +193,7 @@ try {
 ## Common Patterns
 
 ### HTTP Server
+
 ```php
 $stream->onReadableEnd(function () use ($stream, $response) {
     // Client finished sending request, send response
@@ -194,6 +207,7 @@ $stream->onClose(function (CloseEvent $event) use ($connectionPool) {
 ```
 
 ### Database Client
+
 ```php
 $stream->onClose(function (CloseEvent $event) use ($pendingQueries) {
     // Fail all pending queries
@@ -204,6 +218,7 @@ $stream->onClose(function (CloseEvent $event) use ($pendingQueries) {
 ```
 
 ### WebSocket
+
 ```php
 $stream->onClose(function (CloseEvent $event) use ($subscriptions) {
     // Clean up subscriptions
