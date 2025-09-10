@@ -283,7 +283,11 @@ class Coroutine extends Support
     public function await(Promise $promise): mixed
     {
         if ($promise->getStatus() === Promise::FULFILLED) {
-            return $promise->getResult();
+            $result = $promise->getResult();
+            if ($result instanceof Promise) {
+                return $this->await($result);
+            }
+            return $result;
         }
 
         if ($promise->getStatus() === Promise::REJECTED) {
@@ -309,7 +313,11 @@ class Coroutine extends Support
             });
 
         // Confirm that you have prepared to handle Fiber recovery and take over control of Fiber by suspending it
-        return Coroutine::suspend($context);
+        $result = Coroutine::suspend($context);
+        if ($result instanceof Promise) {
+            return $this->await($result);
+        }
+        return $result;
     }
 
     /**
