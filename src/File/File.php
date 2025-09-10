@@ -22,6 +22,7 @@ use Throwable;
 use function array_shift;
 use function Co\forked;
 use function Co\getContext;
+use function Co\thread;
 use function fopen;
 use function file_get_contents;
 
@@ -63,11 +64,13 @@ class File extends Support
      */
     public static function getContents(string $path): string|false
     {
-        if (Kernel::getInstance()->getLibEventMethod() === 'epoll') {
-            return file_get_contents($path);
-        }
-
         try {
+            $kernel = Kernel::getInstance();
+            $libEventMethod = $kernel->getLibEventMethod();
+            if (!$libEventMethod || $libEventMethod === 'epoll') {
+                return file_get_contents($path);
+            }
+
             if (!$resource = fopen($path, 'r')) {
                 throw (new FileException('Failed to open file: ' . $path));
             }

@@ -19,14 +19,14 @@ use function time;
 /**
  * Event object containing information about connection closure
  */
-readonly class CloseEvent
+class CloseEvent
 {
     public function __construct(
         public ConnectionAbortReason $reason,
         public string $initiator, // 'peer' | 'local' | 'system'
         public ?string $message = null,
         public ?Throwable $lastError = null,
-        public int $timestamp = null
+        public ?int $timestamp = null
     ) {
         $this->timestamp = $timestamp ?? time();
     }
