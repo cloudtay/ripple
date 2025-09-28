@@ -1,14 +1,15 @@
-<phpunit bootstrap="vendor/autoload.php"
+<phpunit bootstrap="tests/bootstrap.php"
          colors="true"
          stopOnFailure="false"
          failOnWarning="true"
          failOnRisky="true"
          testdox="true"
          stderr="true"
-         processIsolation="true">
+         processIsolation="false">
     <testsuites>
         <testsuite name="Core">
-            <directory suffix=".php">tests</directory>
+            <directory suffix=".php">tests/Base/</directory>
+            <directory suffix=".php">tests/Worker/</directory>
         </testsuite>
     </testsuites>
 </phpunit>

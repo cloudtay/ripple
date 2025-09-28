@@ -13,15 +13,17 @@
 namespace Ripple;
 
 use Closure;
-use Ripple\Coroutine\Exception\Exception;
-use Ripple\Coroutine\Exception\PromiseAggregateError;
-use Ripple\Utils\Output;
+use Exception;
+use Ripple\Promise\Exception\AggregateError;
+use Ripple\Runtime\Support\Stdin;
+use Ripple\Sync\WaitGroup;
 use Throwable;
 
 use function call_user_func;
 use function call_user_func_array;
 use function Co\async;
 use function Co\await;
+use function Co\go;
 use function count;
 
 /**
@@ -29,7 +31,7 @@ use function count;
  * @Date   2024/8/16 09:35
  *
  * Strictly follow the design philosophy of ES6-Promise/A+
- * @see    https://promisesaplus.com/
+ * @see https://promisesaplus.com/
  */
 class Promise
 {
@@ -59,14 +61,13 @@ class Promise
      */
     public function __construct(Closure $closure)
     {
-        $this->execute($closure);
+        go(fn () => $this->execute($closure));
     }
 
     /**
      * execute closure
      *
      * @param Closure $closure
-     *
      * @return void
      */
     protected function execute(Closure $closure): void
@@ -81,7 +82,7 @@ class Promise
             try {
                 $this->reject($exception);
             } catch (Throwable $exception) {
-                Output::warning($exception->getMessage());
+                Stdin::println($exception->getMessage());
             }
         }
     }
@@ -91,7 +92,6 @@ class Promise
      * The completed status cannot be changed, the second call will be ignored
      *
      * @param mixed $value
-     *
      * @return void
      */
     public function resolve(mixed $value): void
@@ -116,7 +116,7 @@ class Promise
             try {
                 call_user_func($onFulfilled, $value);
             } catch (Throwable $exception) {
-                Output::warning($exception->getMessage());
+                Stdin::println($exception->getMessage());
             }
         }
     }
@@ -126,7 +126,6 @@ class Promise
      * Unable to change rejected status, second call will be ignored
      *
      * @param Throwable $reason
-     *
      * @return void
      */
     public function reject(mixed $reason): void
@@ -141,7 +140,7 @@ class Promise
             try {
                 call_user_func($onRejected, $reason);
             } catch (Throwable $reason) {
-                Output::warning($reason->getMessage());
+                Stdin::println($reason->getMessage());
             }
         }
     }
@@ -151,7 +150,6 @@ class Promise
      * all promise objects in the iterable parameter object are successful.
      *
      * @param Promise[] $promises
-     *
      * @return Promise
      */
     public static function all(array $promises): Promise
@@ -179,7 +177,6 @@ class Promise
      *
      * @param Closure|null $onFulfilled
      * @param Closure|null $onRejected
-     *
      * @return $this
      */
     public function then(Closure|null $onFulfilled = null, Closure|null $onRejected = null): Promise
@@ -189,7 +186,7 @@ class Promise
                 try {
                     call_user_func($onFulfilled, $this->result);
                 } catch (Throwable $exception) {
-                    Output::warning($exception->getMessage());
+                    Stdin::println($exception->getMessage());
                 }
                 return $this;
             } else {
@@ -208,7 +205,6 @@ class Promise
      * If the Promise has been rejected, execute it immediately
      *
      * @param Closure $onRejected
-     *
      * @return $this
      */
     public function except(Closure $onRejected): Promise
@@ -217,7 +213,7 @@ class Promise
             try {
                 call_user_func($onRejected, $this->result);
             } catch (Throwable $exception) {
-                Output::warning($exception->getMessage());
+                Stdin::println($exception->getMessage());
             }
             return $this;
         } else {
@@ -231,13 +227,13 @@ class Promise
      * The final callback function will receive an array containing all promises
      *
      * @param Promise[] $promises
-     *
      * @return Promise
      */
     public static function allSettled(array $promises): Promise
     {
-        return async(static function (Closure $resolve) use ($promises) {
-            $waitGroup = new WaitGroup(count($promises));
+        return async(static function (Closure $resolve, Closure $reject) use ($promises) {
+            $waitGroup = new WaitGroup();
+            $waitGroup->add(count($promises));
 
             foreach ($promises as $promise) {
                 $promise->then(
@@ -260,7 +256,6 @@ class Promise
      * The `getReason` method of this object can obtain the rejected value
      *
      * @param bool $unwrap
-     *
      * @return mixed
      * @throws Throwable
      */
@@ -275,7 +270,6 @@ class Promise
      *
      * If the rejected value is a non-Error object, it will be wrapped into a `PromiseRejectException` object,
      * The `getReason` method of this object can obtain the rejected value
-     *
      * @return mixed
      * @throws Throwable
      */
@@ -305,7 +299,6 @@ class Promise
      * passed Promise is completed (whether successful or failed)
      *
      * @param Promise[] $promises
-     *
      * @return Promise
      */
     public static function race(array $promises): Promise
@@ -323,7 +316,6 @@ class Promise
      * Define subsequent behavior. When the Promise state changes, it will be called in the order of the then method.
      *
      * @param Closure $onFinally
-     *
      * @return $this
      */
     public function finally(Closure $onFinally): Promise
@@ -332,7 +324,7 @@ class Promise
             try {
                 call_user_func($onFinally, $this->result);
             } catch (Throwable $exception) {
-                Output::warning($exception->getMessage());
+                Stdin::println($exception->getMessage());
             }
             return $this;
         } else {
@@ -352,7 +344,9 @@ class Promise
     public static function any(array $promises): Promise
     {
         return async(static function (Closure $resolve, Closure $reject) use ($promises) {
-            $waitGroup = new WaitGroup(count($promises));
+            $waitGroup = new WaitGroup();
+            $waitGroup->add(count($promises));
+
             foreach ($promises as $item) {
                 $item
                     ->then(static fn ($value) => $resolve($value))
@@ -360,26 +354,16 @@ class Promise
             }
 
             $waitGroup->wait();
-            $reject(new PromiseAggregateError('All promises were rejected'));
+            $reject(new AggregateError('All promises were rejected'));
         });
     }
 
-    /**
-     * @param array $promises
-     *
-     * @return Futures
-     */
-    public static function futures(array $promises): Futures
-    {
-        return new Futures($promises);
-    }
 
     /**
      * Define the behavior after rejection. When the Promise state changes, it will be called in the order of the catch method.
      * If the Promise has been rejected, execute it immediately
      *
      * @param Closure $onRejected
-     *
      * @return $this
      * @deprecated You should use the except method because this method is a reserved keyword
      */
@@ -402,13 +386,11 @@ class Promise
      */
     public function cancel(): void
     {
-        // TODO: Implement cancel() method.
         throw new Exception('Method not implemented');
     }
 
     /**
      * @param Closure $onRejected
-     *
      * @return Promise
      */
     public function otherwise(Closure $onRejected): Promise

@@ -25,13 +25,17 @@ class WorkerA extends Worker
 {
     public function register(): void
     {
-        $this->name = __CLASS__;
-        \var_dump('register');
     }
 
     public function boot(): void
     {
-        \var_dump('boot');
+        \var_dump('worker a boot');
+        \Co\go(function () {
+            while (1) {
+                \var_dump('worker a running');
+                Time::sleep(1);
+            }
+        });
     }
 
     public function onCommand(Command $command): void
@@ -44,16 +48,14 @@ class WorkerB extends Worker
 {
     public function register(): void
     {
-        \var_dump('register');
     }
 
     public function boot(): void
     {
-        \var_dump('boot');
+        \var_dump('worker b boot');
         \Co\go(function () {
             while (1) {
-                \var_dump(1);
-                \var_dump($this->supervisorMetadata());
+                \var_dump('worker b running');
                 Time::sleep(1);
             }
         });
@@ -73,9 +75,15 @@ $manager->add(new WorkerB());
 $manager->run();
 
 go(function () use ($manager) {
-    while (1) {
-        Time::sleep(1);
-    }
+    Time::sleep(4);
+    $manager->reload(WorkerB::class);
+    \var_dump(\count($manager->process));
+
+    Time::sleep(4);
+    $manager->reload(WorkerA::class);
+
+    Time::sleep(10);
+    $manager->terminate();
 });
 
 wait();

@@ -6,7 +6,7 @@
       "Ripple\\": "src/"
     },
     "files": [
-      "src/functions.php"
+      "src/Functions.php"
     ]
   },
   "autoload-dev": {
@@ -22,30 +22,20 @@
   ],
   "require": {
     "php": ">=8.1",
-    "ext-ffi": "*",
-    "ext-sockets": "*",
-    "ext-openssl": "*",
-    "psr/http-message": "*",
-    "revolt/event-loop": "^1.0"
-  },
-  "require-dev": {
     "ext-posix": "*",
     "ext-pcntl": "*",
+    "ext-sockets": "*",
+    "ext-openssl": "*",
+    "ext-ffi": "*",
+    "cloudtay/ripple-kernel": "^1.0",
+    "cloudtay/ripple-database": "^1.0"
+  },
+  "require-dev": {
     "ext-curl": "*",
     "ext-parallel": "*",
     "ext-zlib": "*",
     "phpunit/phpunit": "*",
     "friendsofphp/php-cs-fixer": "^3.68"
-  },
-  "suggest": {
-    "ext-posix": "For better signal handling",
-    "ext-pcntl": "For better signal handling",
-    "ext-curl": "For better http client",
-    "ext-parallel": "For better parallel processing",
-    "ext-zlib": "For better compression",
-    "cloudtay/ripple-http": "For better http client",
-    "cloudtay/ripple-websocket": "For better websocket client",
-    "cloudtay/ripple-rdo": "For better mysql client"
   },
   "minimum-stability": "dev",
   "prefer-stable": true

@@ -1,7 +1,4 @@
 <p align="center">
-<img src="assets/images/logo.png" width="420" alt="Logo">
-</p>
-<p align="center">
 <a href="#"><img src="https://img.shields.io/badge/PHP-%3E%3D%208.1-blue" alt="Build Status"></a>
 <a href="https://packagist.org/packages/cloudtay/ripple"><img src="https://img.shields.io/packagist/dt/cloudtay/ripple" alt="Download statistics"> </a>
 <a href="https://packagist.org/packages/cloudtay/ripple"><img src="https://img.shields.io/packagist/v/cloudtay/ripple" alt="Stable version"> </a>
@@ -37,9 +34,6 @@ visit [Quick Deployment](https://ripple.cloudtay.com/docs/install/server)
 
 **🚀 [Guzzle](https://docs.guzzlephp.org/en/stable/)**  
 PHP is the most widely used HTTP client
-
-**🔥 [AmPHP](https://amphp.org/)**  
-Provides rich PHP asynchronous components for users to encapsulate by themselves
 
 **🚀 [Laravel-ripple](https://github.com/cloudtay/laravel-ripple)**  
 The official high-performance driver library provides seamless access to your traditional applications.

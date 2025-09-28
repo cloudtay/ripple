@@ -12,12 +12,12 @@
 
 namespace Ripple\Worker;
 
-use Ripple\Kernel;
-use Ripple\Utils\Output;
-use Ripple\Utils\Serialization\Zx7e;
+use Ripple\Runtime\Support\Stdin;
+use Ripple\Serial\Zx7e;
+use Ripple\Stream\Exception\ConnectionException;
+use Ripple\Worker;
 use Throwable;
-
-use function getmypid;
+use InvalidArgumentException;
 
 /**
  * @Author cclilshy
@@ -25,151 +25,129 @@ use function getmypid;
  */
 class Manager
 {
-    public const COMMAND_COMMAND_TO_WORKER = '__manager__.commandToWorker';
-    public const COMMAND_COMMAND_TO_ALL    = '__manager__.commandToAll';
-    public const COMMAND_REFRESH_METADATA = '__manager__.refreshMetadata';
-    public const COMMAND_GET_METADATA     = '__manager__.getMetadata';
+    public const COMMAND_COMMAND_TO_WORKER = '__manager__.COMMAND_COMMAND_TO_WORKER';
 
-    /*** @var Worker[] */
-    protected array $workers = [];
+    public const COMMAND_COMMAND_TO_ALL = '__manager__.COMMAND_COMMAND_TO_ALL';
 
-    /*** @var Zx7e */
-    protected Zx7e $zx7e;
+    public const COMMAND_REFRESH_METADATA = '__manager__.COMMAND_REFRESH_METADATA';
 
-    /*** @var int */
-    protected int $index = 1;
+    public const COMMAND_SUPERVISOR_METADATA = '__manager__.COMMAND_SUPERVISOR_METADATA';
 
-    /*** @var int */
-    protected int $processID;
+    /**
+     * worker列表
+     * @var Worker[]
+     */
+    public array $workers = [];
+
+    /**
+     * 编码器
+     * @var Zx7e
+     */
+    public Zx7e $zx7e;
+
+    /**
+     * @var Array<string,Process[]>
+     */
+    public array $process = [];
+
+    /**
+     *
+     */
+    public function __construct()
+    {
+    }
 
     /**
      * @param Worker $worker
-     *
      * @return void
      */
     public function add(Worker $worker): void
     {
-        $workerName = $worker->getName();
+        $workerName = $worker->name;
         if (isset($this->workers[$workerName])) {
-            Output::warning("Worker {$workerName} already exists");
-            return;
+            throw new InvalidArgumentException("Worker {$workerName} already exists");
         }
         $this->workers[$workerName] = $worker;
     }
 
     /**
-     * @return Worker[]
-     */
-    public function getWorkers(): array
-    {
-        return $this->workers;
-    }
-
-    /**
-     * @Author cclilshy
-     * @Date   2024/8/17 00:13
-     *
-     * @param Command $workerCommand
-     * @param string  $name
-     * @param int     $index
+     * @param Command $command
+     * @param string $name
+     * @param int $index
      *
      * @return void
      */
-    public function onCommand(Command $workerCommand, string $name, int $index): void
+    public function emitCommand(Command $command, string $name, int $index): void
     {
-        switch ($workerCommand->name) {
-            case WorkerContext::COMMAND_RELOAD:
-                $name = $workerCommand->arguments['name'] ?? null;
+        switch ($command->name) {
+            case BaseWorker::COMMAND_RELOAD:
+                $name = $command->arguments['name'] ?? null;
                 $this->reload($name);
                 break;
 
-            case WorkerContext::COMMAND_SYNC_ID:
-                if ($workerProcess = $this->workers[$name]?->getWorkerProcess($index)) {
-                    $sync    = $this->index++;
-                    $id      = $workerCommand->arguments['id'];
-                    $command = Command::make(WorkerContext::COMMAND_SYNC_ID, ['sync' => $sync, 'id' => $id]);
-                    $workerProcess->command($command);
-                }
-                break;
-
             case Manager::COMMAND_COMMAND_TO_WORKER:
-                $command = $workerCommand->arguments['command'];
-                $target  = $workerCommand->arguments['name'];
-                $targetIndex = $workerCommand->arguments['index'];
-                $this->sendCommand($command, $target, $targetIndex);
+                $innerCommand = $command->arguments['command'];
+                $target = $command->arguments['name'];
+                $targetIndex = $command->arguments['index'];
+                $this->sendToWorker($innerCommand, $target, $targetIndex);
                 break;
 
             case Manager::COMMAND_COMMAND_TO_ALL:
-                $command = $workerCommand->arguments['command'];
-                $this->sendCommand($command);
+                $innerCommand = $command->arguments['command'];
+                $this->sendToWorker($innerCommand);
                 break;
 
             case Manager::COMMAND_REFRESH_METADATA:
-                if ($workerProcess = $this->workers[$name]?->getWorkerProcess($index)) {
-                    $metadata = $workerCommand->arguments['metadata'];
-                    $workerProcess->refreshMetadata($metadata);
+                $metadata = $command->arguments['metadata'];
+                if (isset($this->process[$name][$index])) {
+                    $this->process[$name][$index]->metadata = $metadata;
                 }
                 break;
 
-            case Manager::COMMAND_GET_METADATA:
+            case Manager::COMMAND_SUPERVISOR_METADATA:
                 $result = [];
                 foreach ($this->workers as $worker) {
-                    $name          = $worker->getName();
+                    $name = $worker->name;
                     $result[$name] = [];
-                    foreach ($worker->getWorkerProcess() as $workerProcess) {
-                        foreach ($workerProcess->getMetadata() as $key => $value) {
-                            $result[$name][$key] = $value;
+
+                    foreach ($this->process as $workerName => $processes) {
+                        foreach ($processes as $index => $process) {
+                            $result[$name][$workerName][$index] = $process->metadata;
                         }
                     }
                 }
-                $id      = $workerCommand->arguments['id'];
-                $command = Command::make(Manager::COMMAND_GET_METADATA, ['metadata' => $result, 'id' => $id]);
-                $this->sendCommand($command, $name, $index);
+
+                $id = $command->arguments['id'];
+                $command = Command::make(Manager::COMMAND_SUPERVISOR_METADATA, ['metadata' => $result, 'id' => $id]);
+                $this->sendToWorker($command, $name, $index);
                 break;
         }
-    }
-
-    /**
-     * @Author cclilshy
-     * @Date   2024/8/17 02:01
-     *
-     * @param string|null $name
-     *
-     * @return void
-     */
-    public function reload(string|null $name = null): void
-    {
-        if ($name) {
-            if (isset($this->workers[$name])) {
-                $this->sendCommand(Command::make(WorkerContext::COMMAND_RELOAD), $name);
-            }
-            return;
-        }
-        $this->sendCommand(Command::make(WorkerContext::COMMAND_RELOAD));
     }
 
     /**
      * @param Command $command
-     * @param string|null            $name
+     * @param ?string $name
      * @param int|null $index
      *
      * @return void
      */
-    public function sendCommand(Command $command, string|null $name = null, int|null $index = null): void
+    public function sendToWorker(Command $command, ?string $name = null, int|null $index = null): void
     {
-        if ($name) {
-            if (!$worker = $this->workers[$name] ?? null) {
-                return;
+        foreach ($this->process as $workerName => $processes) {
+            if ($name && $workerName !== $name) {
+                continue;
             }
 
-            $workerProcesses = $index ? [$worker->getWorkerProcess($index)] : $worker->getWorkerProcess();
-            foreach ($workerProcesses as $workerProcess) {
-                $workerProcess?->command($command);
-            }
-        } else {
-            $workers = $this->workers;
-            foreach ($workers as $worker) {
-                $this->sendCommand($command, $worker->getName());
+            foreach ($processes as $workerIndex => $process) {
+                if ($index && $workerIndex !== $index) {
+                    continue;
+                }
+
+                try {
+                    $process->send($command);
+                } catch (ConnectionException $e) {
+                    continue;
+                }
             }
         }
     }
@@ -177,89 +155,95 @@ class Manager
     /**
      * @Author cclilshy
      * @Date   2024/8/16 12:28
-     * @return bool
+     * @return void
      */
-    public function run(): bool
+    public function run(): void
     {
-        /*** @compatible:Windows */
-        if (!Kernel::getInstance()->supportProcessControl()) {
-            $this->processID = getmypid();
-        } else {
-            $this->processID = Kernel::getInstance()->getProcessId();
-        }
-
         $this->zx7e = new Zx7e();
+
         foreach ($this->workers as $worker) {
             try {
-                $worker->register($this);
+                $worker->register();
             } catch (Throwable $exception) {
-                Output::error("Worker {$worker->getName()} registration failed: {$exception->getMessage()}, will be removed");
-                $this->remove($worker->getName());
-                return false;
+                Stdin::println("Worker {$worker->name} registration failed: {$exception->getMessage()}, will be removed");
+                $this->remove($worker->name);
+                return;
             }
         }
 
         foreach ($this->workers as $worker) {
-            if (!$worker->run($this)) {
-                Output::error("worker {$worker->getName()} failed to start");
-                $this->terminate();
+            $this->process[$worker->name] = [];
+
+            for ($index = 0; $index < $worker->count; $index++) {
+                try {
+                    $this->process[$worker->name][$index] = Process::spawn($this, $worker, $index);
+                } catch (Throwable $exception) {
+                    Stdin::println("Worker {$worker->name} boot failed: {$exception->getMessage()}, will be removed");
+                    foreach ($this->process[$worker->name] as $process) {
+                        $process->terminate();
+                    }
+
+                    break;
+                }
             }
         }
-        return true;
     }
 
     /**
      * @param string $name
-     *
      * @return void
      */
     public function remove(string $name): void
     {
-        if ($worker = $this->workers[$name] ?? null) {
-            $worker->isRunning() && $this->terminate($name);
+        if ($this->workers[$name] ?? null) {
+            $this->terminate($name);
             unset($this->workers[$name]);
         }
     }
 
     /**
-     * @Author cclilshy
-     * @Date   2024/8/17 00:44
-     *
-     * @param string|null $name
-     *
+     * @param ?string $name
      * @return void
      */
-    public function terminate(string|null $name = null): void
+    public function reload(?string $name = null): void
     {
         if ($name) {
-            if ($worker = $this->workers[$name] ?? null) {
-                $worker->terminate();
+            foreach ($this->process[$name] ?? [] as $process) {
+                $process->reload();
             }
             return;
         }
 
-        foreach ($this->workers as $worker) {
-            $worker->terminate();
+        foreach ($this->process as $name => $processes) {
+            foreach ($processes as $index => $process) {
+                $process->reload();
+            }
         }
     }
 
+
     /**
-     *
+     * @param ?string $name
+     * @return void
      */
-    public function __destruct()
+    public function terminate(?string $name = null): void
     {
-        if (!Kernel::getInstance()->supportProcessControl()) {
+        if ($name) {
+            foreach ($this->process[$name] ?? [] as $process) {
+                $process->terminate();
+            }
             return;
         }
 
-        if (isset($this->processID) && $this->processID === Kernel::getInstance()->getProcessId()) {
-            $this->terminate();
+        foreach ($this->process as $name => $processes) {
+            foreach ($processes as $index => $process) {
+                $process->terminate();
+            }
         }
     }
 
     /**
      * @param string $name
-     *
      * @return Worker|null
      */
     public function get(string $name): Worker|null

@@ -10,14 +10,10 @@
  * Contributions, suggestions, and feedback are always welcome!
  */
 
-namespace Ripple;
+namespace Ripple\Promise\Exception;
 
-use Ripple\Worker\BaseWorker;
+use Exception;
 
-/**
- * @Author cclilshy
- * @Date   2024/8/16 11:53
- */
-abstract class Worker extends BaseWorker
+class AggregateError extends Exception
 {
 }

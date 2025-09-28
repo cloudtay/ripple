@@ -1,7 +1,4 @@
 <p align="center">
-<img src="assets/images/logo.png" width="420" alt="Logo">
-</p>
-<p align="center">
 <a href="#"><img src="https://img.shields.io/badge/PHP-%3E%3D%208.1-blue" alt="Build Status"></a>
 <a href="https://packagist.org/packages/cloudtay/ripple"><img src="https://img.shields.io/packagist/dt/cloudtay/ripple" alt="Download statistics"></a>
 <a href="https://packagist.org/packages/cloudtay/ripple"><img src="https://img.shields.io/packagist/v/cloudtay/ripple" alt="Stable version"></a>
@@ -44,9 +41,6 @@ composer require cloudtay/ripple
 
 **🚀 [Guzzle]（https://docs.guzzlephp.org/en/stable/）**  
 PHP 是使用最广泛的 HTTP 客户端
-
-**🔥 [AmPHP]（https://amphp.org/）**  
-提供丰富的 PHP 异步组件供用户自行封装
 
 **🚀 [Laravel-ripple]（https://github.com/cloudtay/laravel-ripple）**  
 官方高性能驱动程序库提供对传统应用程序的无缝访问。
