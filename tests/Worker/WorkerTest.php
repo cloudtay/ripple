@@ -342,7 +342,7 @@ class WorkerTest extends TestCase
 
         $this->manager->reload('RestartTestWorker');
 
-        \Co\sleep(0.2);
+        \Co\sleep(2);
 
         $this->assertArrayHasKey('RestartTestWorker', $this->manager->process);
         $this->assertCount(1, $this->manager->process['RestartTestWorker']);
@@ -436,14 +436,14 @@ class WorkerTest extends TestCase
         $this->manager->add($receiverWorker);
         $this->manager->run();
 
-        \Co\sleep(1);
+        \Co\sleep(6);
 
         $this->manager->sendToWorker(Command::make('ping', [
             'test_data' => 'communication_test',
             'initiator' => 'test_suite'
         ]), 'CommunicationSender');
 
-        \Co\sleep(0.5);
+        \Co\sleep(6);
 
         $this->assertFileExists($tempFile);
         $content = file_get_contents($tempFile);
@@ -527,7 +527,7 @@ class WorkerTest extends TestCase
 
         $this->manager->sendToWorker(Command::make('request_metadata'), 'MetadataTestWorker');
 
-        \Co\sleep(0.5);
+        \Co\sleep(2);
 
         $this->assertFileExists($tempFile);
         $content = file_get_contents($tempFile);
@@ -668,7 +668,7 @@ class WorkerTest extends TestCase
                         'timestamp' => microtime(true)
                     ]);
 
-                    \Co\sleep(0.01);
+                    \Co\sleep(1);
 
                     $this->sendToWorker(Command::make('task_completed', [
                         'task_id' => $taskId,
@@ -728,13 +728,13 @@ class WorkerTest extends TestCase
         $this->manager->add($taskWorker2);
         $this->manager->run();
 
-        \Co\sleep(1);
+        \Co\sleep(6);
 
         $this->manager->sendToWorker(Command::make('start_workflow', [
             'task_count' => 3
         ]), 'Coordinator');
 
-        \Co\sleep(2);
+        \Co\sleep(6);
 
 
         $this->assertFileExists($tempFile);

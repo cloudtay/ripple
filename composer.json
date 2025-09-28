@@ -26,13 +26,11 @@
     "ext-pcntl": "*",
     "ext-sockets": "*",
     "ext-openssl": "*",
-    "ext-ffi": "*",
     "cloudtay/ripple-kernel": "^1.0",
     "cloudtay/ripple-database": "^1.0"
   },
   "require-dev": {
     "ext-curl": "*",
-    "ext-parallel": "*",
     "ext-zlib": "*",
     "phpunit/phpunit": "*",
     "friendsofphp/php-cs-fixer": "^3.68"
