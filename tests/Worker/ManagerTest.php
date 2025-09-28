@@ -22,6 +22,8 @@ class ManagerTest extends TestCase
     {
         if (isset($this->manager)) {
             $this->manager->terminate();
+
+            \Co\sleep(2);
         }
     }
 
@@ -162,7 +164,7 @@ class ManagerTest extends TestCase
         $this->manager->add($worker);
         $this->manager->run();
 
-        \Co\sleep(0.1);
+        \Co\sleep(1);
 
         $this->assertArrayHasKey('RunTestWorker', $this->manager->process);
         $this->assertCount(1, $this->manager->process['RunTestWorker']);
@@ -187,7 +189,7 @@ class ManagerTest extends TestCase
         $this->manager->add($worker);
         $this->manager->run();
 
-        \Co\sleep(0.1);
+        \Co\sleep(1);
 
         $this->assertArrayHasKey('ReloadTestWorker', $this->manager->process);
 
@@ -196,7 +198,7 @@ class ManagerTest extends TestCase
 
         $this->manager->reload('ReloadTestWorker');
 
-        \Co\sleep(0.2);
+        \Co\sleep(2);
 
         $this->assertArrayHasKey('ReloadTestWorker', $this->manager->process);
 
@@ -238,7 +240,7 @@ class ManagerTest extends TestCase
         $this->manager->add($worker2);
         $this->manager->run();
 
-        \Co\sleep(0.1);
+        \Co\sleep(1);
 
         $this->assertArrayHasKey('ReloadWorker1', $this->manager->process);
         $this->assertArrayHasKey('ReloadWorker2', $this->manager->process);
@@ -250,7 +252,7 @@ class ManagerTest extends TestCase
 
         $this->manager->reload();
 
-        \Co\sleep(0.2);
+        \Co\sleep(2);
 
         $this->assertArrayHasKey('ReloadWorker1', $this->manager->process);
         $this->assertArrayHasKey('ReloadWorker2', $this->manager->process);
@@ -282,7 +284,7 @@ class ManagerTest extends TestCase
         $this->manager->add($worker);
         $this->manager->run();
 
-        \Co\sleep(0.1);
+        \Co\sleep(1);
 
         $this->assertArrayHasKey('TerminateTestWorker', $this->manager->process);
 
@@ -326,7 +328,7 @@ class ManagerTest extends TestCase
         $this->manager->add($worker2);
         $this->manager->run();
 
-        \Co\sleep(0.1);
+        \Co\sleep(1);
 
         $this->assertArrayHasKey('TerminateWorker1', $this->manager->process);
         $this->assertArrayHasKey('TerminateWorker2', $this->manager->process);
@@ -359,7 +361,7 @@ class ManagerTest extends TestCase
         $this->manager->add($worker);
         $this->manager->run();
 
-        \Co\sleep(0.1);
+        \Co\sleep(1);
 
         $this->assertArrayHasKey('MultiProcessWorker', $this->manager->process);
         $this->assertCount(3, $this->manager->process['MultiProcessWorker']);

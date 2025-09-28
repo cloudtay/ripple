@@ -99,7 +99,7 @@ class Process
             self::spawn($this->manager, $this->worker, $this->index);
         });
 
-        $this->parentStream->watchRead(function () {
+        $this->parentStream->watchRead(fn () => go(function () {
             $content = $this->parentStream->read(1024);
             foreach ($this->zx7e->fill($content) as $string) {
                 $this->manager->emitCommand(Command::fromString($string), $this->worker->name, $this->index);
@@ -108,7 +108,7 @@ class Process
             if ($this->parentStream->eof()) {
                 $this->parentStream->close();
             }
-        });
+        }));
 
         $this->manager->process[$this->worker->name][$this->index] = $this;
     }
@@ -205,7 +205,7 @@ class Process
         }
 
         $childZx7e = new Zx7e();
-        $childStream->watchRead(function () use ($worker, $childStream, &$childZx7e) {
+        $childStream->watchRead(static fn () => go(static function () use ($worker, $childStream, &$childZx7e) {
             $content = $childStream->read(1024);
             foreach ($childZx7e->fill($content) as $string) {
                 $command = Command::fromString($string);
@@ -234,7 +234,7 @@ class Process
             if ($childStream->eof()) {
                 exit(0);
             }
-        });
+        }));
 
         go(static function () use ($worker) {
             while (1) {

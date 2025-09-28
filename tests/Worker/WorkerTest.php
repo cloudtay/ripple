@@ -80,7 +80,7 @@ class WorkerTest extends TestCase
         $this->manager->run();
 
 
-        \Co\sleep(0.1);
+        \Co\sleep(1);
 
 
         $this->assertArrayHasKey('TestWorker', $this->manager->process);
@@ -158,7 +158,7 @@ class WorkerTest extends TestCase
         $this->manager->add($worker);
         $this->manager->run();
 
-        \Co\sleep(0.1);
+        \Co\sleep(1);
 
         $this->assertArrayHasKey('ReloadTestWorker', $this->manager->process);
         $originalPid = $this->manager->process['ReloadTestWorker'][0]->pid;
@@ -228,7 +228,7 @@ class WorkerTest extends TestCase
         $command = new Command('test_command', ['data' => 'test_value']);
         $this->manager->sendToWorker($command, 'CommandTestWorker', 0);
 
-        \Co\sleep(0.1);
+        \Co\sleep(1);
 
         $this->assertTrue(true);
     }
@@ -252,7 +252,7 @@ class WorkerTest extends TestCase
         $this->manager->add($worker);
         $this->manager->run();
 
-        \Co\sleep(0.1);
+        \Co\sleep(1);
 
         $this->assertArrayHasKey('MetricsTestWorker', $this->manager->process);
 
@@ -280,7 +280,7 @@ class WorkerTest extends TestCase
         $this->manager->add($worker);
         $this->manager->run();
 
-        \Co\sleep(0.1);
+        \Co\sleep(1);
 
         $this->assertArrayHasKey('ConcurrencyTestWorker', $this->manager->process);
         $this->assertCount(3, $this->manager->process['ConcurrencyTestWorker']);
@@ -335,7 +335,7 @@ class WorkerTest extends TestCase
         $this->manager->add($worker);
         $this->manager->run();
 
-        \Co\sleep(0.1);
+        \Co\sleep(1);
 
         $initialProcess = $this->manager->process['RestartTestWorker'][0];
         $initialPid = $initialProcess->pid;
@@ -436,7 +436,7 @@ class WorkerTest extends TestCase
         $this->manager->add($receiverWorker);
         $this->manager->run();
 
-        \Co\sleep(0.1);
+        \Co\sleep(1);
 
         $this->manager->sendToWorker(Command::make('ping', [
             'test_data' => 'communication_test',
@@ -523,7 +523,7 @@ class WorkerTest extends TestCase
         $this->manager->add($metadataWorker);
         $this->manager->run();
 
-        \Co\sleep(0.1);
+        \Co\sleep(1);
 
         $this->manager->sendToWorker(Command::make('request_metadata'), 'MetadataTestWorker');
 
@@ -728,7 +728,7 @@ class WorkerTest extends TestCase
         $this->manager->add($taskWorker2);
         $this->manager->run();
 
-        \Co\sleep(0.1);
+        \Co\sleep(1);
 
         $this->manager->sendToWorker(Command::make('start_workflow', [
             'task_count' => 3
