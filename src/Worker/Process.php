@@ -100,13 +100,14 @@ class Process
         });
 
         $this->parentStream->watchRead(fn () => go(function () {
-            $content = $this->parentStream->read(1024);
-            foreach ($this->zx7e->fill($content) as $string) {
-                $this->manager->emitCommand(Command::fromString($string), $this->worker->name, $this->index);
-            }
+            while ($content = $this->parentStream->read(1024)) {
+                foreach ($this->zx7e->fill($content) as $string) {
+                    $this->manager->emitCommand(Command::fromString($string), $this->worker->name, $this->index);
+                }
 
-            if ($this->parentStream->eof()) {
-                $this->parentStream->close();
+                if ($this->parentStream->eof()) {
+                    $this->parentStream->close();
+                }
             }
         }));
 
@@ -140,7 +141,7 @@ class Process
      */
     public function terminate(): void
     {
-        Scheduler::terminate($this->guard)->resolve();
+        Scheduler::terminate($this->guard)->unwrap();
 
         try {
             $this->send(Command::make(BaseWorker::COMMAND_TERMINATE));
@@ -206,33 +207,34 @@ class Process
 
         $childZx7e = new Zx7e();
         $childStream->watchRead(static fn () => go(static function () use ($worker, $childStream, &$childZx7e) {
-            $content = $childStream->read(1024);
-            foreach ($childZx7e->fill($content) as $string) {
-                $command = Command::fromString($string);
-                switch ($command->name) {
-                    case BaseWorker::COMMAND_RELOAD:
-                        $worker->onReload();
-                        break;
+            while ($content = $childStream->read(1024)) {
+                foreach ($childZx7e->fill($content) as $string) {
+                    $command = Command::fromString($string);
+                    switch ($command->name) {
+                        case BaseWorker::COMMAND_RELOAD:
+                            $worker->onReload();
+                            break;
 
-                    case BaseWorker::COMMAND_TERMINATE:
-                        $worker->onTerminate();
-                        break;
+                        case BaseWorker::COMMAND_TERMINATE:
+                            $worker->onTerminate();
+                            break;
 
-                    case Manager::COMMAND_SUPERVISOR_METADATA:
-                        $id = $command->arguments['id'];
-                        if ($owner = $worker->subs[$id] ?? null) {
-                            unset($worker->subs[$id]);
-                            Scheduler::resume($owner, $command->arguments['metadata']);
-                        }
-                        break;
+                        case Manager::COMMAND_SUPERVISOR_METADATA:
+                            $id = $command->arguments['id'];
+                            if ($owner = $worker->subs[$id] ?? null) {
+                                unset($worker->subs[$id]);
+                                Scheduler::resume($owner, $command->arguments['metadata']);
+                            }
+                            break;
 
-                    default:
-                        $worker->onCommand($command);
+                        default:
+                            $worker->onCommand($command);
+                    }
                 }
-            }
 
-            if ($childStream->eof()) {
-                exit(0);
+                if ($childStream->eof()) {
+                    exit(0);
+                }
             }
         }));
 

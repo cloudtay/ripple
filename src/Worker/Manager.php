@@ -77,12 +77,12 @@ class Manager
      *
      * @return void
      */
-    public function emitCommand(Command $command, string $name, int $index): void
+    public function emitCommand(Command $command, string $workerName, int $index): void
     {
         switch ($command->name) {
             case BaseWorker::COMMAND_RELOAD:
-                $name = $command->arguments['name'] ?? null;
-                $this->reload($name);
+                $workerName = $command->arguments['name'] ?? null;
+                $this->reload($workerName);
                 break;
 
             case Manager::COMMAND_COMMAND_TO_WORKER:
@@ -99,27 +99,27 @@ class Manager
 
             case Manager::COMMAND_REFRESH_METADATA:
                 $metadata = $command->arguments['metadata'];
-                if (isset($this->process[$name][$index])) {
-                    $this->process[$name][$index]->metadata = $metadata;
+                if (isset($this->process[$workerName][$index])) {
+                    $this->process[$workerName][$index]->metadata = $metadata;
                 }
                 break;
 
             case Manager::COMMAND_SUPERVISOR_METADATA:
                 $result = [];
                 foreach ($this->workers as $worker) {
-                    $name = $worker->name;
-                    $result[$name] = [];
+                    $_workerName = $worker->name;
+                    $result[$_workerName] = [];
 
-                    foreach ($this->process as $workerName => $processes) {
+                    foreach ($this->process as $processes) {
                         foreach ($processes as $index => $process) {
-                            $result[$name][$workerName][$index] = $process->metadata;
+                            $result[$_workerName][$index] = $process->metadata;
                         }
                     }
                 }
 
                 $id = $command->arguments['id'];
                 $command = Command::make(Manager::COMMAND_SUPERVISOR_METADATA, ['metadata' => $result, 'id' => $id]);
-                $this->sendToWorker($command, $name, $index);
+                $this->sendToWorker($command, $workerName, $index);
                 break;
         }
     }
