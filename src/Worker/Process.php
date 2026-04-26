@@ -13,24 +13,23 @@
 namespace Ripple\Worker;
 
 use Ripple\Coroutine;
+use Ripple\Process as KernelProcess;
 use Ripple\Runtime\Scheduler;
-use Ripple\Stream;
-use Ripple\Process as RippleProcess;
 use Ripple\Serial\Zx7e;
+use Ripple\Stream;
 use Ripple\Stream\Exception\ConnectionException;
-use Ripple\Time;
-use Throwable;
 use RuntimeException;
+use Throwable;
 
-use function Co\go;
-use function stream_socket_pair;
-use function stream_set_blocking;
 use function cli_set_process_title;
+use function Co\go;
 use function function_exists;
+use function stream_set_blocking;
+use function stream_socket_pair;
 
 use const AF_UNIX;
-use const SOCK_STREAM;
 use const SIGKILL;
+use const SOCK_STREAM;
 
 /**
  * @Author cclilshy
@@ -72,49 +71,6 @@ class Process
     }
 
     /**
-     * @return void
-     * @throws ConnectionException
-     */
-    private function spawnParent(): void
-    {
-        $this->zx7e = new Zx7e();
-        $this->guard = go(function () {
-            try {
-                $exitCode = RippleProcess::wait($this->pid);
-            } catch (Throwable) {
-                return;
-            }
-
-            $this->parentStream->close();
-
-            if ($exitCode === 1) {
-                return;
-            }
-
-            if ($exitCode === 128) {
-                \Co\sleep(1);
-                return;
-            }
-
-            self::spawn($this->manager, $this->worker, $this->index);
-        });
-
-        $this->parentStream->watchRead(fn () => go(function () {
-            while ($content = $this->parentStream->read(1024)) {
-                foreach ($this->zx7e->fill($content) as $string) {
-                    $this->manager->emitCommand(Command::fromString($string), $this->worker->name, $this->index);
-                }
-
-                if ($this->parentStream->eof()) {
-                    $this->parentStream->close();
-                }
-            }
-        }));
-
-        $this->manager->process[$this->worker->name][$this->index] = $this;
-    }
-
-    /**
      * 主进程视角：发送命令到子进程
      * @param Command $command
      * @return void
@@ -145,11 +101,11 @@ class Process
 
         try {
             $this->send(Command::make(BaseWorker::COMMAND_TERMINATE));
-        } catch (ConnectionException $e) {
+        } catch (ConnectionException) {
         } finally {
             go(function () {
                 \Co\sleep(1);
-                RippleProcess::signal($this->pid, SIGKILL);
+                KernelProcess::signal($this->pid, SIGKILL);
                 $this->parentStream->close();
                 unset($this->manager->process[$this->worker->name][$this->index]);
                 if (empty($this->manager->process[$this->worker->name])) {
@@ -169,17 +125,17 @@ class Process
      */
     public static function spawn(Manager $manager, BaseWorker $worker, int $index): Process
     {
-        if (!$sockets = stream_socket_pair(AF_UNIX, SOCK_STREAM, 0)) {
+        if (!$pair = stream_socket_pair(AF_UNIX, SOCK_STREAM, 0)) {
             throw new RuntimeException('Could not create socket pair');
         }
 
-        $parentStream = new Stream($sockets[0]);
-        $childStream = new Stream($sockets[1]);
+        $parentStream = new Stream($pair[0]);
+        $childStream = new Stream($pair[1]);
 
-        stream_set_blocking($sockets[0], false);
-        stream_set_blocking($sockets[1], false);
+        stream_set_blocking($pair[0], false);
+        stream_set_blocking($pair[1], false);
 
-        $pid = RippleProcess::fork(static fn () => self::spawnChild($worker, $childStream));
+        $pid = KernelProcess::fork(static fn () => self::spawnChild($worker, $childStream));
 
         return new Process(
             manager: $manager,
@@ -188,6 +144,48 @@ class Process
             pid: $pid,
             parentStream: $parentStream,
         );
+    }
+
+    /**
+     * @return void
+     * @throws ConnectionException
+     */
+    private function spawnParent(): void
+    {
+        $this->zx7e = new Zx7e();
+
+        $this->parentStream->watchRead(fn () => go(function () {
+            while ($content = $this->parentStream->read(1024)) {
+                foreach ($this->zx7e->fill($content) as $string) {
+                    $this->manager->emitCommand(Command::fromString($string), $this->worker->name, $this->index);
+                }
+
+                if ($this->parentStream->eof()) {
+                    $this->parentStream->close();
+                }
+            }
+        }));
+
+        $this->guard = go(function () {
+            try {
+                $exitCode = KernelProcess::wait($this->pid);
+                $this->parentStream->close();
+                unset($this->manager->process[$this->worker->name][$this->index]);
+            } catch (Throwable) {
+                return;
+            }
+
+            if ($exitCode === 1) {
+                return;
+            }
+
+            if ($exitCode === 128) {
+                return;
+            }
+
+            \Co\sleep(1);
+            $this->manager->process[$this->worker->name][$this->index] = self::spawn($this->manager, $this->worker, $this->index);
+        });
     }
 
     /**
@@ -249,7 +247,7 @@ class Process
                     )
                 );
 
-                Time::sleep(1);
+                \Co\sleep(1);
             }
         });
     }

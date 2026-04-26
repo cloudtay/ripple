@@ -12,12 +12,12 @@
 
 namespace Ripple\Worker;
 
+use InvalidArgumentException;
 use Ripple\Runtime\Support\Stdin;
 use Ripple\Serial\Zx7e;
 use Ripple\Stream\Exception\ConnectionException;
 use Ripple\Worker;
 use Throwable;
-use InvalidArgumentException;
 
 /**
  * @Author cclilshy
@@ -72,7 +72,7 @@ class Manager
 
     /**
      * @param Command $command
-     * @param string $name
+     * @param string $workerName
      * @param int $index
      *
      * @return void
@@ -110,10 +110,8 @@ class Manager
                     $_workerName = $worker->name;
                     $result[$_workerName] = [];
 
-                    foreach ($this->process as $processes) {
-                        foreach ($processes as $index => $process) {
-                            $result[$_workerName][$index] = $process->metadata;
-                        }
+                    foreach ($this->process[$_workerName] as $index => $process) {
+                        $result[$_workerName][$index] = $process->metadata;
                     }
                 }
 

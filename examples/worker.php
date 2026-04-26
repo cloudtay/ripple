@@ -11,7 +11,7 @@
  * Contributions, suggestions, and feedback are always welcome!
  */
 
-use Ripple\Time;
+use Ripple\Runtime\Support\Stdin;
 use Ripple\Worker;
 use Ripple\Worker\Command;
 use Ripple\Worker\Manager;
@@ -26,17 +26,26 @@ class WorkerA extends Worker
     public function register(): void
     {
         $this->name = __CLASS__;
-        \var_dump('register');
     }
 
     public function boot(): void
     {
-        \var_dump('boot');
+        Stdin::println('a is booting');
+        go(function () {
+            while (1) {
+                Stdin::println('a is running');
+                \Co\sleep(1);
+            }
+        });
+
+        \Co\go(function () {
+            \Co\sleep(6);
+            exit(2);
+        });
     }
 
     public function onCommand(Command $command): void
     {
-        \var_dump($command->name);
     }
 }
 
@@ -44,17 +53,15 @@ class WorkerB extends Worker
 {
     public function register(): void
     {
-        \var_dump('register');
     }
 
     public function boot(): void
     {
-        \var_dump('boot');
-        \Co\go(function () {
+        Stdin::println('b is booting');
+        go(function () {
             while (1) {
-                \var_dump(1);
-                \var_dump($this->supervisorMetadata());
-                Time::sleep(1);
+                Stdin::println(\json_encode($this->supervisorMetadata()));
+                \Co\sleep(1);
             }
         });
     }
@@ -71,11 +78,4 @@ $manager->add(new WorkerA());
 $manager->add(new WorkerB());
 
 $manager->run();
-
-go(function () use ($manager) {
-    while (1) {
-        Time::sleep(1);
-    }
-});
-
 wait();
