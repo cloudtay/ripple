@@ -26,8 +26,6 @@ jobs:
         with:
           php-version: ${{ matrix.php-version }}
           extensions: posix, sockets, pcntl, openssl, ${{ matrix.php-extensions }}
-        env:
-          phpts: ts
 
       - name: Install dependencies
         run: composer install
